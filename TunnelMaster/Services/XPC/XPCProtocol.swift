@@ -14,7 +14,7 @@ let helperBundleIdentifier = "nniel.TunnelMaster.helper"
 
 // MARK: - XPC Protocol
 
-@objc public protocol HelperProtocol {
+@preconcurrency @objc public protocol HelperProtocol {
     /// Start the tunnel with the given sing-box configuration
     func startTunnel(configJSON: String, reply: @escaping (Bool, String?) -> Void)
 

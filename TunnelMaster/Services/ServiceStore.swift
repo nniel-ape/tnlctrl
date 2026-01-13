@@ -5,7 +5,8 @@
 
 import Foundation
 
-actor ServiceStore {
+@MainActor
+final class ServiceStore {
     static let shared = ServiceStore()
 
     private let encoder: JSONEncoder = {

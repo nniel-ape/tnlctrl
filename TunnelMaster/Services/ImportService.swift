@@ -8,14 +8,17 @@ import Foundation
 actor ImportService {
     static let shared = ImportService()
 
-    private let parsers: [ConfigImporter] = [
-        SingBoxParser(),
-        ClashParser(),
-        V2RayParser(),
-        URIParser()
-    ]
+    private let parsers: [ConfigImporter]
 
-    private init() {}
+    private init() {
+        let keychain = KeychainManager.shared
+        parsers = [
+            SingBoxParser(keychainManager: keychain),
+            ClashParser(keychainManager: keychain),
+            V2RayParser(keychainManager: keychain),
+            URIParser(keychainManager: keychain)
+        ]
+    }
 
     func importConfig(text: String) async throws -> [Service] {
         // Try each parser

@@ -8,7 +8,7 @@ import Foundation
 struct ClashParser: ConfigImporter {
     private let keychainManager: any KeychainManaging
 
-    init(keychainManager: any KeychainManaging = KeychainManager.shared) {
+    nonisolated init(keychainManager: any KeychainManaging) {
         self.keychainManager = keychainManager
     }
 
@@ -51,7 +51,6 @@ struct ClashParser: ConfigImporter {
         let lines = afterProxies.components(separatedBy: .newlines)
 
         var currentProxy: [String: String]? = nil
-        var inProxySection = true
 
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -61,12 +60,9 @@ struct ClashParser: ConfigImporter {
             let isIndented = line.hasPrefix(" ") || line.hasPrefix("\t")
             if !trimmed.isEmpty && !isIndented && !trimmed.hasPrefix("-") &&
                !trimmed.hasPrefix("#") && trimmed.contains(":") && !trimmed.hasPrefix("{") {
-                // New top-level section
-                inProxySection = false
+                // New top-level section - exit the loop
                 break
             }
-
-            guard inProxySection else { break }
 
             // New proxy entry
             if trimmed.hasPrefix("- ") {

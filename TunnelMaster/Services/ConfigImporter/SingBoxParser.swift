@@ -8,7 +8,7 @@ import Foundation
 struct SingBoxParser: ConfigImporter {
     private let keychainManager: any KeychainManaging
 
-    init(keychainManager: any KeychainManaging = KeychainManager.shared) {
+    nonisolated init(keychainManager: any KeychainManaging) {
         self.keychainManager = keychainManager
     }
 

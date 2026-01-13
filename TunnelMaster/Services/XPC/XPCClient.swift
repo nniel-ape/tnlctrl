@@ -7,7 +7,8 @@
 
 import Foundation
 
-actor XPCClient {
+@MainActor
+final class XPCClient {
     static let shared = XPCClient()
 
     private var connection: NSXPCConnection?
@@ -25,14 +26,14 @@ actor XPCClient {
         conn.remoteObjectInterface = createHelperInterface()
 
         conn.invalidationHandler = { [weak self] in
-            Task { [weak self] in
-                await self?.handleInvalidation()
+            Task { @MainActor [weak self] in
+                self?.handleInvalidation()
             }
         }
 
         conn.interruptionHandler = { [weak self] in
-            Task { [weak self] in
-                await self?.handleInterruption()
+            Task { @MainActor [weak self] in
+                self?.handleInterruption()
             }
         }
 
