@@ -8,6 +8,7 @@ import SwiftUI
 struct ServicesTab: View {
     @Environment(AppState.self) private var appState
     @State private var showingImportSheet = false
+    @State private var showingWizard = false
 
     var body: some View {
         Group {
@@ -20,6 +21,10 @@ struct ServicesTab: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showingImportSheet) {
             ImportSheet()
+                .environment(appState)
+        }
+        .sheet(isPresented: $showingWizard) {
+            WizardView()
                 .environment(appState)
         }
     }
@@ -37,8 +42,8 @@ struct ServicesTab: View {
                 Button("Import Config...") {
                     showingImportSheet = true
                 }
-                Button("Add Server...") {
-                    // TODO: Task 23 - Deployment wizard
+                Button("Deploy Server...") {
+                    showingWizard = true
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -56,8 +61,8 @@ struct ServicesTab: View {
                 Button("Import...") {
                     showingImportSheet = true
                 }
-                Button("Add Server...") {
-                    // TODO: Task 23
+                Button("Deploy Server...") {
+                    showingWizard = true
                 }
                 .buttonStyle(.borderedProminent)
             }
