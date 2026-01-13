@@ -18,6 +18,13 @@
 			remoteGlobalIDString = 55B869F22F1695ED00906E9A;
 			remoteInfo = TunnelMasterHelper;
 		};
+		55B86A132F16A4F800906E9A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 55B8697B2F16725F00906E9A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 55B869822F16725F00906E9A;
+			remoteInfo = TunnelMaster;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -45,6 +52,7 @@
 /* Begin PBXFileReference section */
 		55B869832F16725F00906E9A /* TunnelMaster.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TunnelMaster.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		55B869F32F1695ED00906E9A /* TunnelMasterHelper */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = TunnelMasterHelper; sourceTree = BUILT_PRODUCTS_DIR; };
+		55B86A0F2F16A4F800906E9A /* TunnelMasterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TunnelMasterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -84,6 +92,11 @@
 			path = TunnelMasterHelper;
 			sourceTree = "<group>";
 		};
+		55B86A102F16A4F800906E9A /* TunnelMasterTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TunnelMasterTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -101,6 +114,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		55B86A0C2F16A4F800906E9A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -109,6 +129,7 @@
 			children = (
 				55B869852F16725F00906E9A /* TunnelMaster */,
 				55B869F42F1695ED00906E9A /* TunnelMasterHelper */,
+				55B86A102F16A4F800906E9A /* TunnelMasterTests */,
 				55B869842F16725F00906E9A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -118,6 +139,7 @@
 			children = (
 				55B869832F16725F00906E9A /* TunnelMaster.app */,
 				55B869F32F1695ED00906E9A /* TunnelMasterHelper */,
+				55B86A0F2F16A4F800906E9A /* TunnelMasterTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -171,6 +193,29 @@
 			productReference = 55B869F32F1695ED00906E9A /* TunnelMasterHelper */;
 			productType = "com.apple.product-type.tool";
 		};
+		55B86A0E2F16A4F800906E9A /* TunnelMasterTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 55B86A152F16A4F800906E9A /* Build configuration list for PBXNativeTarget "TunnelMasterTests" */;
+			buildPhases = (
+				55B86A0B2F16A4F800906E9A /* Sources */,
+				55B86A0C2F16A4F800906E9A /* Frameworks */,
+				55B86A0D2F16A4F800906E9A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				55B86A142F16A4F800906E9A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				55B86A102F16A4F800906E9A /* TunnelMasterTests */,
+			);
+			name = TunnelMasterTests;
+			packageProductDependencies = (
+			);
+			productName = TunnelMasterTests;
+			productReference = 55B86A0F2F16A4F800906E9A /* TunnelMasterTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -186,6 +231,10 @@
 					};
 					55B869F22F1695ED00906E9A = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					55B86A0E2F16A4F800906E9A = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 55B869822F16725F00906E9A;
 					};
 				};
 			};
@@ -205,12 +254,20 @@
 			targets = (
 				55B869822F16725F00906E9A /* TunnelMaster */,
 				55B869F22F1695ED00906E9A /* TunnelMasterHelper */,
+				55B86A0E2F16A4F800906E9A /* TunnelMasterTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		55B869812F16725F00906E9A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		55B86A0D2F16A4F800906E9A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -234,6 +291,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		55B86A0B2F16A4F800906E9A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -241,6 +305,11 @@
 			isa = PBXTargetDependency;
 			target = 55B869F22F1695ED00906E9A /* TunnelMasterHelper */;
 			targetProxy = 55B86A042F16975A00906E9A /* PBXContainerItemProxy */;
+		};
+		55B86A142F16A4F800906E9A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 55B869822F16725F00906E9A /* TunnelMaster */;
+			targetProxy = 55B86A132F16A4F800906E9A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -463,6 +532,46 @@
 			};
 			name = Release;
 		};
+		55B86A162F16A4F800906E9A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8TZ8FEYTV2;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = nniel.ItProxy.TunnelMasterTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TunnelMaster.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TunnelMaster";
+			};
+			name = Debug;
+		};
+		55B86A172F16A4F800906E9A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8TZ8FEYTV2;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = nniel.ItProxy.TunnelMasterTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TunnelMaster.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TunnelMaster";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -489,6 +598,15 @@
 			buildConfigurations = (
 				55B869F82F1695ED00906E9A /* Debug */,
 				55B869F92F1695ED00906E9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		55B86A152F16A4F800906E9A /* Build configuration list for PBXNativeTarget "TunnelMasterTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				55B86A162F16A4F800906E9A /* Debug */,
+				55B86A172F16A4F800906E9A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
