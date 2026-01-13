@@ -10,6 +10,7 @@ import SwiftUI
 @main
 struct TunnelMasterApp: App {
     @State private var appState = AppState()
+    @State private var showOnboarding = OnboardingView.shouldShowOnboarding()
 
     var body: some Scene {
         MenuBarExtra {
@@ -25,6 +26,25 @@ struct TunnelMasterApp: App {
         Settings {
             SettingsWindow()
                 .environment(appState)
+        }
+
+        Window("Welcome", id: "onboarding") {
+            OnboardingView()
+                .environment(appState)
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+    }
+
+    init() {
+        // Show onboarding on first launch
+        if OnboardingView.shouldShowOnboarding() {
+            DispatchQueue.main.async {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                if let window = NSApplication.shared.windows.first(where: { $0.title == "Welcome" }) {
+                    window.makeKeyAndOrderFront(nil)
+                }
+            }
         }
     }
 }

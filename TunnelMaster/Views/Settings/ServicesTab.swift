@@ -9,6 +9,8 @@ struct ServicesTab: View {
     @Environment(AppState.self) private var appState
     @State private var showingImportSheet = false
     @State private var showingWizard = false
+    @State private var showingExportSheet = false
+    @State private var exportFormat: ExportFormat = .singbox
 
     var body: some View {
         Group {
@@ -26,6 +28,9 @@ struct ServicesTab: View {
         .sheet(isPresented: $showingWizard) {
             WizardView()
                 .environment(appState)
+        }
+        .sheet(isPresented: $showingExportSheet) {
+            ExportSheet(services: appState.services, format: $exportFormat)
         }
     }
 
@@ -58,6 +63,9 @@ struct ServicesTab: View {
                 Text("\(appState.services.count) services")
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button("Export...") {
+                    showingExportSheet = true
+                }
                 Button("Import...") {
                     showingImportSheet = true
                 }

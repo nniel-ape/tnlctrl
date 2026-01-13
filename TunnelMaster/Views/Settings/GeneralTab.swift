@@ -7,6 +7,7 @@ import SwiftUI
 
 struct GeneralTab: View {
     @State private var helperInstaller = HelperInstaller.shared
+    @State private var geoUpdater = GeoDatabaseUpdater.shared
     @State private var installError: String?
     @State private var isInstalling = false
 
@@ -46,16 +47,46 @@ struct GeneralTab: View {
                     VStack(alignment: .leading) {
                         Text("GeoIP / GeoSite")
                             .font(.headline)
-                        Text("Used for geo-based routing rules")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+
+                        if let lastUpdate = geoUpdater.lastUpdateDate {
+                            Text("Last updated: \(lastUpdate.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else if geoUpdater.hasLocalDatabases() {
+                            Text("Databases installed")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Not installed")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                     }
 
                     Spacer()
 
-                    Button("Check for Updates") {
-                        // TODO: Task 26 - Geo database updates
+                    if geoUpdater.isUpdating {
+                        ProgressView(value: geoUpdater.updateProgress)
+                            .frame(width: 100)
+                    } else if geoUpdater.isChecking {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else if geoUpdater.updateAvailable {
+                        Button("Update Now") {
+                            Task { await geoUpdater.update() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        Button("Check for Updates") {
+                            Task { await geoUpdater.checkForUpdates() }
+                        }
                     }
+                }
+
+                if let error = geoUpdater.error {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
                 }
             }
 
