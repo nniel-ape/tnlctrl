@@ -6,13 +6,19 @@
 import Foundation
 
 struct URIParser: ConfigImporter {
+    private let keychainManager: any KeychainManaging
+
+    init(keychainManager: any KeychainManaging = KeychainManager.shared) {
+        self.keychainManager = keychainManager
+    }
+
     func canImport(data: Data) -> Bool {
         guard let text = String(data: data, encoding: .utf8) else { return false }
         return canImport(text: text)
     }
 
     func canImport(text: String) -> Bool {
-        let schemes = ["ss://", "vmess://", "vless://", "trojan://", "socks://", "socks5://"]
+        let schemes = ["ss://", "vmess://", "vless://", "trojan://", "socks://", "socks5://", "hy2://", "hysteria2://"]
         return schemes.contains { text.lowercased().hasPrefix($0) }
     }
 
@@ -55,6 +61,8 @@ struct URIParser: ConfigImporter {
             return try await parseTrojan(uri)
         } else if lowercased.hasPrefix("socks://") || lowercased.hasPrefix("socks5://") {
             return try await parseSOCKS5(uri)
+        } else if lowercased.hasPrefix("hy2://") || lowercased.hasPrefix("hysteria2://") {
+            return try await parseHysteria2(uri)
         }
 
         return nil
@@ -384,6 +392,79 @@ struct URIParser: ConfigImporter {
         )
     }
 
+    // MARK: - Hysteria2
+
+    private func parseHysteria2(_ uri: String) async throws -> Service? {
+        // Format: hy2://password@host:port?params#name
+        // or: hysteria2://password@host:port?params#name
+        var workingURI = uri.lowercased().hasPrefix("hy2://")
+            ? String(uri.dropFirst(6))
+            : String(uri.dropFirst(12)) // "hysteria2://"
+
+        // Extract fragment (name)
+        var name = "Hysteria2"
+        if let hashIndex = workingURI.lastIndex(of: "#") {
+            name = String(workingURI[workingURI.index(after: hashIndex)...])
+                .removingPercentEncoding ?? name
+            workingURI = String(workingURI[..<hashIndex])
+        }
+
+        // Extract query params
+        var params: [String: String] = [:]
+        if let queryIndex = workingURI.firstIndex(of: "?") {
+            let queryString = String(workingURI[workingURI.index(after: queryIndex)...])
+            params = parseQueryString(queryString)
+            workingURI = String(workingURI[..<queryIndex])
+        }
+
+        // Parse password@host:port
+        guard let atIndex = workingURI.lastIndex(of: "@") else {
+            throw ConfigImportError.invalidFormat("Invalid Hysteria2 format")
+        }
+
+        let password = String(workingURI[..<atIndex])
+            .removingPercentEncoding ?? String(workingURI[..<atIndex])
+        let hostPort = String(workingURI[workingURI.index(after: atIndex)...])
+        let hostPortParts = parseHostPort(hostPort)
+
+        var settings: [String: AnyCodableValue] = [:]
+        settings["tls_enabled"] = .bool(true) // Hysteria2 always uses TLS
+
+        if let sni = params["sni"] {
+            settings["tls_server_name"] = .string(sni)
+        }
+        if let insecure = params["insecure"] {
+            settings["tls_insecure"] = .bool(insecure == "1" || insecure.lowercased() == "true")
+        }
+        if let alpn = params["alpn"] {
+            let alpnList = alpn.components(separatedBy: ",")
+            settings["tls_alpn"] = .array(alpnList.map { .string($0) })
+        }
+        if let obfs = params["obfs"] {
+            settings["obfs_type"] = .string(obfs)
+        }
+        if let obfsPassword = params["obfs-password"] {
+            settings["obfs"] = .string(obfsPassword)
+        }
+        if let up = params["up"] {
+            settings["up"] = .string(up)
+        }
+        if let down = params["down"] {
+            settings["down"] = .string(down)
+        }
+
+        let credentialRef = try await storeCredential(password, for: name)
+
+        return Service(
+            name: name,
+            protocol: .hysteria2,
+            server: hostPortParts.host,
+            port: hostPortParts.port ?? 443,
+            credentialRef: credentialRef,
+            settings: settings
+        )
+    }
+
     // MARK: - Helpers
 
     private func parseHostPort(_ string: String) -> (host: String, port: Int?) {
@@ -440,8 +521,8 @@ struct URIParser: ConfigImporter {
     }
 
     private func storeCredential(_ value: String, for tag: String) async throws -> String {
-        let ref = await KeychainManager.shared.generateCredentialRef()
-        try await KeychainManager.shared.save(value, for: ref)
+        let ref = await keychainManager.generateCredentialRef()
+        try await keychainManager.save(value, for: ref)
         return ref
     }
 }
