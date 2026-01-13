@@ -23,7 +23,7 @@ struct TunnelMasterApp: App {
         }
 
         Settings {
-            SettingsPlaceholder()
+            SettingsWindow()
                 .environment(appState)
         }
     }
