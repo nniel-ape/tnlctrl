@@ -31,18 +31,41 @@ let helperBundleIdentifier = "nniel.TunnelMaster.helper"
     func getVersion(reply: @escaping (String) -> Void)
 }
 
-// MARK: - Status Codes
+// MARK: - Tunnel Status
 
 public enum TunnelStatus: Int32, Sendable {
     case stopped = 0
-    case starting = 1
+    case connecting = 1
     case running = 2
-    case stopping = 3
-    case error = -1
+    case disconnecting = 3
+    case error = 4
+
+    public var displayName: String {
+        switch self {
+        case .stopped: "Disconnected"
+        case .connecting: "Connecting..."
+        case .running: "Connected"
+        case .disconnecting: "Disconnecting..."
+        case .error: "Error"
+        }
+    }
+
+    public var isConnected: Bool {
+        self == .running
+    }
+
+    public var systemImage: String {
+        switch self {
+        case .stopped: "network.slash"
+        case .connecting, .disconnecting: "network.badge.shield.half.filled"
+        case .running: "network"
+        case .error: "exclamationmark.triangle"
+        }
+    }
 }
 
 // MARK: - XPC Interface Setup
 
-public func createHelperInterface() -> NSXPCInterface {
+public nonisolated func createHelperInterface() -> NSXPCInterface {
     NSXPCInterface(with: HelperProtocol.self)
 }

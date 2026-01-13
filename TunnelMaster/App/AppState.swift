@@ -5,12 +5,16 @@
 
 import SwiftUI
 
+@MainActor
 @Observable
 final class AppState {
+    // MARK: - Tunnel Manager
+
+    let tunnelManager = TunnelManager.shared
+    let helperInstaller = HelperInstaller.shared
+
     // MARK: - Connection State
 
-    var isConnected = false
-    var isConnecting = false
     var activeServiceId: UUID?
 
     // MARK: - Data
@@ -20,6 +24,22 @@ final class AppState {
 
     // MARK: - Computed
 
+    var isConnected: Bool {
+        tunnelManager.status.isConnected
+    }
+
+    var isTransitioning: Bool {
+        tunnelManager.isTransitioning
+    }
+
+    var tunnelStatus: TunnelStatus {
+        tunnelManager.status
+    }
+
+    var tunnelError: String? {
+        tunnelManager.error
+    }
+
     var activeService: Service? {
         guard let id = activeServiceId else { return nil }
         return services.first { $0.id == id }
@@ -27,6 +47,32 @@ final class AppState {
 
     var enabledServices: [Service] {
         services.filter(\.isEnabled)
+    }
+
+    // MARK: - Tunnel Control
+
+    func connect() async {
+        do {
+            try await tunnelManager.start(services: services, tunnelConfig: tunnelConfig)
+        } catch {
+            print("Failed to connect: \(error)")
+        }
+    }
+
+    func disconnect() async {
+        do {
+            try await tunnelManager.stop()
+        } catch {
+            print("Failed to disconnect: \(error)")
+        }
+    }
+
+    func toggleConnection() async {
+        if isConnected {
+            await disconnect()
+        } else {
+            await connect()
+        }
     }
 
     // MARK: - Persistence

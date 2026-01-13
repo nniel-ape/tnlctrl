@@ -12,35 +12,97 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 0) {
             statusSection
             Divider()
+            servicesSection
+            Divider()
             actionsSection
         }
-        .frame(width: 220)
+        .frame(width: 240)
     }
 
     private var statusSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Circle()
-                    .fill(appState.isConnected ? .green : .secondary)
-                    .frame(width: 8, height: 8)
-                Text(appState.isConnected ? "Connected" : "Disconnected")
+                Image(systemName: appState.tunnelStatus.systemImage)
+                    .foregroundStyle(statusColor)
+                Text(appState.tunnelStatus.displayName)
                     .font(.headline)
+
+                if appState.isTransitioning {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                }
             }
 
-            if appState.isConnecting {
-                Text("Connecting...")
+            if let error = appState.tunnelError {
+                Text(error)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+            }
+
+            if appState.helperInstaller.status != .installed {
+                Text("Helper not installed")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
 
+    private var statusColor: Color {
+        switch appState.tunnelStatus {
+        case .running: .green
+        case .connecting, .disconnecting: .orange
+        case .error: .red
+        case .stopped: .secondary
+        }
+    }
+
+    private var servicesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if appState.enabledServices.isEmpty {
+                Text("No services configured")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+            } else {
+                ForEach(appState.enabledServices.prefix(5)) { service in
+                    HStack {
+                        Image(systemName: service.protocol.systemImage)
+                            .frame(width: 16)
+                        Text(service.name)
+                            .lineLimit(1)
+                        Spacer()
+                        if let latency = service.latency {
+                            Text("\(latency)ms")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                }
+
+                if appState.enabledServices.count > 5 {
+                    Text("+\(appState.enabledServices.count - 5) more")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
     private var actionsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                toggleConnection()
+                Task {
+                    await appState.toggleConnection()
+                }
             } label: {
                 Label(
                     appState.isConnected ? "Disconnect" : "Connect",
@@ -51,6 +113,7 @@ struct MenuBarView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
+            .disabled(appState.isTransitioning || appState.helperInstaller.status != .installed)
 
             Divider()
                 .padding(.vertical, 4)
@@ -72,19 +135,6 @@ struct MenuBarView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-        }
-    }
-
-    private func toggleConnection() {
-        if appState.isConnected {
-            appState.isConnected = false
-        } else {
-            appState.isConnecting = true
-            // Simulate connection delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                appState.isConnecting = false
-                appState.isConnected = true
-            }
         }
     }
 }
