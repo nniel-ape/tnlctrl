@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>nniel.TunnelMaster.helper</string>
+    <key>MachServices</key>
+    <dict>
+        <key>nniel.TunnelMaster.helper</key>
+        <true/>
+    </dict>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/var/log/TunnelMasterHelper.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/TunnelMasterHelper.log</string>
+</dict>
+</plist>
