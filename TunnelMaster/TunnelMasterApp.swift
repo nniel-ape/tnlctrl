@@ -15,12 +15,16 @@ struct TunnelMasterApp: App {
         MenuBarExtra {
             MenuBarView()
                 .environment(appState)
+                .task {
+                    await appState.load()
+                }
         } label: {
             Image(systemName: appState.isConnected ? "network" : "network.slash")
         }
 
         Settings {
             SettingsPlaceholder()
+                .environment(appState)
         }
     }
 }

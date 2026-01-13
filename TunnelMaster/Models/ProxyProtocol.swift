@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum ProxyProtocol: String, Codable, CaseIterable, Identifiable {
+enum ProxyProtocol: String, Codable, CaseIterable, Identifiable, Sendable {
     case vless
     case vmess
     case trojan

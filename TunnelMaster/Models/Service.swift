@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct Service: Identifiable, Codable, Hashable {
+struct Service: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var name: String
     var `protocol`: ProxyProtocol
@@ -41,7 +41,7 @@ struct Service: Identifiable, Codable, Hashable {
 
 // MARK: - AnyCodableValue for protocol-specific settings
 
-enum AnyCodableValue: Codable, Hashable {
+enum AnyCodableValue: Codable, Hashable, Sendable {
     case string(String)
     case int(Int)
     case double(Double)

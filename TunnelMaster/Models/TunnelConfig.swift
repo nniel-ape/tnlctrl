@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct TunnelConfig: Codable, Hashable {
+struct TunnelConfig: Codable, Hashable, Sendable {
     var mode: TunnelMode
     var rules: [RoutingRule]
     var chain: [UUID]
@@ -20,10 +20,10 @@ struct TunnelConfig: Codable, Hashable {
         self.chain = chain
     }
 
-    static let `default` = TunnelConfig()
+    nonisolated static let `default` = TunnelConfig()
 }
 
-enum TunnelMode: String, Codable, CaseIterable, Identifiable {
+enum TunnelMode: String, Codable, CaseIterable, Identifiable, Sendable {
     case full
     case split
 

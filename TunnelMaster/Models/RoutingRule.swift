@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct RoutingRule: Identifiable, Codable, Hashable {
+struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var type: RuleType
     var value: String
@@ -24,7 +24,7 @@ struct RoutingRule: Identifiable, Codable, Hashable {
     }
 }
 
-enum RuleType: String, Codable, CaseIterable, Identifiable {
+enum RuleType: String, Codable, CaseIterable, Identifiable, Sendable {
     // Process-based rules
     case processName = "process_name"
     case processPath = "process_path"
@@ -74,7 +74,7 @@ enum RuleType: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum RuleOutbound: String, Codable, CaseIterable, Identifiable {
+enum RuleOutbound: String, Codable, CaseIterable, Identifiable, Sendable {
     case direct
     case proxy
     case block
