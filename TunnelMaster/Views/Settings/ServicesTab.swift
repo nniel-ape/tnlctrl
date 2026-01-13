@@ -7,6 +7,7 @@ import SwiftUI
 
 struct ServicesTab: View {
     @Environment(AppState.self) private var appState
+    @State private var showingImportSheet = false
 
     var body: some View {
         Group {
@@ -17,6 +18,10 @@ struct ServicesTab: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .sheet(isPresented: $showingImportSheet) {
+            ImportSheet()
+                .environment(appState)
+        }
     }
 
     private var emptyState: some View {
@@ -30,7 +35,7 @@ struct ServicesTab: View {
                 .foregroundStyle(.secondary)
             HStack(spacing: 12) {
                 Button("Import Config...") {
-                    // TODO: Task 10 - Import UI
+                    showingImportSheet = true
                 }
                 Button("Add Server...") {
                     // TODO: Task 23 - Deployment wizard
@@ -49,7 +54,7 @@ struct ServicesTab: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button("Import...") {
-                    // TODO: Task 10
+                    showingImportSheet = true
                 }
                 Button("Add Server...") {
                     // TODO: Task 23
@@ -63,7 +68,7 @@ struct ServicesTab: View {
             // List
             List {
                 ForEach(appState.services) { service in
-                    ServiceRowPlaceholder(service: service)
+                    ServiceRow(service: service)
                 }
                 .onDelete { indexSet in
                     for index in indexSet {
@@ -75,8 +80,8 @@ struct ServicesTab: View {
     }
 }
 
-// Temporary row until Task 10
-private struct ServiceRowPlaceholder: View {
+struct ServiceRow: View {
+    @Environment(AppState.self) private var appState
     let service: Service
 
     var body: some View {
@@ -99,12 +104,32 @@ private struct ServiceRowPlaceholder: View {
                 Text("\(latency) ms")
                     .font(.caption)
                     .foregroundStyle(latencyColor(latency))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(latencyColor(latency).opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
             }
 
-            Toggle("", isOn: .constant(service.isEnabled))
-                .labelsHidden()
+            Toggle("", isOn: Binding(
+                get: { service.isEnabled },
+                set: { newValue in
+                    var updated = service
+                    updated.isEnabled = newValue
+                    appState.updateService(updated)
+                }
+            ))
+            .labelsHidden()
         }
         .padding(.vertical, 4)
+        .contextMenu {
+            Button("Test Latency") {
+                // TODO: Task 19 - Latency testing
+            }
+            Divider()
+            Button("Delete", role: .destructive) {
+                appState.deleteService(service)
+            }
+        }
     }
 
     private func latencyColor(_ ms: Int) -> Color {

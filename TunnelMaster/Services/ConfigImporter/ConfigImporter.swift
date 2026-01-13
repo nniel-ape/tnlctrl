@@ -5,12 +5,12 @@
 
 import Foundation
 
-protocol ConfigImporter {
+protocol ConfigImporter: Sendable {
     /// Check if this importer can handle the given data
-    func canImport(data: Data) -> Bool
+    nonisolated func canImport(data: Data) -> Bool
 
     /// Check if this importer can handle the given text
-    func canImport(text: String) -> Bool
+    nonisolated func canImport(text: String) -> Bool
 
     /// Parse data into services
     func parse(data: Data) async throws -> [Service]
@@ -20,7 +20,7 @@ protocol ConfigImporter {
 }
 
 extension ConfigImporter {
-    func canImport(text: String) -> Bool {
+    nonisolated func canImport(text: String) -> Bool {
         guard let data = text.data(using: .utf8) else { return false }
         return canImport(data: data)
     }
