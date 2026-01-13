@@ -6,6 +6,12 @@
 import Foundation
 
 struct ClashParser: ConfigImporter {
+    private let keychainManager: any KeychainManaging
+
+    init(keychainManager: any KeychainManaging = KeychainManager.shared) {
+        self.keychainManager = keychainManager
+    }
+
     func canImport(data: Data) -> Bool {
         guard let text = String(data: data, encoding: .utf8) else { return false }
         // Clash configs typically have 'proxies:' section
@@ -51,7 +57,9 @@ struct ClashParser: ConfigImporter {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
             // Check if we've left the proxies section
-            if !trimmed.isEmpty && !trimmed.hasPrefix("-") && !trimmed.hasPrefix(" ") &&
+            // A new top-level section starts at column 0 (no indentation) with a key:value pattern
+            let isIndented = line.hasPrefix(" ") || line.hasPrefix("\t")
+            if !trimmed.isEmpty && !isIndented && !trimmed.hasPrefix("-") &&
                !trimmed.hasPrefix("#") && trimmed.contains(":") && !trimmed.hasPrefix("{") {
                 // New top-level section
                 inProxySection = false
@@ -190,6 +198,7 @@ struct ClashParser: ConfigImporter {
             if let cipher = proxy["cipher"] {
                 settings["security"] = .string(cipher)
             }
+            settings.merge(parseClashTLS(proxy)) { _, new in new }
             settings.merge(parseClashTransport(proxy)) { _, new in new }
 
         case .trojan:
@@ -301,8 +310,8 @@ struct ClashParser: ConfigImporter {
     }
 
     private func storeCredential(_ value: String, for tag: String) async throws -> String {
-        let ref = await KeychainManager.shared.generateCredentialRef()
-        try await KeychainManager.shared.save(value, for: ref)
+        let ref = await keychainManager.generateCredentialRef()
+        try await keychainManager.save(value, for: ref)
         return ref
     }
 }
