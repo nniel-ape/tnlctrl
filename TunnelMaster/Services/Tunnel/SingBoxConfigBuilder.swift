@@ -84,6 +84,7 @@ struct SingBoxConfigBuilder {
                 "type": "tun",
                 "tag": "tun-in",
                 "interface_name": "utun199",
+                "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
                 "mtu": 9000,
                 "auto_route": true,
                 "strict_route": true,
@@ -240,11 +241,21 @@ struct SingBoxConfigBuilder {
     }
 
     private func addTrojanSettings(to outbound: inout [String: Any], service: Service) async throws {
-        if let credRef = service.credentialRef,
-           let password = try? await keychainManager.get( credRef) {
-            outbound["password"] = password
+        if let credRef = service.credentialRef {
+            do {
+                if let password = try await keychainManager.get(credRef) {
+                    outbound["password"] = password
+                } else {
+                    throw ConfigBuilderError.credentialNotFound(credRef)
+                }
+            } catch {
+                print("Failed to retrieve Trojan password for credRef \(credRef): \(error)")
+                throw error
+            }
         } else if let password = service.settings["password"]?.stringValue {
             outbound["password"] = password
+        } else {
+            throw ConfigBuilderError.missingCredential("trojan", service.name)
         }
     }
 
@@ -253,11 +264,21 @@ struct SingBoxConfigBuilder {
             outbound["method"] = method
         }
 
-        if let credRef = service.credentialRef,
-           let password = try? await keychainManager.get( credRef) {
-            outbound["password"] = password
+        if let credRef = service.credentialRef {
+            do {
+                if let password = try await keychainManager.get(credRef) {
+                    outbound["password"] = password
+                } else {
+                    throw ConfigBuilderError.credentialNotFound(credRef)
+                }
+            } catch {
+                print("Failed to retrieve Shadowsocks password for credRef \(credRef): \(error)")
+                throw error
+            }
         } else if let password = service.settings["password"]?.stringValue {
             outbound["password"] = password
+        } else {
+            throw ConfigBuilderError.missingCredential("shadowsocks", service.name)
         }
     }
 
@@ -525,6 +546,8 @@ enum ConfigBuilderError: LocalizedError {
     case serializationFailed
     case emptyChain
     case noEnabledServices
+    case credentialNotFound(String)
+    case missingCredential(String, String)
 
     var errorDescription: String? {
         switch self {
@@ -534,6 +557,10 @@ enum ConfigBuilderError: LocalizedError {
             "Proxy chain contains no valid services"
         case .noEnabledServices:
             "No enabled services found"
+        case .credentialNotFound(let ref):
+            "Credential not found in Keychain: \(ref)"
+        case .missingCredential(let proto, let name):
+            "Missing credential for \(proto) service '\(name)'"
         }
     }
 }

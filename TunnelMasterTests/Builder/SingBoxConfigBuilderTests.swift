@@ -80,6 +80,10 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         XCTAssertEqual(tun["interface_name"] as? String, "utun199")
         XCTAssertEqual(tun["auto_route"] as? Bool, true)
         XCTAssertEqual(tun["strict_route"] as? Bool, true)
+        // Required since sing-box 1.11+
+        let addresses = tun["address"] as? [String]
+        XCTAssertNotNil(addresses, "TUN address is required for sing-box 1.11+")
+        XCTAssertGreaterThanOrEqual(addresses?.count ?? 0, 1)
     }
 
     // MARK: - Protocol-Specific Tests

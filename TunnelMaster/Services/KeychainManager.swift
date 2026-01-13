@@ -72,6 +72,7 @@ actor KeychainManager: KeychainManaging {
         case errSecItemNotFound:
             return nil
         default:
+            print("KeychainManager: Failed to read key: \(key), status: \(status)")
             throw KeychainError.readFailed(status)
         }
     }
