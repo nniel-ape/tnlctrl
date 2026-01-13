@@ -214,7 +214,7 @@ struct SingBoxConfigBuilder {
             outbound["uuid"] = uuid
         }
 
-        if let flow = service.settings["flow"]?.stringValue {
+        if let flow = service.settings["flow"]?.stringValue, !flow.isEmpty {
             outbound["flow"] = flow
         }
     }
