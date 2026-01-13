@@ -146,7 +146,23 @@ actor SingBoxManager {
             }
         }
 
-        // Log output asynchronously
+        try process.run()
+        self.process = process
+
+        NSLog("SingBoxManager: sing-box started (PID: \(process.processIdentifier))")
+
+        // Wait briefly to check if it started successfully
+        try await Task.sleep(for: .milliseconds(500))
+
+        if !process.isRunning {
+            // Read stderr synchronously to capture startup error
+            let stderrData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            let stderrOutput = String(data: stderrData, encoding: .utf8) ?? ""
+            NSLog("SingBoxManager: sing-box startup failed. stderr: \(stderrOutput)")
+            throw SingBoxError.startFailed(process.terminationStatus, stderrOutput)
+        }
+
+        // Log output asynchronously (only after successful start)
         Task {
             for try await line in outputPipe.fileHandleForReading.bytes.lines {
                 NSLog("sing-box: \(line)")
@@ -157,18 +173,6 @@ actor SingBoxManager {
             for try await line in errorPipe.fileHandleForReading.bytes.lines {
                 NSLog("sing-box [error]: \(line)")
             }
-        }
-
-        try process.run()
-        self.process = process
-
-        NSLog("SingBoxManager: sing-box started (PID: \(process.processIdentifier))")
-
-        // Wait briefly to check if it started successfully
-        try await Task.sleep(for: .milliseconds(500))
-
-        if !process.isRunning {
-            throw SingBoxError.startFailed(process.terminationStatus)
         }
     }
 
@@ -207,7 +211,7 @@ enum SingBoxError: LocalizedError {
     case binaryNotFound(String)
     case noConfig
     case notRunning
-    case startFailed(Int32)
+    case startFailed(Int32, String)
 
     var errorDescription: String? {
         switch self {
@@ -217,8 +221,8 @@ enum SingBoxError: LocalizedError {
             "No configuration provided"
         case .notRunning:
             "sing-box is not running"
-        case .startFailed(let code):
-            "sing-box failed to start (exit code: \(code))"
+        case .startFailed(let code, let stderr):
+            "sing-box failed to start (exit code: \(code))\(stderr.isEmpty ? "" : "\n\(stderr)")"
         }
     }
 }

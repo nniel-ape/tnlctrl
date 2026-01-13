@@ -55,6 +55,11 @@ final class TunnelManager {
             let builder = SingBoxConfigBuilder(services: enabledServices, tunnelConfig: tunnelConfig)
             let configJSON = try await builder.build()
 
+            // Debug: print generated config
+            print("=== Generated sing-box config ===")
+            print(configJSON)
+            print("=== End config ===")
+
             // Start tunnel via XPC
             try await xpcClient.startTunnel(configJSON: configJSON)
 

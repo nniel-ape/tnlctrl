@@ -52,24 +52,15 @@ struct SingBoxConfigBuilder {
         [
             "servers": [
                 [
+                    "type": "https",
                     "tag": "dns-proxy",
-                    "address": "https://1.1.1.1/dns-query",
+                    "server": "1.1.1.1",
                     "detour": "proxy"
                 ],
                 [
+                    "type": "https",
                     "tag": "dns-direct",
-                    "address": "https://dns.google/dns-query",
-                    "detour": "direct"
-                ],
-                [
-                    "tag": "dns-block",
-                    "address": "rcode://success"
-                ]
-            ],
-            "rules": [
-                [
-                    "outbound": "any",
-                    "server": "dns-direct"
+                    "server": "8.8.8.8"
                 ]
             ],
             "final": "dns-proxy"
@@ -449,10 +440,13 @@ struct SingBoxConfigBuilder {
         // Build rules
         var rules: [[String: Any]] = []
 
-        // Add DNS rules
+        // Enable protocol sniffing (sing-box 1.12+)
+        rules.append(["action": "sniff"])
+
+        // Hijack DNS traffic for internal resolution (sing-box 1.12+)
         rules.append([
             "protocol": "dns",
-            "outbound": "dns-out"
+            "action": "hijack-dns"
         ])
 
         // Add user-defined rules
@@ -472,6 +466,7 @@ struct SingBoxConfigBuilder {
         }
 
         route["auto_detect_interface"] = true
+        route["default_domain_resolver"] = "dns-direct"
 
         return route
     }
