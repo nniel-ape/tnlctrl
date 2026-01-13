@@ -22,8 +22,21 @@ actor SingBoxManager {
             return path
         }
 
-        // Fallback to /usr/local/bin for development
-        return URL(fileURLWithPath: "/usr/local/bin/sing-box")
+        // Check Homebrew paths
+        let homebrewPaths = [
+            "/opt/homebrew/bin/sing-box",      // Apple Silicon
+            "/usr/local/bin/sing-box",          // Intel
+            "/opt/homebrew/opt/sing-box/bin/sing-box"
+        ]
+
+        for path in homebrewPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                return URL(fileURLWithPath: path)
+            }
+        }
+
+        // Default fallback
+        return URL(fileURLWithPath: "/opt/homebrew/bin/sing-box")
     }
 
     private var configDirectory: URL {

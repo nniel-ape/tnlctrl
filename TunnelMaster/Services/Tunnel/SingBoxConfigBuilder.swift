@@ -105,10 +105,11 @@ struct SingBoxConfigBuilder {
             outbounds.append(chainOutbound)
         }
 
-        // Build proxy outbound (selector or single)
+        // Build proxy outbound (selector)
         let enabledServices = services.filter { $0.isEnabled }
-        if enabledServices.count > 1 {
-            // Selector for multiple services
+
+        // Always create proxy selector (even with single service) since DNS/route reference it
+        if !enabledServices.isEmpty {
             let selector = buildSelectorOutbound(services: enabledServices)
             outbounds.append(selector)
         }
