@@ -413,7 +413,7 @@ enum ConfigFixtures {
         """
     }
 
-    // MARK: - Test Services
+    // MARK: - Test Services (Basic)
 
     static func makeVLESSService(credentialRef: String = "test-cred-ref") -> Service {
         Service(
@@ -513,6 +513,304 @@ enum ConfigFixtures {
         )
     }
 
+    // MARK: - Full-Featured Protocol Services (sing-box 1.12+ compliant)
+
+    /// VLESS with Reality + XTLS Vision + uTLS (maximum options)
+    static func makeVLESSRealityFullService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "VLESS Reality Full",
+            protocol: .vless,
+            server: "vless.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "flow": .string("xtls-rprx-vision"),
+                "sni": .string("www.microsoft.com"),
+                "tls": .bool(true),
+                "reality": .bool(true),
+                "realityPublicKey": .string("jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0"),
+                "realityShortId": .string("0123456789abcdef"),
+                "fingerprint": .string("chrome"),
+                "alpn": .string("h2,http/1.1")
+            ]
+        )
+    }
+
+    /// VLESS with gRPC transport
+    static func makeVLESSgRPCService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "VLESS gRPC",
+            protocol: .vless,
+            server: "vless-grpc.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "flow": .string(""),
+                "sni": .string("vless-grpc.example.com"),
+                "tls": .bool(true),
+                "network": .string("grpc"),
+                "grpcServiceName": .string("TunService"),
+                "fingerprint": .string("firefox")
+            ]
+        )
+    }
+
+    /// VLESS with WebSocket transport
+    static func makeVLESSWebSocketService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "VLESS WebSocket",
+            protocol: .vless,
+            server: "vless-ws.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "sni": .string("vless-ws.example.com"),
+                "tls": .bool(true),
+                "network": .string("ws"),
+                "wsPath": .string("/vless-ws"),
+                "wsHost": .string("vless-ws.example.com"),
+                "fingerprint": .string("safari")
+            ]
+        )
+    }
+
+    /// VLESS with HTTP/2 transport
+    static func makeVLESSHTTPService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "VLESS HTTP/2",
+            protocol: .vless,
+            server: "vless-h2.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "sni": .string("vless-h2.example.com"),
+                "tls": .bool(true),
+                "network": .string("h2"),
+                "httpPath": .string("/vless-http"),
+                "httpHost": .string("vless-h2.example.com")
+            ]
+        )
+    }
+
+    /// VMess with all security options
+    static func makeVMessSecurityService(
+        credentialRef: String = "test-cred-ref",
+        security: String = "chacha20-poly1305"
+    ) -> Service {
+        Service(
+            name: "VMess \(security)",
+            protocol: .vmess,
+            server: "vmess.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "alterId": .int(0),
+                "security": .string(security),
+                "sni": .string("vmess.example.com"),
+                "tls": .bool(true),
+                "fingerprint": .string("chrome")
+            ]
+        )
+    }
+
+    /// VMess with gRPC transport
+    static func makeVMessgRPCService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "VMess gRPC",
+            protocol: .vmess,
+            server: "vmess-grpc.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "alterId": .int(0),
+                "security": .string("auto"),
+                "sni": .string("vmess-grpc.example.com"),
+                "tls": .bool(true),
+                "network": .string("grpc"),
+                "grpcServiceName": .string("VMGrpcService")
+            ]
+        )
+    }
+
+    /// Trojan with gRPC transport
+    static func makeTrojangRPCService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "Trojan gRPC",
+            protocol: .trojan,
+            server: "trojan-grpc.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "sni": .string("trojan-grpc.example.com"),
+                "tls": .bool(true),
+                "network": .string("grpc"),
+                "grpcServiceName": .string("TrojanService"),
+                "alpn": .string("h2")
+            ]
+        )
+    }
+
+    /// Trojan with WebSocket transport
+    static func makeTrojanWebSocketService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "Trojan WebSocket",
+            protocol: .trojan,
+            server: "trojan-ws.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "sni": .string("trojan-ws.example.com"),
+                "tls": .bool(true),
+                "network": .string("ws"),
+                "wsPath": .string("/trojan-ws"),
+                "wsHost": .string("trojan-ws.example.com")
+            ]
+        )
+    }
+
+    /// Shadowsocks with AEAD 2022 cipher
+    static func makeShadowsocks2022Service(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "Shadowsocks 2022",
+            protocol: .shadowsocks,
+            server: "ss.example.com",
+            port: 8388,
+            credentialRef: credentialRef,
+            settings: [
+                "method": .string("2022-blake3-aes-256-gcm")
+            ]
+        )
+    }
+
+    /// Shadowsocks with ChaCha20 cipher
+    static func makeShadowsocksChaChaService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "Shadowsocks ChaCha",
+            protocol: .shadowsocks,
+            server: "ss.example.com",
+            port: 8388,
+            credentialRef: credentialRef,
+            settings: [
+                "method": .string("chacha20-ietf-poly1305")
+            ]
+        )
+    }
+
+    /// WireGuard with full peer config + IPv6
+    static func makeWireGuardFullService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "WireGuard Full",
+            protocol: .wireguard,
+            server: "wg.example.com",
+            port: 51820,
+            credentialRef: credentialRef,
+            settings: [
+                "publicKey": .string("Z1XXLsKYkYxuiYjJIkRvtIKFepCYHTgON+GwPq7SOV4="),
+                "preSharedKey": .string("31aIhAPwktDGpH4JDhA8GNvjFXEf/a6+UaQRyOAiyfM="),
+                "reserved": .string("1,2,3"),
+                "localAddressIPv4": .string("10.0.0.2/32"),
+                "localAddressIPv6": .string("fd00::2/128"),
+                "mtu": .int(1408)
+            ]
+        )
+    }
+
+    /// Hysteria2 with port hopping (full options)
+    static func makeHysteria2FullService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "Hysteria2 Full",
+            protocol: .hysteria2,
+            server: "hy2.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "sni": .string("hy2.example.com"),
+                "tls": .bool(true),
+                "obfs": .string("salamander-obfs-password"),
+                "up": .string("100"),
+                "down": .string("100"),
+                "alpn": .string("h3")
+            ]
+        )
+    }
+
+    /// Hysteria2 minimal (no obfs)
+    static func makeHysteria2MinimalService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "Hysteria2 Minimal",
+            protocol: .hysteria2,
+            server: "hy2-min.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "sni": .string("hy2-min.example.com"),
+                "tls": .bool(true)
+            ]
+        )
+    }
+
+    /// SOCKS5 service with authentication
+    static func makeSOCKS5Service(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "SOCKS5 Auth",
+            protocol: .socks5,
+            server: "socks.example.com",
+            port: 1080,
+            credentialRef: credentialRef,
+            settings: [
+                "username": .string("socksuser")
+            ]
+        )
+    }
+
+    /// SOCKS5 service without authentication
+    static func makeSOCKS5NoAuthService() -> Service {
+        Service(
+            name: "SOCKS5 NoAuth",
+            protocol: .socks5,
+            server: "socks-noauth.example.com",
+            port: 1080,
+            settings: [:]
+        )
+    }
+
+    // MARK: - TLS Configuration Variants
+
+    /// Service with insecure TLS (skip-cert-verify)
+    static func makeInsecureTLSService(credentialRef: String = "test-cred-ref") -> Service {
+        Service(
+            name: "Insecure TLS",
+            protocol: .trojan,
+            server: "insecure.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "sni": .string("insecure.example.com"),
+                "tls": .bool(true),
+                "allowInsecure": .bool(true)
+            ]
+        )
+    }
+
+    /// Service with uTLS fingerprint variants
+    static func makeUTLSService(
+        credentialRef: String = "test-cred-ref",
+        fingerprint: String = "chrome"
+    ) -> Service {
+        Service(
+            name: "uTLS \(fingerprint)",
+            protocol: .vless,
+            server: "utls.example.com",
+            port: 443,
+            credentialRef: credentialRef,
+            settings: [
+                "sni": .string("utls.example.com"),
+                "tls": .bool(true),
+                "fingerprint": .string(fingerprint)
+            ]
+        )
+    }
+
     // MARK: - Tunnel Config
 
     static func makeDefaultTunnelConfig() -> TunnelConfig {
@@ -530,6 +828,35 @@ enum ConfigFixtures {
                 RoutingRule(type: .domain, value: "example.com", outbound: .proxy),
                 RoutingRule(type: .geoip, value: "CN", outbound: .direct),
                 RoutingRule(type: .geosite, value: "category-ads", outbound: .block)
+            ],
+            chain: []
+        )
+    }
+
+    /// Config with all rule types for comprehensive testing
+    static func makeFullRulesTunnelConfig() -> TunnelConfig {
+        TunnelConfig(
+            mode: .split,
+            rules: [
+                // Domain rules
+                RoutingRule(type: .domain, value: "exact.example.com", outbound: .proxy),
+                RoutingRule(type: .domainSuffix, value: ".google.com", outbound: .direct),
+                RoutingRule(type: .domainKeyword, value: "facebook", outbound: .proxy),
+
+                // IP rules
+                RoutingRule(type: .ipCidr, value: "10.0.0.0/8", outbound: .direct),
+                RoutingRule(type: .ipCidr, value: "192.168.0.0/16", outbound: .direct),
+
+                // Geo rules
+                RoutingRule(type: .geoip, value: "CN", outbound: .direct),
+                RoutingRule(type: .geoip, value: "private", outbound: .direct),
+                RoutingRule(type: .geosite, value: "category-ads", outbound: .block),
+                RoutingRule(type: .geosite, value: "cn", outbound: .direct),
+
+                // Process rules
+                RoutingRule(type: .processName, value: "Safari", outbound: .direct),
+                RoutingRule(type: .processName, value: "curl", outbound: .proxy),
+                RoutingRule(type: .processPath, value: "/usr/bin/ssh", outbound: .direct)
             ],
             chain: []
         )
