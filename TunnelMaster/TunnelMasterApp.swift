@@ -9,9 +9,18 @@ import SwiftUI
 
 @main
 struct TunnelMasterApp: App {
+    @State private var appState = AppState()
+
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        MenuBarExtra {
+            MenuBarView()
+                .environment(appState)
+        } label: {
+            Image(systemName: appState.isConnected ? "network" : "network.slash")
+        }
+
+        Settings {
+            SettingsPlaceholder()
         }
     }
 }
