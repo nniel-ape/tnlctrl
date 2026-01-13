@@ -6,6 +6,12 @@
 import Foundation
 
 struct V2RayParser: ConfigImporter {
+    private let keychainManager: any KeychainManaging
+
+    init(keychainManager: any KeychainManaging = KeychainManager.shared) {
+        self.keychainManager = keychainManager
+    }
+
     func canImport(data: Data) -> Bool {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return false
@@ -254,8 +260,8 @@ struct V2RayParser: ConfigImporter {
     // MARK: - Credential Storage
 
     private func storeCredential(_ value: String, for tag: String) async throws -> String {
-        let ref = await KeychainManager.shared.generateCredentialRef()
-        try await KeychainManager.shared.save(value, for: ref)
+        let ref = await keychainManager.generateCredentialRef()
+        try await keychainManager.save(value, for: ref)
         return ref
     }
 }

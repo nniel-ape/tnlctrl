@@ -10,9 +10,9 @@ import Foundation
 struct SingBoxConfigBuilder {
     private let services: [Service]
     private let tunnelConfig: TunnelConfig
-    private let keychainManager: KeychainManager
+    private let keychainManager: any KeychainManaging
 
-    init(services: [Service], tunnelConfig: TunnelConfig, keychainManager: KeychainManager = .shared) {
+    init(services: [Service], tunnelConfig: TunnelConfig, keychainManager: any KeychainManaging = KeychainManager.shared) {
         self.services = services
         self.tunnelConfig = tunnelConfig
         self.keychainManager = keychainManager

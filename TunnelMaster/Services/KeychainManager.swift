@@ -6,7 +6,19 @@
 import Foundation
 import Security
 
-actor KeychainManager {
+// MARK: - Protocol
+
+protocol KeychainManaging: Actor, Sendable {
+    func save(_ value: String, for key: String) throws
+    func get(_ key: String) throws -> String?
+    func delete(_ key: String) throws
+    func exists(_ key: String) -> Bool
+    func generateCredentialRef() -> String
+}
+
+// MARK: - Implementation
+
+actor KeychainManager: KeychainManaging {
     static let shared = KeychainManager()
 
     private let service = "nniel.TunnelMaster"
