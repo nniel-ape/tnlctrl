@@ -106,7 +106,7 @@ struct ServiceRow: View {
             VStack(alignment: .leading) {
                 Text(service.name)
                     .font(.headline)
-                Text("\(service.server):\(service.port)")
+                Text(verbatim: "\(service.server):\(service.port)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
