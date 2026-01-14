@@ -64,11 +64,11 @@ final class XPCClient {
 
     // MARK: - Public API
 
-    func startTunnel(configJSON: String) async throws {
+    func startTunnel(configJSON: String, enableLogs: Bool) async throws {
         let proxy = try getProxy()
 
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            proxy.startTunnel(configJSON: configJSON) { success, errorMessage in
+            proxy.startTunnel(configJSON: configJSON, enableLogs: enableLogs) { success, errorMessage in
                 if success {
                     continuation.resume()
                 } else {

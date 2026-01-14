@@ -16,7 +16,10 @@ let helperBundleIdentifier = "nniel.TunnelMaster.helper"
 
 @preconcurrency @objc public protocol HelperProtocol {
     /// Start the tunnel with the given sing-box configuration
-    func startTunnel(configJSON: String, reply: @escaping (Bool, String?) -> Void)
+    /// - Parameters:
+    ///   - configJSON: sing-box JSON configuration
+    ///   - enableLogs: Whether to write sing-box output to log file (false = redirect to /dev/null)
+    func startTunnel(configJSON: String, enableLogs: Bool, reply: @escaping (Bool, String?) -> Void)
 
     /// Stop the running tunnel
     func stopTunnel(reply: @escaping (Bool, String?) -> Void)

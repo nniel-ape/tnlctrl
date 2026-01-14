@@ -12,10 +12,10 @@ import Foundation
 final class HelperService: NSObject, HelperProtocol {
     private let singBoxManager = SingBoxManager()
 
-    func startTunnel(configJSON: String, reply: @escaping (Bool, String?) -> Void) {
+    func startTunnel(configJSON: String, enableLogs: Bool, reply: @escaping (Bool, String?) -> Void) {
         Task {
             do {
-                try await singBoxManager.start(configJSON: configJSON)
+                try await singBoxManager.start(configJSON: configJSON, enableLogs: enableLogs)
                 reply(true, nil)
             } catch {
                 NSLog("HelperService: Failed to start tunnel: \(error)")

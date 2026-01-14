@@ -10,6 +10,8 @@ import Foundation
 actor SingBoxManager {
     private var process: Process?
     private var configPath: URL?
+    private var enableLogs = false
+    private var logFileHandle: FileHandle?
     private var restartCount = 0
     private let maxRestarts = 5
     private let restartDelay: TimeInterval = 2.0
@@ -55,11 +57,14 @@ actor SingBoxManager {
 
     // MARK: - Lifecycle
 
-    func start(configJSON: String) async throws {
+    func start(configJSON: String, enableLogs: Bool) async throws {
         // Stop existing process if running
         if isRunning {
             await stop()
         }
+
+        // Store logging preference
+        self.enableLogs = enableLogs
 
         // Write config to temp file
         try FileManager.default.createDirectory(at: configDirectory, withIntermediateDirectories: true)
@@ -90,6 +95,10 @@ actor SingBoxManager {
             process.interrupt()
         }
 
+        // Close log file
+        try? logFileHandle?.close()
+        logFileHandle = nil
+
         self.process = nil
         restartCount = maxRestarts // Prevent auto-restart
     }
@@ -107,8 +116,8 @@ actor SingBoxManager {
             kill(process.processIdentifier, SIGHUP)
             NSLog("SingBoxManager: Sent SIGHUP to sing-box for config reload")
         } else {
-            // If not running, start fresh
-            try await start(configJSON: configJSON)
+            // If not running, start fresh (preserve current logging preference)
+            try await start(configJSON: configJSON, enableLogs: enableLogs)
         }
     }
 
@@ -123,26 +132,88 @@ actor SingBoxManager {
             throw SingBoxError.noConfig
         }
 
-        NSLog("SingBoxManager: Launching sing-box from \(singBoxPath.path)")
+        NSLog("SingBoxManager: Launching sing-box from \(singBoxPath.path) (logging: \(enableLogs))")
 
         let process = Process()
         process.executableURL = singBoxPath
         process.arguments = ["run", "-c", configPath.path]
         process.currentDirectoryURL = configDirectory
 
-        // Capture output for logging
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
+        // Set explicit environment for daemon context
+        process.environment = [
+            "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/sbin",
+            "HOME": NSHomeDirectory(),
+            "TMPDIR": NSTemporaryDirectory()
+        ]
 
-        // Set up termination handler for auto-restart
-        process.terminationHandler = { [weak self] terminatedProcess in
-            let exitCode = terminatedProcess.terminationStatus
-            NSLog("SingBoxManager: sing-box exited with code \(exitCode)")
+        if enableLogs {
+            // Logging enabled: capture output to file and NSLog
+            let logURL = configDirectory.appendingPathComponent("sing-box.log")
 
-            Task { [weak self] in
-                await self?.handleTermination(exitCode: exitCode)
+            // Create/truncate log file
+            FileManager.default.createFile(atPath: logURL.path, contents: nil)
+            let fileHandle = try FileHandle(forWritingTo: logURL)
+            self.logFileHandle = fileHandle
+
+            let outputPipe = Pipe()
+            let errorPipe = Pipe()
+            process.standardOutput = outputPipe
+            process.standardError = errorPipe
+
+            // Use readabilityHandler for continuous non-blocking reads
+            outputPipe.fileHandleForReading.readabilityHandler = { [weak fileHandle] handle in
+                let data = handle.availableData
+                if !data.isEmpty {
+                    // Write to log file
+                    try? fileHandle?.write(contentsOf: data)
+                    // Also log to system log
+                    if let str = String(data: data, encoding: .utf8) {
+                        for line in str.components(separatedBy: .newlines) where !line.isEmpty {
+                            NSLog("sing-box: %@", line)
+                        }
+                    }
+                }
+            }
+
+            errorPipe.fileHandleForReading.readabilityHandler = { [weak fileHandle] handle in
+                let data = handle.availableData
+                if !data.isEmpty {
+                    // Write to log file
+                    try? fileHandle?.write(contentsOf: data)
+                    // Also log to system log
+                    if let str = String(data: data, encoding: .utf8) {
+                        for line in str.components(separatedBy: .newlines) where !line.isEmpty {
+                            NSLog("sing-box [error]: %@", line)
+                        }
+                    }
+                }
+            }
+
+            // Set up termination handler
+            process.terminationHandler = { [weak self] terminatedProcess in
+                outputPipe.fileHandleForReading.readabilityHandler = nil
+                errorPipe.fileHandleForReading.readabilityHandler = nil
+
+                let exitCode = terminatedProcess.terminationStatus
+                NSLog("SingBoxManager: sing-box exited with code \(exitCode)")
+
+                Task { [weak self] in
+                    await self?.handleTermination(exitCode: exitCode)
+                }
+            }
+        } else {
+            // Logging disabled: redirect to /dev/null (no buffer issues)
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+
+            // Set up termination handler
+            process.terminationHandler = { [weak self] terminatedProcess in
+                let exitCode = terminatedProcess.terminationStatus
+                NSLog("SingBoxManager: sing-box exited with code \(exitCode)")
+
+                Task { [weak self] in
+                    await self?.handleTermination(exitCode: exitCode)
+                }
             }
         }
 
@@ -155,24 +226,8 @@ actor SingBoxManager {
         try await Task.sleep(for: .milliseconds(500))
 
         if !process.isRunning {
-            // Read stderr synchronously to capture startup error
-            let stderrData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            let stderrOutput = String(data: stderrData, encoding: .utf8) ?? ""
-            NSLog("SingBoxManager: sing-box startup failed. stderr: \(stderrOutput)")
-            throw SingBoxError.startFailed(process.terminationStatus, stderrOutput)
-        }
-
-        // Log output asynchronously (only after successful start)
-        Task {
-            for try await line in outputPipe.fileHandleForReading.bytes.lines {
-                NSLog("sing-box: \(line)")
-            }
-        }
-
-        Task {
-            for try await line in errorPipe.fileHandleForReading.bytes.lines {
-                NSLog("sing-box [error]: \(line)")
-            }
+            NSLog("SingBoxManager: sing-box startup failed with exit code \(process.terminationStatus)")
+            throw SingBoxError.startFailed(process.terminationStatus, "Check logs for details")
         }
     }
 

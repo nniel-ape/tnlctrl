@@ -6,6 +6,7 @@
 import SwiftUI
 
 struct GeneralTab: View {
+    @Environment(AppState.self) private var appState
     @State private var helperInstaller = HelperInstaller.shared
     @State private var geoUpdater = GeoDatabaseUpdater.shared
     @State private var installError: String?
@@ -88,6 +89,30 @@ struct GeneralTab: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
+            }
+
+            Section("Debugging") {
+                @Bindable var state = appState
+                Toggle("Enable sing-box logs", isOn: $state.settings.enableSingBoxLogs)
+                    .onChange(of: appState.settings.enableSingBoxLogs) { _, _ in
+                        appState.saveSettings()
+                    }
+
+                if appState.settings.enableSingBoxLogs {
+                    Button("Open Logs in Finder") {
+                        let logURL = FileManager.default.temporaryDirectory
+                            .appendingPathComponent("TunnelMasterHelper")
+                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: logURL.path)
+                    }
+
+                    Text("Logs are written to: sing-box.log")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("Enable logs to capture sing-box output for debugging. Takes effect on next connect.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("About") {

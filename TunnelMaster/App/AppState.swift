@@ -21,6 +21,7 @@ final class AppState {
 
     var services: [Service] = []
     var tunnelConfig: TunnelConfig = .default
+    var settings: AppSettings = .default
 
     // MARK: - Computed
 
@@ -53,7 +54,11 @@ final class AppState {
 
     func connect() async {
         do {
-            try await tunnelManager.start(services: services, tunnelConfig: tunnelConfig)
+            try await tunnelManager.start(
+                services: services,
+                tunnelConfig: tunnelConfig,
+                enableLogs: settings.enableSingBoxLogs
+            )
         } catch {
             print("Failed to connect: \(error)")
         }
@@ -81,8 +86,19 @@ final class AppState {
         do {
             services = try await ServiceStore.shared.loadServices()
             tunnelConfig = try await ServiceStore.shared.loadTunnelConfig()
+            settings = try await ServiceStore.shared.loadSettings()
         } catch {
             print("Failed to load data: \(error)")
+        }
+    }
+
+    func saveSettings() {
+        Task {
+            do {
+                try await ServiceStore.shared.saveSettings(settings)
+            } catch {
+                print("Failed to save settings: \(error)")
+            }
         }
     }
 

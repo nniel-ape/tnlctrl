@@ -45,6 +45,12 @@ final class ServiceStore {
         }
     }
 
+    private var settingsURL: URL {
+        get throws {
+            try applicationSupportURL.appendingPathComponent("settings.json")
+        }
+    }
+
     // MARK: - Services
 
     func loadServices() async throws -> [Service] {
@@ -89,6 +95,29 @@ final class ServiceStore {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         let data = try encoder.encode(config)
+        try data.write(to: url, options: .atomic)
+    }
+
+    // MARK: - App Settings
+
+    func loadSettings() async throws -> AppSettings {
+        let url = try settingsURL
+
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return .default
+        }
+
+        let data = try Data(contentsOf: url)
+        return try decoder.decode(AppSettings.self, from: data)
+    }
+
+    func saveSettings(_ settings: AppSettings) async throws {
+        let url = try settingsURL
+
+        let directory = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        let data = try encoder.encode(settings)
         try data.write(to: url, options: .atomic)
     }
 }

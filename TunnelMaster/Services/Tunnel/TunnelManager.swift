@@ -32,7 +32,7 @@ final class TunnelManager {
 
     // MARK: - Start
 
-    func start(services: [Service], tunnelConfig: TunnelConfig) async throws {
+    func start(services: [Service], tunnelConfig: TunnelConfig, enableLogs: Bool = false) async throws {
         guard helperInstaller.status == .installed else {
             throw TunnelManagerError.helperNotInstalled
         }
@@ -61,7 +61,7 @@ final class TunnelManager {
             print("=== End config ===")
 
             // Start tunnel via XPC
-            try await xpcClient.startTunnel(configJSON: configJSON)
+            try await xpcClient.startTunnel(configJSON: configJSON, enableLogs: enableLogs)
 
             status = .running
             startStatusPolling()
