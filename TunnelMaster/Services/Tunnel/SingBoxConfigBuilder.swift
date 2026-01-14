@@ -52,17 +52,18 @@ struct SingBoxConfigBuilder {
         [
             "servers": [
                 [
+                    "type": "udp",
+                    "tag": "dns-local",
+                    "server": "8.8.8.8"
+                ],
+                [
                     "type": "https",
                     "tag": "dns-proxy",
                     "server": "1.1.1.1",
                     "detour": "proxy"
-                ],
-                [
-                    "type": "https",
-                    "tag": "dns-direct",
-                    "server": "8.8.8.8"
                 ]
             ],
+            "strategy": "prefer_ipv4",
             "final": "dns-proxy"
         ]
     }
@@ -70,20 +71,35 @@ struct SingBoxConfigBuilder {
     // MARK: - Inbounds
 
     private func buildInbounds() -> [[String: Any]] {
-        [
-            [
-                "type": "tun",
-                "tag": "tun-in",
-                "interface_name": "utun199",
-                "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
-                "mtu": 9000,
-                "auto_route": true,
-                "strict_route": true,
-                "stack": "system",
-                "sniff": true,
-                "sniff_override_destination": false
-            ]
+        // Collect IPs to exclude from TUN routing
+        var excludeIPs: [String] = [
+            // DNS servers must be reachable directly for domain resolution
+            "1.1.1.1/32",
+            "8.8.8.8/32"
         ]
+
+        // Add proxy server IPs (skip domain names - they'll use auto_detect_interface)
+        for service in services where service.isEnabled && isIPAddress(service.server) {
+            excludeIPs.append("\(service.server)/32")
+        }
+
+        var tun: [String: Any] = [
+            "type": "tun",
+            "tag": "tun-in",
+            "interface_name": "utun199",
+            "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
+            "mtu": 1400,
+            "auto_route": true,
+            "strict_route": true,
+            "stack": "system",
+            "sniff": true,
+            "sniff_override_destination": false
+        ]
+
+        // Exclude IPs from TUN routing to prevent loops
+        tun["route_exclude_address"] = excludeIPs
+
+        return [tun]
     }
 
     // MARK: - Outbounds
@@ -208,6 +224,7 @@ struct SingBoxConfigBuilder {
         if let flow = service.settings["flow"]?.stringValue, !flow.isEmpty {
             outbound["flow"] = flow
         }
+
     }
 
     private func addVMessSettings(to outbound: inout [String: Any], service: Service) async throws {
@@ -229,6 +246,7 @@ struct SingBoxConfigBuilder {
         } else {
             outbound["security"] = "auto"
         }
+
     }
 
     private func addTrojanSettings(to outbound: inout [String: Any], service: Service) async throws {
@@ -248,6 +266,7 @@ struct SingBoxConfigBuilder {
         } else {
             throw ConfigBuilderError.missingCredential("trojan", service.name)
         }
+
     }
 
     private func addShadowsocksSettings(to outbound: inout [String: Any], service: Service) async throws {
@@ -271,6 +290,7 @@ struct SingBoxConfigBuilder {
         } else {
             throw ConfigBuilderError.missingCredential("shadowsocks", service.name)
         }
+
     }
 
     private func addSOCKS5Settings(to outbound: inout [String: Any], service: Service) async throws {
@@ -449,6 +469,12 @@ struct SingBoxConfigBuilder {
             "action": "hijack-dns"
         ])
 
+        // Route private IPs directly (LAN traffic)
+        rules.append([
+            "ip_is_private": true,
+            "outbound": "direct"
+        ])
+
         // Add user-defined rules
         for rule in tunnelConfig.rules {
             let singBoxRule = buildRule(rule)
@@ -466,7 +492,7 @@ struct SingBoxConfigBuilder {
         }
 
         route["auto_detect_interface"] = true
-        route["default_domain_resolver"] = "dns-direct"
+        route["default_domain_resolver"] = "dns-local"
 
         return route
     }
@@ -505,6 +531,22 @@ struct SingBoxConfigBuilder {
         }
 
         return singBoxRule
+    }
+
+    // MARK: - Helpers
+
+    private func isIPAddress(_ string: String) -> Bool {
+        // Check for IPv4
+        var sin = sockaddr_in()
+        if inet_pton(AF_INET, string, &sin.sin_addr) == 1 {
+            return true
+        }
+        // Check for IPv6
+        var sin6 = sockaddr_in6()
+        if inet_pton(AF_INET6, string, &sin6.sin6_addr) == 1 {
+            return true
+        }
+        return false
     }
 
     // MARK: - Experimental
