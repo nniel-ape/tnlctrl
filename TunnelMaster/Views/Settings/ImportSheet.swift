@@ -95,6 +95,7 @@ struct ImportSheet: View {
             Text("Paste your config (sing-box, Clash, V2Ray, or proxy URI):")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .padding(.horizontal)
 
             TextEditor(text: $configText)
                 .font(.system(.body, design: .monospaced))
