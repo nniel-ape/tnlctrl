@@ -16,38 +16,31 @@ struct MenuBarView: View {
             Divider()
             actionsSection
         }
-        .frame(width: 240)
+        .frame(width: 220)
     }
 
     private var statusSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
+        Button {} label: {
+            HStack(spacing: 8) {
                 Image(systemName: appState.tunnelStatus.systemImage)
                     .foregroundStyle(statusColor)
+                    .frame(width: 16)
                 Text(appState.tunnelStatus.displayName)
                     .font(.headline)
-
+                Spacer()
                 if appState.isTransitioning {
                     ProgressView()
-                        .scaleEffect(0.6)
+                        .scaleEffect(0.5)
+                        .frame(width: 12, height: 12)
                 }
             }
-
-            if let error = appState.tunnelError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
-            }
-
-            if appState.helperInstaller.status != .installed {
-                Text("Helper not installed")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .buttonStyle(.plain)
+        .disabled(true)
     }
 
     private var statusColor: Color {
@@ -62,27 +55,39 @@ struct MenuBarView: View {
     private var servicesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             if appState.enabledServices.isEmpty {
-                Text("No services configured")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                Button {} label: {
+                    Text("No services configured")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .disabled(true)
             } else {
                 ForEach(appState.enabledServices.prefix(5)) { service in
-                    HStack {
-                        Image(systemName: service.protocol.systemImage)
-                            .frame(width: 16)
-                        Text(service.name)
-                            .lineLimit(1)
-                        Spacer()
-                        if let latency = service.latency {
-                            Text("\(latency)ms")
-                                .font(.caption)
+                    Button {} label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: service.protocol.systemImage)
                                 .foregroundStyle(.secondary)
+                                .frame(width: 16)
+                            Text(service.name)
+                                .lineLimit(1)
+                            Spacer()
+                            if let latency = service.latency {
+                                Text("\(latency)ms")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
+                    .buttonStyle(.plain)
+                    .disabled(true)
                 }
 
                 if appState.enabledServices.count > 5 {
@@ -94,47 +99,78 @@ struct MenuBarView: View {
                 }
             }
         }
-        .padding(.vertical, 4)
     }
 
     private var actionsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {
+            MenuButton(
+                title: appState.isConnected ? "Disconnect" : "Connect",
+                systemImage: appState.isConnected ? "stop.fill" : "play.fill",
+                disabled: appState.isTransitioning || appState.helperInstaller.status != .installed
+            ) {
                 Task {
                     await appState.toggleConnection()
                 }
-            } label: {
-                Label(
-                    appState.isConnected ? "Disconnect" : "Connect",
-                    systemImage: appState.isConnected ? "stop.fill" : "play.fill"
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .disabled(appState.isTransitioning || appState.helperInstaller.status != .installed)
 
             Divider()
-                .padding(.vertical, 4)
 
             SettingsLink {
-                Label("Settings...", systemImage: "gear")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 8) {
+                    Image(systemName: "gear")
+                        .frame(width: 16)
+                    Text("Settings...")
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .buttonStyle(MenuButtonStyle())
 
-            Button {
+            MenuButton(title: "Quit TunnelMaster", systemImage: "power") {
                 NSApplication.shared.terminate(nil)
-            } label: {
-                Label("Quit TunnelMaster", systemImage: "power")
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
+        }
+    }
+}
+
+private struct MenuButton: View {
+    let title: String
+    let systemImage: String
+    var disabled: Bool = false
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .frame(width: 16)
+                Text(title)
+                Spacer()
+            }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(isHovered && !disabled ? Color.accentColor.opacity(0.15) : Color.clear)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.5 : 1)
+        .onHover { isHovered = $0 }
+    }
+}
+
+private struct MenuButtonStyle: ButtonStyle {
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
+            .onHover { isHovered = $0 }
     }
 }
