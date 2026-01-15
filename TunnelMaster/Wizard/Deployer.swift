@@ -17,7 +17,33 @@ final class Deployer {
         self.state = state
     }
 
-    // MARK: - Deploy
+    // MARK: - Deploy to Existing Server
+
+    /// Deploys a new service to an existing server.
+    /// Returns only the Service - caller is responsible for updating the Server record.
+    func deployToExisting(server: Server) async throws -> Service {
+        let settings = state.buildDeploymentSettings()
+
+        guard let template = ProtocolTemplates.template(for: state.selectedProtocol) else {
+            throw DeployerError.unsupportedProtocol
+        }
+
+        let baseService: Service = switch server.deploymentTarget {
+        case .local:
+            try await deployLocal(template: template, settings: settings)
+        case .remote:
+            try await deployRemote(template: template, settings: settings)
+        }
+
+        // Update Service with source and serverId
+        var service = baseService
+        service.source = .created
+        service.serverId = server.id
+
+        return service
+    }
+
+    // MARK: - Deploy New Server
 
     func deploy() async throws -> (Service, Server) {
         let settings = state.buildDeploymentSettings()

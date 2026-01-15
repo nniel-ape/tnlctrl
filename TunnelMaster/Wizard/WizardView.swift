@@ -10,7 +10,27 @@ import SwiftUI
 struct WizardView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
-    @State private var wizardState = WizardState()
+    @State private var wizardState: WizardState
+
+    init(preselectedServer: Server? = nil) {
+        if let server = preselectedServer {
+            _wizardState = State(initialValue: WizardState(server: server))
+        } else {
+            _wizardState = State(initialValue: WizardState())
+        }
+    }
+
+    private var headerTitle: String {
+        if let server = wizardState.preselectedServer {
+            return "Add Service to \(server.name)"
+        }
+        return "Deploy New Server"
+    }
+
+    /// Step index for display (0-based relative to visible steps)
+    private var displayStepIndex: Int {
+        wizardState.currentStep - wizardState.minStep
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,7 +52,7 @@ struct WizardView: View {
 
     private var headerView: some View {
         VStack(spacing: 8) {
-            Text("Deploy New Server")
+            Text(headerTitle)
                 .font(.title2)
                 .fontWeight(.semibold)
 
@@ -40,7 +60,7 @@ struct WizardView: View {
             HStack(spacing: 4) {
                 ForEach(0 ..< wizardState.totalSteps, id: \.self) { step in
                     Circle()
-                        .fill(step <= wizardState.currentStep ? Color.accentColor : Color.secondary.opacity(0.3))
+                        .fill(step <= displayStepIndex ? Color.accentColor : Color.secondary.opacity(0.3))
                         .frame(width: 8, height: 8)
                 }
             }
@@ -67,6 +87,19 @@ struct WizardView: View {
         }
     }
 
+    /// Whether Back button should be shown
+    private var canGoBack: Bool {
+        // Must be past minStep
+        guard wizardState.currentStep > wizardState.minStep else { return false }
+
+        // On deploy step: only allow back if not deploying and not yet succeeded
+        if wizardState.currentStep == 3 {
+            return !wizardState.isDeploying && wizardState.deployedService == nil
+        }
+
+        return true
+    }
+
     private var footerView: some View {
         HStack {
             Button("Cancel") {
@@ -74,13 +107,13 @@ struct WizardView: View {
             }
             .keyboardShortcut(.cancelAction)
 
-            Spacer()
-
-            if wizardState.currentStep > 0, wizardState.currentStep < 3 {
+            if canGoBack {
                 Button("Back") {
                     wizardState.previousStep()
                 }
             }
+
+            Spacer()
 
             if wizardState.currentStep < 3 {
                 Button("Next") {
@@ -300,10 +333,25 @@ struct DeployStepView: View {
 
         do {
             let deployer = Deployer(state: state)
-            let (service, server) = try await deployer.deploy()
-            state.deployedService = service
-            appState.addService(service)
-            appState.addServer(server)
+
+            if let existingServer = state.preselectedServer {
+                // Deploy to existing server
+                let service = try await deployer.deployToExisting(server: existingServer)
+                state.deployedService = service
+                appState.addService(service)
+
+                // Update existing server's serviceIds and containerIds
+                var updatedServer = existingServer
+                updatedServer.serviceIds.append(service.id)
+                updatedServer.containerIds.append(state.buildDeploymentSettings().containerName)
+                appState.updateServer(updatedServer)
+            } else {
+                // Deploy new server
+                let (service, server) = try await deployer.deploy()
+                state.deployedService = service
+                appState.addService(service)
+                appState.addServer(server)
+            }
         } catch {
             state.deploymentError = error.localizedDescription
         }

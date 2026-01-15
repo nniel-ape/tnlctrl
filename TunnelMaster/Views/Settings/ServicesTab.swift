@@ -13,6 +13,7 @@ struct ServicesTab: View {
     @State private var showingWizard = false
     @State private var showingExportSheet = false
     @State private var exportFormat: ExportFormat = .singbox
+    @State private var serverForNewService: Server?
 
     var body: some View {
         Group {
@@ -36,6 +37,10 @@ struct ServicesTab: View {
         }
         .sheet(item: $editingService) { service in
             ServiceEditSheet(service: service)
+                .environment(appState)
+        }
+        .sheet(item: $serverForNewService) { server in
+            WizardView(preselectedServer: server)
                 .environment(appState)
         }
     }
@@ -89,8 +94,22 @@ struct ServicesTab: View {
             Button("Import...") {
                 showingImportSheet = true
             }
-            Button("Deploy Server...") {
-                showingWizard = true
+            Menu {
+                Button("New Server...") {
+                    showingWizard = true
+                }
+                if !appState.servers.isEmpty {
+                    Divider()
+                    Menu("Add to Existing Server") {
+                        ForEach(appState.servers) { server in
+                            Button(server.name) {
+                                serverForNewService = server
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Text("Deploy...")
             }
             .buttonStyle(.borderedProminent)
         }
@@ -173,6 +192,17 @@ struct ServicesTab: View {
 
         Button("Test Latency") {
             // TODO: Task 19 - Latency testing
+        }
+
+        // Add service to same server (for created services)
+        if let serverId = service.serverId,
+           let server = appState.servers.first(where: { $0.id == serverId }) {
+            Divider()
+            Button {
+                serverForNewService = server
+            } label: {
+                Label("Add Service to \(server.name)", systemImage: "plus.circle")
+            }
         }
 
         Divider()

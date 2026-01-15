@@ -12,7 +12,9 @@ import Foundation
 final class WizardState {
     // Step tracking
     var currentStep = 0
-    let totalSteps = 4
+
+    // Preselected server (skips target step when set)
+    var preselectedServer: Server?
 
     // Target selection
     var deploymentTarget: DeploymentTarget = .local
@@ -20,6 +22,29 @@ final class WizardState {
     var sshPort = 22
     var sshUsername = "root"
     var sshKeyPath = ""
+
+    // MARK: - Computed Steps
+
+    var totalSteps: Int {
+        preselectedServer != nil ? 3 : 4
+    }
+
+    var minStep: Int {
+        preselectedServer != nil ? 1 : 0
+    }
+
+    // MARK: - Initializers
+
+    convenience init(server: Server) {
+        self.init()
+        self.preselectedServer = server
+        self.deploymentTarget = server.deploymentTarget
+        self.sshHost = server.host
+        self.sshPort = server.sshPort
+        self.sshUsername = server.sshUsername
+        self.sshKeyPath = server.sshKeyPath ?? ""
+        self.currentStep = 1 // Skip target step
+    }
 
     // Protocol selection
     var selectedProtocol: ProxyProtocol = .vless
@@ -73,13 +98,14 @@ final class WizardState {
     }
 
     func previousStep() {
-        if currentStep > 0 {
+        if currentStep > minStep {
             currentStep -= 1
         }
     }
 
     func reset() {
-        currentStep = 0
+        currentStep = minStep
+        preselectedServer = nil
         deploymentTarget = .local
         sshHost = ""
         sshPort = 22
