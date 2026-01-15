@@ -27,5 +27,8 @@ struct SettingsWindow: View {
         }
         .frame(minWidth: 600, minHeight: 400)
         .frame(idealWidth: 700, idealHeight: 500)
+        .onAppear {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+        }
     }
 }
