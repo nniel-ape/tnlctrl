@@ -117,8 +117,16 @@ struct MenuBarView: View {
             Divider()
 
             Button {
-                NSApplication.shared.activate(ignoringOtherApps: true)
                 openSettings()
+                // Bring Settings window to front (handles case when already open)
+                DispatchQueue.main.async {
+                    NSApplication.shared.setActivationPolicy(.regular)
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                    for window in NSApplication.shared.windows where window.isVisible && window.canBecomeKey {
+                        window.makeKeyAndOrderFront(nil)
+                        break
+                    }
+                }
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "gear")

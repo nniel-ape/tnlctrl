@@ -29,7 +29,15 @@ struct SettingsWindow: View {
         .frame(idealWidth: 700, idealHeight: 500)
         .onAppear {
             NSApplication.shared.setActivationPolicy(.regular)
-            NSApplication.shared.activate(ignoringOtherApps: true)
+            // Delay to let the window fully initialize before activating
+            DispatchQueue.main.async {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                // Find and focus the Settings window
+                for window in NSApplication.shared.windows where window.isVisible && window.canBecomeKey {
+                    window.makeKeyAndOrderFront(nil)
+                    break
+                }
+            }
         }
         .onDisappear {
             NSApplication.shared.setActivationPolicy(.accessory)
