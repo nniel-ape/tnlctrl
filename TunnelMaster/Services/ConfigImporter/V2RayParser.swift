@@ -38,7 +38,8 @@ struct V2RayParser: ConfigImporter {
 
         for outbound in outbounds {
             guard let protocolName = outbound["protocol"] as? String,
-                  let proto = mapProtocol(protocolName) else { continue }
+                  let proto = mapProtocol(protocolName)
+            else { continue }
 
             let service = try await parseOutbound(outbound, protocol: proto)
             services.append(service)

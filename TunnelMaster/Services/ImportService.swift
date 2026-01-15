@@ -12,7 +12,7 @@ actor ImportService {
 
     private init() {
         let keychain = KeychainManager.shared
-        parsers = [
+        self.parsers = [
             SingBoxParser(keychainManager: keychain),
             ClashParser(keychainManager: keychain),
             V2RayParser(keychainManager: keychain),
@@ -22,10 +22,8 @@ actor ImportService {
 
     func importConfig(text: String) async throws -> [Service] {
         // Try each parser
-        for parser in parsers {
-            if parser.canImport(text: text) {
-                return try await parser.parse(text: text)
-            }
+        for parser in parsers where parser.canImport(text: text) {
+            return try await parser.parse(text: text)
         }
 
         throw ImportError.unsupportedFormat
@@ -34,18 +32,14 @@ actor ImportService {
     func importConfig(data: Data) async throws -> [Service] {
         // First try as text
         if let text = String(data: data, encoding: .utf8) {
-            for parser in parsers {
-                if parser.canImport(text: text) {
-                    return try await parser.parse(text: text)
-                }
+            for parser in parsers where parser.canImport(text: text) {
+                return try await parser.parse(text: text)
             }
         }
 
         // Then try as binary data
-        for parser in parsers {
-            if parser.canImport(data: data) {
-                return try await parser.parse(data: data)
-            }
+        for parser in parsers where parser.canImport(data: data) {
+            return try await parser.parse(data: data)
         }
 
         throw ImportError.unsupportedFormat
@@ -68,7 +62,7 @@ enum ImportError: LocalizedError {
             "Unsupported config format. Supported formats: sing-box, Clash, V2Ray, and proxy URIs."
         case .noServicesFound:
             "No proxy services found in the config."
-        case .networkError(let detail):
+        case let .networkError(detail):
             "Network error: \(detail)"
         }
     }

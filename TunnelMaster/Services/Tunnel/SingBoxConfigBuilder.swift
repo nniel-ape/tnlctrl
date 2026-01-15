@@ -6,6 +6,9 @@
 //
 
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "nniel.TunnelMaster", category: "SingBoxConfigBuilder")
 
 struct SingBoxConfigBuilder {
     private let services: [Service]
@@ -114,7 +117,7 @@ struct SingBoxConfigBuilder {
         }
 
         // Build proxy outbound (selector)
-        let enabledServices = services.filter { $0.isEnabled }
+        let enabledServices = services.filter(\.isEnabled)
 
         // Always create proxy selector (even with single service) since DNS/route reference it
         if !enabledServices.isEmpty {
@@ -141,7 +144,7 @@ struct SingBoxConfigBuilder {
             services.first { $0.id == chainId }
         }
 
-        guard !chainServices.isEmpty else {
+        guard let firstService = chainServices.first else {
             throw ConfigBuilderError.emptyChain
         }
 
@@ -150,7 +153,7 @@ struct SingBoxConfigBuilder {
         let chainOutbound: [String: Any] = [
             "tag": "chain",
             "type": "selector",
-            "outbounds": [chainServices.first!.id.uuidString.lowercased()]
+            "outbounds": [firstService.id.uuidString.lowercased()]
         ]
 
         return chainOutbound
@@ -215,7 +218,7 @@ struct SingBoxConfigBuilder {
 
     private func addVLESSSettings(to outbound: inout [String: Any], service: Service) async throws {
         if let credRef = service.credentialRef,
-           let uuid = try? await keychainManager.get( credRef) {
+           let uuid = try? await keychainManager.get(credRef) {
             outbound["uuid"] = uuid
         } else if let uuid = service.settings["uuid"]?.stringValue {
             outbound["uuid"] = uuid
@@ -224,12 +227,11 @@ struct SingBoxConfigBuilder {
         if let flow = service.settings["flow"]?.stringValue, !flow.isEmpty {
             outbound["flow"] = flow
         }
-
     }
 
     private func addVMessSettings(to outbound: inout [String: Any], service: Service) async throws {
         if let credRef = service.credentialRef,
-           let uuid = try? await keychainManager.get( credRef) {
+           let uuid = try? await keychainManager.get(credRef) {
             outbound["uuid"] = uuid
         } else if let uuid = service.settings["uuid"]?.stringValue {
             outbound["uuid"] = uuid
@@ -246,7 +248,6 @@ struct SingBoxConfigBuilder {
         } else {
             outbound["security"] = "auto"
         }
-
     }
 
     private func addTrojanSettings(to outbound: inout [String: Any], service: Service) async throws {
@@ -258,7 +259,7 @@ struct SingBoxConfigBuilder {
                     throw ConfigBuilderError.credentialNotFound(credRef)
                 }
             } catch {
-                print("Failed to retrieve Trojan password for credRef \(credRef): \(error)")
+                logger.error("Failed to retrieve Trojan password for credRef \(credRef, privacy: .public): \(error)")
                 throw error
             }
         } else if let password = service.settings["password"]?.stringValue {
@@ -266,7 +267,6 @@ struct SingBoxConfigBuilder {
         } else {
             throw ConfigBuilderError.missingCredential("trojan", service.name)
         }
-
     }
 
     private func addShadowsocksSettings(to outbound: inout [String: Any], service: Service) async throws {
@@ -282,7 +282,7 @@ struct SingBoxConfigBuilder {
                     throw ConfigBuilderError.credentialNotFound(credRef)
                 }
             } catch {
-                print("Failed to retrieve Shadowsocks password for credRef \(credRef): \(error)")
+                logger.error("Failed to retrieve Shadowsocks password for credRef \(credRef, privacy: .public): \(error)")
                 throw error
             }
         } else if let password = service.settings["password"]?.stringValue {
@@ -290,7 +290,6 @@ struct SingBoxConfigBuilder {
         } else {
             throw ConfigBuilderError.missingCredential("shadowsocks", service.name)
         }
-
     }
 
     private func addSOCKS5Settings(to outbound: inout [String: Any], service: Service) async throws {
@@ -299,7 +298,7 @@ struct SingBoxConfigBuilder {
         }
 
         if let credRef = service.credentialRef,
-           let password = try? await keychainManager.get( credRef) {
+           let password = try? await keychainManager.get(credRef) {
             outbound["password"] = password
         } else if let password = service.settings["password"]?.stringValue {
             outbound["password"] = password
@@ -308,7 +307,7 @@ struct SingBoxConfigBuilder {
 
     private func addWireGuardSettings(to outbound: inout [String: Any], service: Service) async throws {
         if let credRef = service.credentialRef,
-           let privateKey = try? await keychainManager.get( credRef) {
+           let privateKey = try? await keychainManager.get(credRef) {
             outbound["private_key"] = privateKey
         } else if let privateKey = service.settings["privateKey"]?.stringValue {
             outbound["private_key"] = privateKey
@@ -349,7 +348,7 @@ struct SingBoxConfigBuilder {
 
     private func addHysteria2Settings(to outbound: inout [String: Any], service: Service) async throws {
         if let credRef = service.credentialRef,
-           let password = try? await keychainManager.get( credRef) {
+           let password = try? await keychainManager.get(credRef) {
             outbound["password"] = password
         } else if let password = service.settings["password"]?.stringValue {
             outbound["password"] = password
@@ -563,8 +562,8 @@ struct SingBoxConfigBuilder {
 
 // MARK: - ProxyProtocol Extension
 
-private extension ProxyProtocol {
-    var singBoxType: String {
+extension ProxyProtocol {
+    fileprivate var singBoxType: String {
         switch self {
         case .vless: "vless"
         case .vmess: "vmess"
@@ -594,9 +593,9 @@ enum ConfigBuilderError: LocalizedError {
             "Proxy chain contains no valid services"
         case .noEnabledServices:
             "No enabled services found"
-        case .credentialNotFound(let ref):
+        case let .credentialNotFound(ref):
             "Credential not found in Keychain: \(ref)"
-        case .missingCredential(let proto, let name):
+        case let .missingCredential(proto, name):
             "Missing credential for \(proto) service '\(name)'"
         }
     }

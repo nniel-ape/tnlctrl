@@ -78,28 +78,28 @@ enum AnyCodableValue: Codable, Hashable, Sendable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
-        case .string(let value): try container.encode(value)
-        case .int(let value): try container.encode(value)
-        case .double(let value): try container.encode(value)
-        case .bool(let value): try container.encode(value)
-        case .array(let value): try container.encode(value)
-        case .dictionary(let value): try container.encode(value)
+        case let .string(value): try container.encode(value)
+        case let .int(value): try container.encode(value)
+        case let .double(value): try container.encode(value)
+        case let .bool(value): try container.encode(value)
+        case let .array(value): try container.encode(value)
+        case let .dictionary(value): try container.encode(value)
         case .null: try container.encodeNil()
         }
     }
 
     var stringValue: String? {
-        if case .string(let value) = self { return value }
+        if case let .string(value) = self { return value }
         return nil
     }
 
     var intValue: Int? {
-        if case .int(let value) = self { return value }
+        if case let .int(value) = self { return value }
         return nil
     }
 
     var boolValue: Bool? {
-        if case .bool(let value) = self { return value }
+        if case let .bool(value) = self { return value }
         return nil
     }
 }

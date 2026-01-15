@@ -140,9 +140,9 @@ enum HelperInstallerError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .installFailed(let detail):
+        case let .installFailed(detail):
             "Failed to install helper: \(detail)"
-        case .uninstallFailed(let detail):
+        case let .uninstallFailed(detail):
             "Failed to uninstall helper: \(detail)"
         case .userDenied:
             "Installation was denied. Please allow TunnelMaster in System Settings > Login Items."

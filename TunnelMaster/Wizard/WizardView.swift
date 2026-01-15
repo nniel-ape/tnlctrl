@@ -38,7 +38,7 @@ struct WizardView: View {
 
             // Progress indicator
             HStack(spacing: 4) {
-                ForEach(0..<wizardState.totalSteps, id: \.self) { step in
+                ForEach(0 ..< wizardState.totalSteps, id: \.self) { step in
                     Circle()
                         .fill(step <= wizardState.currentStep ? Color.accentColor : Color.secondary.opacity(0.3))
                         .frame(width: 8, height: 8)
@@ -52,8 +52,7 @@ struct WizardView: View {
         .padding()
     }
 
-    @ViewBuilder
-    private var contentView: some View {
+    @ViewBuilder private var contentView: some View {
         switch wizardState.currentStep {
         case 0:
             TargetStepView(state: wizardState)
@@ -77,7 +76,7 @@ struct WizardView: View {
 
             Spacer()
 
-            if wizardState.currentStep > 0 && wizardState.currentStep < 3 {
+            if wizardState.currentStep > 0, wizardState.currentStep < 3 {
                 Button("Back") {
                     wizardState.previousStep()
                 }
@@ -288,7 +287,7 @@ struct DeployStepView: View {
         .padding()
         .task {
             // Auto-start deployment when reaching this step
-            if !state.isDeploying && state.deployedService == nil && state.deploymentError == nil {
+            if !state.isDeploying, state.deployedService == nil, state.deploymentError == nil {
                 await deploy()
             }
         }

@@ -32,9 +32,9 @@ actor DockerManager {
     func runContainer(
         image: String,
         name: String,
-        ports: [Int: Int],  // hostPort: containerPort
+        ports: [Int: Int], // hostPort: containerPort
         environment: [String: String] = [:],
-        volumes: [String: String] = [:],  // hostPath: containerPath
+        volumes: [String: String] = [:], // hostPath: containerPath
         detached: Bool = true,
         restart: RestartPolicy = .unless_stopped
     ) async throws -> String {
@@ -135,7 +135,7 @@ actor DockerManager {
     }
 
     func getContainerLogs(name: String, tail: Int = 100) async -> String {
-        (try? await executeDocker(["logs", "--tail", "\(tail)", name])) ?? ""
+        await (try? executeDocker(["logs", "--tail", "\(tail)", name])) ?? ""
     }
 
     // MARK: - Image Management
@@ -191,13 +191,8 @@ actor DockerManager {
             "/Users/\(NSUserName())/.colima/default/docker.sock"
         ]
 
-        for path in paths {
-            if FileManager.default.fileExists(atPath: path) {
-                // Check if it's docker executable, not socket
-                if !path.hasSuffix(".sock") {
-                    return path
-                }
-            }
+        for path in paths where FileManager.default.fileExists(atPath: path) && !path.hasSuffix(".sock") {
+            return path
         }
 
         // Default to docker and hope it's in PATH
@@ -264,11 +259,11 @@ enum DockerError: LocalizedError {
         switch self {
         case .notInstalled:
             "Docker is not installed or not running"
-        case .commandFailed(let message):
+        case let .commandFailed(message):
             "Docker command failed: \(message)"
-        case .containerNotFound(let name):
+        case let .containerNotFound(name):
             "Container '\(name)' not found"
-        case .imagePullFailed(let image):
+        case let .imagePullFailed(image):
             "Failed to pull image '\(image)'"
         }
     }

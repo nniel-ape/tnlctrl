@@ -6,7 +6,10 @@
 //
 
 import Foundation
+import OSLog
 import UserNotifications
+
+private let logger = Logger(subsystem: "nniel.TunnelMaster", category: "NotificationService")
 
 @MainActor
 final class NotificationService {
@@ -29,7 +32,7 @@ final class NotificationService {
         do {
             isAuthorized = try await center.requestAuthorization(options: [.alert, .sound])
         } catch {
-            print("Notification authorization failed: \(error)")
+            logger.error("Notification authorization failed: \(error)")
         }
     }
 

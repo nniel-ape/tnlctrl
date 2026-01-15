@@ -5,8 +5,11 @@
 //  UI for exporting services to various formats.
 //
 
+import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
+
+private let logger = Logger(subsystem: "nniel.TunnelMaster", category: "ExportSheet")
 
 struct ExportSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -116,7 +119,7 @@ struct ExportSheet: View {
                 do {
                     try exportContent.write(to: url, atomically: true, encoding: .utf8)
                 } catch {
-                    print("Failed to save export: \(error)")
+                    logger.error("Failed to save export: \(error)")
                 }
             }
         }

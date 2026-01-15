@@ -166,7 +166,7 @@ final class Deployer {
 
         // Build Docker run command
         let dockerArgs = template.generateDockerRunArgs(settings: settings)
-        let dockerCommand = "run " + dockerArgs.dropFirst().joined(separator: " ")  // Remove -d as it's in args
+        let dockerCommand = "run " + dockerArgs.dropFirst().joined(separator: " ") // Remove -d as it's in args
 
         // Run container
         state.log("Starting container...")
@@ -209,7 +209,7 @@ final class Deployer {
 
 extension Dictionary {
     func mapKeys<NewKey: Hashable>(_ transform: (Key) -> NewKey) -> [NewKey: Value] {
-        Dictionary<NewKey, Value>(uniqueKeysWithValues: map { (transform($0.key), $0.value) })
+        [NewKey: Value](uniqueKeysWithValues: map { (transform($0.key), $0.value) })
     }
 }
 
@@ -228,11 +228,11 @@ enum DeployerError: LocalizedError {
             "Selected protocol is not supported for deployment"
         case .dockerNotAvailable:
             "Docker is not available. Make sure Docker Desktop or colima is running."
-        case .sshConnectionFailed(let message):
+        case let .sshConnectionFailed(message):
             "SSH connection failed: \(message)"
-        case .containerFailed(let message):
+        case let .containerFailed(message):
             "Container deployment failed: \(message)"
-        case .configurationFailed(let message):
+        case let .configurationFailed(message):
             "Configuration error: \(message)"
         }
     }

@@ -101,7 +101,8 @@ struct URIParser: ConfigImporter {
             let hostPort = String(workingURI[workingURI.index(after: atIndex)...])
 
             guard let decoded = base64Decode(userInfo),
-                  let colonIndex = decoded.firstIndex(of: ":") else {
+                  let colonIndex = decoded.firstIndex(of: ":")
+            else {
                 throw ConfigImportError.invalidFormat("Invalid SS userinfo")
             }
 
@@ -119,13 +120,14 @@ struct URIParser: ConfigImporter {
 
             // Format: method:password@host:port
             guard let atIndex = decoded.lastIndex(of: "@"),
-                  let colonIndex = decoded.firstIndex(of: ":") else {
+                  let colonIndex = decoded.firstIndex(of: ":")
+            else {
                 throw ConfigImportError.invalidFormat("Invalid SS format")
             }
 
             method = String(decoded[..<colonIndex])
             let afterMethod = decoded.index(after: colonIndex)
-            password = String(decoded[afterMethod..<atIndex])
+            password = String(decoded[afterMethod ..< atIndex])
 
             let hostPort = String(decoded[decoded.index(after: atIndex)...])
             let hostPortParts = parseHostPort(hostPort)
@@ -153,7 +155,8 @@ struct URIParser: ConfigImporter {
 
         guard let decoded = base64Decode(base64Part),
               let data = decoded.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
             throw ConfigImportError.invalidFormat("Invalid VMess base64 JSON")
         }
 
@@ -471,9 +474,9 @@ struct URIParser: ConfigImporter {
         // Handle IPv6: [::1]:port
         if string.hasPrefix("[") {
             if let closeBracket = string.firstIndex(of: "]") {
-                let host = String(string[string.index(after: string.startIndex)..<closeBracket])
+                let host = String(string[string.index(after: string.startIndex) ..< closeBracket])
                 let afterBracket = string.index(after: closeBracket)
-                if afterBracket < string.endIndex && string[afterBracket] == ":" {
+                if afterBracket < string.endIndex, string[afterBracket] == ":" {
                     let portStr = String(string[string.index(after: afterBracket)...])
                     return (host, Int(portStr))
                 }

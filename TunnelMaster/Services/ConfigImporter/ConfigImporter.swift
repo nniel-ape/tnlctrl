@@ -44,13 +44,13 @@ enum ConfigImportError: LocalizedError {
         switch self {
         case .invalidEncoding:
             "Invalid text encoding"
-        case .invalidFormat(let detail):
+        case let .invalidFormat(detail):
             "Invalid format: \(detail)"
-        case .unsupportedProtocol(let proto):
+        case let .unsupportedProtocol(proto):
             "Unsupported protocol: \(proto)"
-        case .missingRequiredField(let field):
+        case let .missingRequiredField(field):
             "Missing required field: \(field)"
-        case .parseError(let detail):
+        case let .parseError(detail):
             "Parse error: \(detail)"
         }
     }

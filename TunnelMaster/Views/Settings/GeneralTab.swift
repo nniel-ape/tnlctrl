@@ -5,6 +5,13 @@
 
 import SwiftUI
 
+private enum URLs {
+    // swiftlint:disable force_unwrapping
+    static let github = URL(string: "https://github.com")!
+    static let loginItemsSettings = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")!
+    // swiftlint:enable force_unwrapping
+}
+
 struct GeneralTab: View {
     @Environment(AppState.self) private var appState
     @State private var helperInstaller = HelperInstaller.shared
@@ -119,7 +126,7 @@ struct GeneralTab: View {
                 LabeledContent("Version", value: "1.0.0 (1)")
                 LabeledContent("sing-box", value: "v1.10.0 (bundled)")
 
-                Link("View on GitHub", destination: URL(string: "https://github.com")!)
+                Link("View on GitHub", destination: URLs.github)
             }
         }
         .formStyle(.grouped)
@@ -128,8 +135,7 @@ struct GeneralTab: View {
         }
     }
 
-    @ViewBuilder
-    private var statusIcon: some View {
+    @ViewBuilder private var statusIcon: some View {
         switch helperInstaller.status {
         case .installed:
             Label("Running", systemImage: "checkmark.circle.fill")
@@ -152,8 +158,7 @@ struct GeneralTab: View {
         }
     }
 
-    @ViewBuilder
-    private var helperActions: some View {
+    @ViewBuilder private var helperActions: some View {
         switch helperInstaller.status {
         case .notInstalled, .unknown:
             Button("Install Helper...") {
@@ -172,7 +177,7 @@ struct GeneralTab: View {
 
                 HStack {
                     Button("Open System Settings") {
-                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")!)
+                        NSWorkspace.shared.open(URLs.loginItemsSettings)
                     }
 
                     Button("Check Again") {

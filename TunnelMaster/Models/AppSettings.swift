@@ -8,7 +8,7 @@
 import Foundation
 
 struct AppSettings: Codable, Equatable {
-    var enableSingBoxLogs: Bool = false
+    var enableSingBoxLogs = false
 
     static let `default` = AppSettings()
 }

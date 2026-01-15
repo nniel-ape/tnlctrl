@@ -6,6 +6,9 @@
 //
 
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "nniel.TunnelMaster", category: "TunnelManager")
 
 @Observable
 @MainActor
@@ -19,6 +22,7 @@ final class TunnelManager {
             }
         }
     }
+
     private(set) var error: String?
     private(set) var isTransitioning = false
 
@@ -41,7 +45,7 @@ final class TunnelManager {
             throw TunnelManagerError.alreadyTransitioning
         }
 
-        let enabledServices = services.filter { $0.isEnabled }
+        let enabledServices = services.filter(\.isEnabled)
         guard !enabledServices.isEmpty else {
             throw TunnelManagerError.noEnabledServices
         }
@@ -55,10 +59,8 @@ final class TunnelManager {
             let builder = SingBoxConfigBuilder(services: enabledServices, tunnelConfig: tunnelConfig)
             let configJSON = try await builder.build()
 
-            // Debug: print generated config
-            print("=== Generated sing-box config ===")
-            print(configJSON)
-            print("=== End config ===")
+            // Debug: log generated config
+            logger.debug("Generated sing-box config: \(configJSON, privacy: .private)")
 
             // Start tunnel via XPC
             try await xpcClient.startTunnel(configJSON: configJSON, enableLogs: enableLogs)
@@ -105,7 +107,7 @@ final class TunnelManager {
             throw TunnelManagerError.notRunning
         }
 
-        let enabledServices = services.filter { $0.isEnabled }
+        let enabledServices = services.filter(\.isEnabled)
         guard !enabledServices.isEmpty else {
             throw TunnelManagerError.noEnabledServices
         }
@@ -125,7 +127,7 @@ final class TunnelManager {
     func refreshStatus() async {
         do {
             let newStatus = try await xpcClient.getStatus()
-            if status != .connecting && status != .disconnecting {
+            if status != .connecting, status != .disconnecting {
                 status = newStatus
             }
         } catch {

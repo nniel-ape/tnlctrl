@@ -3,7 +3,10 @@
 //  TunnelMaster
 //
 
+import OSLog
 import SwiftUI
+
+private let logger = Logger(subsystem: "nniel.TunnelMaster", category: "AppState")
 
 @MainActor
 @Observable
@@ -60,7 +63,7 @@ final class AppState {
                 enableLogs: settings.enableSingBoxLogs
             )
         } catch {
-            print("Failed to connect: \(error)")
+            logger.error("Failed to connect: \(error)")
         }
     }
 
@@ -68,7 +71,7 @@ final class AppState {
         do {
             try await tunnelManager.stop()
         } catch {
-            print("Failed to disconnect: \(error)")
+            logger.error("Failed to disconnect: \(error)")
         }
     }
 
@@ -88,7 +91,7 @@ final class AppState {
             tunnelConfig = try await ServiceStore.shared.loadTunnelConfig()
             settings = try await ServiceStore.shared.loadSettings()
         } catch {
-            print("Failed to load data: \(error)")
+            logger.error("Failed to load data: \(error)")
         }
     }
 
@@ -97,7 +100,7 @@ final class AppState {
             do {
                 try await ServiceStore.shared.saveSettings(settings)
             } catch {
-                print("Failed to save settings: \(error)")
+                logger.error("Failed to save settings: \(error)")
             }
         }
     }
@@ -107,7 +110,7 @@ final class AppState {
             do {
                 try await ServiceStore.shared.saveServices(services)
             } catch {
-                print("Failed to save services: \(error)")
+                logger.error("Failed to save services: \(error)")
             }
         }
     }
@@ -117,7 +120,7 @@ final class AppState {
             do {
                 try await ServiceStore.shared.saveTunnelConfig(tunnelConfig)
             } catch {
-                print("Failed to save tunnel config: \(error)")
+                logger.error("Failed to save tunnel config: \(error)")
             }
         }
     }

@@ -35,31 +35,31 @@ struct DeploymentSettings: Sendable {
     var containerName: String
 
     // TLS settings
-    var tlsEnabled: Bool = true
-    var sni: String = ""
+    var tlsEnabled = true
+    var sni = ""
 
     // VLESS Reality settings
-    var realityEnabled: Bool = false
-    var realityPrivateKey: String = ""
-    var realityPublicKey: String = ""
-    var realityShortId: String = ""
+    var realityEnabled = false
+    var realityPrivateKey = ""
+    var realityPublicKey = ""
+    var realityShortId = ""
 
     // Protocol-specific
-    var method: String = "aes-256-gcm"  // Shadowsocks
-    var flow: String = "xtls-rprx-vision"  // VLESS
+    var method = "aes-256-gcm" // Shadowsocks
+    var flow = "xtls-rprx-vision" // VLESS
 
     init(serverHost: String, port: Int) {
         self.serverHost = serverHost
         self.port = port
         self.uuid = UUID().uuidString
         self.password = Self.generateSecurePassword()
-        self.containerName = "tunnelmaster-\(Int.random(in: 1000...9999))"
+        self.containerName = "tunnelmaster-\(Int.random(in: 1000 ... 9999))"
         self.sni = serverHost
     }
 
     static func generateSecurePassword(length: Int = 24) -> String {
         let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-        return String((0..<length).compactMap { _ in chars.randomElement() })
+        return String((0 ..< length).compactMap { _ in chars.randomElement() })
     }
 }
 

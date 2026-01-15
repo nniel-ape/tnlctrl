@@ -11,7 +11,6 @@ import Foundation
 // swiftlint:disable line_length
 
 enum ConfigFixtures {
-
     // MARK: - URI Schemes
 
     enum URIs {
@@ -86,7 +85,7 @@ enum ConfigFixtures {
     // MARK: - sing-box JSON Configs
 
     enum SingBox {
-        static let vlessOutbound: String = """
+        static let vlessOutbound = """
         {
             "outbounds": [
                 {
@@ -112,7 +111,7 @@ enum ConfigFixtures {
         }
         """
 
-        static let vmessOutbound: String = """
+        static let vmessOutbound = """
         {
             "outbounds": [
                 {
@@ -135,7 +134,7 @@ enum ConfigFixtures {
         }
         """
 
-        static let trojanOutbound: String = """
+        static let trojanOutbound = """
         {
             "outbounds": [
                 {
@@ -154,7 +153,7 @@ enum ConfigFixtures {
         }
         """
 
-        static let shadowsocksOutbound: String = """
+        static let shadowsocksOutbound = """
         {
             "outbounds": [
                 {
@@ -169,7 +168,7 @@ enum ConfigFixtures {
         }
         """
 
-        static let wireguardOutbound: String = """
+        static let wireguardOutbound = """
         {
             "outbounds": [
                 {
@@ -185,7 +184,7 @@ enum ConfigFixtures {
         }
         """
 
-        static let hysteria2Outbound: String = """
+        static let hysteria2Outbound = """
         {
             "outbounds": [
                 {
@@ -207,7 +206,7 @@ enum ConfigFixtures {
         }
         """
 
-        static let multipleOutbounds: String = """
+        static let multipleOutbounds = """
         {
             "outbounds": [
                 {
@@ -310,7 +309,7 @@ enum ConfigFixtures {
     // MARK: - V2Ray JSON Configs
 
     enum V2Ray {
-        static let vlessVnext: String = """
+        static let vlessVnext = """
         {
             "outbounds": [
                 {
@@ -345,7 +344,7 @@ enum ConfigFixtures {
         }
         """
 
-        static let vmessVnext: String = """
+        static let vmessVnext = """
         {
             "outbounds": [
                 {
@@ -385,7 +384,7 @@ enum ConfigFixtures {
         }
         """
 
-        static let trojanServers: String = """
+        static let trojanServers = """
         {
             "outbounds": [
                 {

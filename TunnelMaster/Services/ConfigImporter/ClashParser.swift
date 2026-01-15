@@ -43,14 +43,15 @@ struct ClashParser: ConfigImporter {
 
         // Find proxies section
         guard let proxiesRange = yaml.range(of: "proxies:", options: .caseInsensitive) ??
-                                 yaml.range(of: "Proxy:", options: .caseInsensitive) else {
+            yaml.range(of: "Proxy:", options: .caseInsensitive)
+        else {
             return []
         }
 
         let afterProxies = String(yaml[proxiesRange.upperBound...])
         let lines = afterProxies.components(separatedBy: .newlines)
 
-        var currentProxy: [String: String]? = nil
+        var currentProxy: [String: String]?
 
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -58,8 +59,8 @@ struct ClashParser: ConfigImporter {
             // Check if we've left the proxies section
             // A new top-level section starts at column 0 (no indentation) with a key:value pattern
             let isIndented = line.hasPrefix(" ") || line.hasPrefix("\t")
-            if !trimmed.isEmpty && !isIndented && !trimmed.hasPrefix("-") &&
-               !trimmed.hasPrefix("#") && trimmed.contains(":") && !trimmed.hasPrefix("{") {
+            if !trimmed.isEmpty, !isIndented, !trimmed.hasPrefix("-"),
+               !trimmed.hasPrefix("#"), trimmed.contains(":"), !trimmed.hasPrefix("{") {
                 // New top-level section - exit the loop
                 break
             }
@@ -71,7 +72,7 @@ struct ClashParser: ConfigImporter {
                 }
 
                 // Check for inline format: - {name: xxx, type: xxx, ...}
-                if trimmed.contains("{") && trimmed.contains("}") {
+                if trimmed.contains("{"), trimmed.contains("}") {
                     if let inlineProxy = parseInlineProxy(trimmed) {
                         proxies.append(inlineProxy)
                         currentProxy = nil
@@ -84,7 +85,7 @@ struct ClashParser: ConfigImporter {
                         currentProxy?[key] = value
                     }
                 }
-            } else if currentProxy != nil && trimmed.contains(":") && !trimmed.hasPrefix("#") {
+            } else if currentProxy != nil, trimmed.contains(":"), !trimmed.hasPrefix("#") {
                 if let (key, value) = parseKeyValue(trimmed) {
                     currentProxy?[key] = value
                 }
@@ -101,9 +102,10 @@ struct ClashParser: ConfigImporter {
     private func parseInlineProxy(_ line: String) -> [String: String]? {
         // Parse: - {name: xxx, type: ss, server: xxx, port: xxx, ...}
         guard let start = line.firstIndex(of: "{"),
-              let end = line.lastIndex(of: "}") else { return nil }
+              let end = line.lastIndex(of: "}")
+        else { return nil }
 
-        let content = String(line[line.index(after: start)..<end])
+        let content = String(line[line.index(after: start) ..< end])
         var proxy: [String: String] = [:]
 
         // Split by comma, handling quoted values
@@ -124,14 +126,14 @@ struct ClashParser: ConfigImporter {
         var quoteChar: Character = "\""
 
         for char in text {
-            if (char == "\"" || char == "'") && !inQuotes {
+            if char == "\"" || char == "'", !inQuotes {
                 inQuotes = true
                 quoteChar = char
                 current.append(char)
-            } else if char == quoteChar && inQuotes {
+            } else if char == quoteChar, inQuotes {
                 inQuotes = false
                 current.append(char)
-            } else if char == "," && !inQuotes {
+            } else if char == ",", !inQuotes {
                 result.append(current.trimmingCharacters(in: .whitespaces))
                 current = ""
             } else {
@@ -154,7 +156,7 @@ struct ClashParser: ConfigImporter {
 
         // Remove quotes
         if (value.hasPrefix("\"") && value.hasSuffix("\"")) ||
-           (value.hasPrefix("'") && value.hasSuffix("'")) {
+            (value.hasPrefix("'") && value.hasSuffix("'")) {
             value = String(value.dropFirst().dropLast())
         }
 
@@ -165,7 +167,8 @@ struct ClashParser: ConfigImporter {
 
     private func parseProxy(_ proxy: [String: String]) async throws -> Service? {
         guard let type = proxy["type"]?.lowercased(),
-              let proto = mapProtocol(type) else { return nil }
+              let proto = mapProtocol(type)
+        else { return nil }
 
         let name = proxy["name"] ?? proto.displayName
         let server = proxy["server"] ?? ""

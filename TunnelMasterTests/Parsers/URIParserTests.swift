@@ -3,8 +3,8 @@
 //  TunnelMasterTests
 //
 
-import XCTest
 @testable import TunnelMaster
+import XCTest
 
 @MainActor
 final class URIParserTests: XCTestCase {

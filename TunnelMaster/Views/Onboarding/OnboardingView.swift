@@ -32,7 +32,7 @@ struct OnboardingView: View {
 
             // Page indicators
             HStack(spacing: 8) {
-                ForEach(0..<totalPages, id: \.self) { page in
+                ForEach(0 ..< totalPages, id: \.self) { page in
                     Circle()
                         .fill(page == currentPage ? Color.accentColor : Color.secondary.opacity(0.3))
                         .frame(width: 8, height: 8)

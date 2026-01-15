@@ -6,6 +6,9 @@
 //
 
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "nniel.TunnelMaster", category: "XPCClient")
 
 @MainActor
 final class XPCClient {
@@ -18,7 +21,7 @@ final class XPCClient {
     // MARK: - Connection Management
 
     private func getConnection() throws -> NSXPCConnection {
-        if let connection = connection {
+        if let connection {
             return connection
         }
 
@@ -55,8 +58,9 @@ final class XPCClient {
         let conn = try getConnection()
         guard let proxy = conn.remoteObjectProxyWithErrorHandler({ error in
             // Error handler is called on a background thread
-            print("XPC error: \(error)")
-        }) as? HelperProtocol else {
+            logger.error("XPC error: \(error)")
+        }) as? HelperProtocol
+        else {
             throw XPCError.connectionFailed
         }
         return proxy
@@ -148,7 +152,7 @@ enum XPCError: LocalizedError {
         switch self {
         case .connectionFailed:
             "Failed to connect to helper"
-        case .operationFailed(let message):
+        case let .operationFailed(message):
             "Helper operation failed: \(message)"
         case .helperNotInstalled:
             "Privileged helper is not installed"

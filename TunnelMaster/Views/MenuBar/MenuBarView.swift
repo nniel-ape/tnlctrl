@@ -139,7 +139,7 @@ struct MenuBarView: View {
 private struct MenuButton: View {
     let title: String
     let systemImage: String
-    var disabled: Bool = false
+    var disabled = false
     let action: () -> Void
 
     @State private var isHovered = false

@@ -7,13 +7,20 @@
 
 import Foundation
 
+private enum GeoURLs {
+    // swiftlint:disable force_unwrapping
+    static let geoip = URL(string: "https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db")!
+    static let geosite = URL(string: "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db")!
+    // swiftlint:enable force_unwrapping
+}
+
 @Observable
 @MainActor
 final class GeoDatabaseUpdater {
     static let shared = GeoDatabaseUpdater()
 
-    private let geoipURL = URL(string: "https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db")!
-    private let geositeURL = URL(string: "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db")!
+    private let geoipURL = GeoURLs.geoip
+    private let geositeURL = GeoURLs.geosite
 
     private(set) var isChecking = false
     private(set) var isUpdating = false
@@ -28,7 +35,7 @@ final class GeoDatabaseUpdater {
     private let geositeETagKey = "GeoDatabase.GeoSite.ETag"
 
     private init() {
-        lastUpdateDate = userDefaults.object(forKey: lastUpdateKey) as? Date
+        self.lastUpdateDate = userDefaults.object(forKey: lastUpdateKey) as? Date
     }
 
     // MARK: - Check for Updates
@@ -108,7 +115,8 @@ final class GeoDatabaseUpdater {
         let (data, response) = try await URLSession.shared.data(from: url)
 
         guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+              httpResponse.statusCode == 200
+        else {
             throw GeoUpdateError.downloadFailed
         }
 
@@ -132,7 +140,9 @@ final class GeoDatabaseUpdater {
     // MARK: - File Management
 
     func getGeoDatabaseDirectory() throws -> URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            throw GeoUpdateError.directoryNotFound
+        }
         let geoDir = appSupport.appendingPathComponent("TunnelMaster/GeoDB")
 
         if !FileManager.default.fileExists(atPath: geoDir.path) {
@@ -153,7 +163,7 @@ final class GeoDatabaseUpdater {
     func hasLocalDatabases() -> Bool {
         guard let geoip = geoipPath(), let geosite = geositePath() else { return false }
         return FileManager.default.fileExists(atPath: geoip.path) &&
-               FileManager.default.fileExists(atPath: geosite.path)
+            FileManager.default.fileExists(atPath: geosite.path)
     }
 }
 
@@ -162,6 +172,7 @@ final class GeoDatabaseUpdater {
 enum GeoUpdateError: LocalizedError {
     case downloadFailed
     case saveFailed
+    case directoryNotFound
 
     var errorDescription: String? {
         switch self {
@@ -169,6 +180,8 @@ enum GeoUpdateError: LocalizedError {
             "Failed to download geo database"
         case .saveFailed:
             "Failed to save geo database"
+        case .directoryNotFound:
+            "Application Support directory not found"
         }
     }
 }

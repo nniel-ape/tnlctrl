@@ -4,7 +4,10 @@
 //
 
 import Foundation
+import OSLog
 import Security
+
+private let logger = Logger(subsystem: "nniel.TunnelMaster", category: "KeychainManager")
 
 // MARK: - Protocol
 
@@ -65,14 +68,15 @@ actor KeychainManager: KeychainManaging {
         switch status {
         case errSecSuccess:
             guard let data = result as? Data,
-                  let string = String(data: data, encoding: .utf8) else {
+                  let string = String(data: data, encoding: .utf8)
+            else {
                 throw KeychainError.decodingFailed
             }
             return string
         case errSecItemNotFound:
             return nil
         default:
-            print("KeychainManager: Failed to read key: \(key), status: \(status)")
+            logger.error("KeychainManager: Failed to read key: \(key, privacy: .public), status: \(status)")
             throw KeychainError.readFailed(status)
         }
     }
@@ -130,11 +134,11 @@ enum KeychainError: LocalizedError {
             "Failed to encode value for keychain storage"
         case .decodingFailed:
             "Failed to decode value from keychain"
-        case .saveFailed(let status):
+        case let .saveFailed(status):
             "Failed to save to keychain: \(status)"
-        case .readFailed(let status):
+        case let .readFailed(status):
             "Failed to read from keychain: \(status)"
-        case .deleteFailed(let status):
+        case let .deleteFailed(status):
             "Failed to delete from keychain: \(status)"
         }
     }

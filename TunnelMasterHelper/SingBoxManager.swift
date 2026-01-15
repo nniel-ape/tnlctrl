@@ -26,15 +26,13 @@ actor SingBoxManager {
 
         // Check Homebrew paths
         let homebrewPaths = [
-            "/opt/homebrew/bin/sing-box",      // Apple Silicon
-            "/usr/local/bin/sing-box",          // Intel
+            "/opt/homebrew/bin/sing-box", // Apple Silicon
+            "/usr/local/bin/sing-box", // Intel
             "/opt/homebrew/opt/sing-box/bin/sing-box"
         ]
 
-        for path in homebrewPaths {
-            if FileManager.default.fileExists(atPath: path) {
-                return URL(fileURLWithPath: path)
-            }
+        for path in homebrewPaths where FileManager.default.fileExists(atPath: path) {
+            return URL(fileURLWithPath: path)
         }
 
         // Default fallback
@@ -51,7 +49,7 @@ actor SingBoxManager {
     }
 
     var pid: Int32? {
-        guard let process = process, process.isRunning else { return nil }
+        guard let process, process.isRunning else { return nil }
         return process.processIdentifier
     }
 
@@ -80,7 +78,7 @@ actor SingBoxManager {
     }
 
     func stop() async {
-        guard let process = process else { return }
+        guard let process else { return }
 
         NSLog("SingBoxManager: Stopping sing-box (PID: \(process.processIdentifier))")
 
@@ -104,7 +102,7 @@ actor SingBoxManager {
     }
 
     func reload(configJSON: String) async throws {
-        guard let configPath = configPath else {
+        guard let configPath else {
             throw SingBoxError.notRunning
         }
 
@@ -112,7 +110,7 @@ actor SingBoxManager {
         try configJSON.write(to: configPath, atomically: true, encoding: .utf8)
 
         // Send SIGHUP to reload
-        if let process = process, process.isRunning {
+        if let process, process.isRunning {
             kill(process.processIdentifier, SIGHUP)
             NSLog("SingBoxManager: Sent SIGHUP to sing-box for config reload")
         } else {
@@ -128,7 +126,7 @@ actor SingBoxManager {
             throw SingBoxError.binaryNotFound(singBoxPath.path)
         }
 
-        guard let configPath = configPath else {
+        guard let configPath else {
             throw SingBoxError.noConfig
         }
 
@@ -153,7 +151,7 @@ actor SingBoxManager {
             // Create/truncate log file
             FileManager.default.createFile(atPath: logURL.path, contents: nil)
             let fileHandle = try FileHandle(forWritingTo: logURL)
-            self.logFileHandle = fileHandle
+            logFileHandle = fileHandle
 
             let outputPipe = Pipe()
             let errorPipe = Pipe()
@@ -270,13 +268,13 @@ enum SingBoxError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .binaryNotFound(let path):
+        case let .binaryNotFound(path):
             "sing-box binary not found at \(path)"
         case .noConfig:
             "No configuration provided"
         case .notRunning:
             "sing-box is not running"
-        case .startFailed(let code, let stderr):
+        case let .startFailed(code, stderr):
             "sing-box failed to start (exit code: \(code))\(stderr.isEmpty ? "" : "\n\(stderr)")"
         }
     }

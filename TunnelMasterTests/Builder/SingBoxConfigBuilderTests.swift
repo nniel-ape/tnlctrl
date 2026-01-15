@@ -6,8 +6,8 @@
 //  transports, TLS options, and routing rules based on sing-box 1.12+ spec.
 //
 
-import XCTest
 @testable import TunnelMaster
+import XCTest
 
 @MainActor
 final class SingBoxConfigBuilderTests: XCTestCase {

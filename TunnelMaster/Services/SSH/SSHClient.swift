@@ -248,15 +248,15 @@ enum SSHError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .connectionFailed(let message):
+        case let .connectionFailed(message):
             "SSH connection failed: \(message)"
         case .authenticationFailed:
             "SSH authentication failed. Check your credentials."
-        case .commandFailed(let message):
+        case let .commandFailed(message):
             "SSH command failed: \(message)"
         case .timeout:
             "SSH connection timed out"
-        case .fileTransferFailed(let message):
+        case let .fileTransferFailed(message):
             "File transfer failed: \(message)"
         }
     }

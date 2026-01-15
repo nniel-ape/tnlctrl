@@ -8,7 +8,6 @@
 import Foundation
 
 struct ConfigExporter {
-
     // MARK: - sing-box Export
 
     func exportToSingBox(services: [Service], includeCredentials: Bool = false) -> String {
@@ -310,12 +309,12 @@ struct ConfigExporter {
 
     private func anyValue(from value: AnyCodableValue) -> Any {
         switch value {
-        case .string(let s): return s
-        case .int(let i): return i
-        case .double(let d): return d
-        case .bool(let b): return b
-        case .array(let a): return a.map { anyValue(from: $0) }
-        case .dictionary(let d): return d.mapValues { anyValue(from: $0) }
+        case let .string(s): return s
+        case let .int(i): return i
+        case let .double(d): return d
+        case let .bool(b): return b
+        case let .array(a): return a.map { anyValue(from: $0) }
+        case let .dictionary(d): return d.mapValues { anyValue(from: $0) }
         case .null: return NSNull()
         }
     }
