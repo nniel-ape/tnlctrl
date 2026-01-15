@@ -7,6 +7,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -115,7 +116,10 @@ struct MenuBarView: View {
 
             Divider()
 
-            SettingsLink {
+            Button {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                openSettings()
+            } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "gear")
                         .frame(width: 16)
