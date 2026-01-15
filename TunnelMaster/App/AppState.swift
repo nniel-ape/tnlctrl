@@ -23,6 +23,7 @@ final class AppState {
     // MARK: - Data
 
     var services: [Service] = []
+    var servers: [Server] = []
     var tunnelConfig: TunnelConfig = .default
     var settings: AppSettings = .default
 
@@ -51,6 +52,14 @@ final class AppState {
 
     var enabledServices: [Service] {
         services.filter(\.isEnabled)
+    }
+
+    var importedServices: [Service] {
+        services.filter { $0.source == .imported }
+    }
+
+    var createdServices: [Service] {
+        services.filter { $0.source == .created }
     }
 
     // MARK: - Tunnel Control
@@ -88,6 +97,7 @@ final class AppState {
     func load() async {
         do {
             services = try await ServiceStore.shared.loadServices()
+            servers = try await ServiceStore.shared.loadServers()
             tunnelConfig = try await ServiceStore.shared.loadTunnelConfig()
             settings = try await ServiceStore.shared.loadSettings()
         } catch {
@@ -149,5 +159,38 @@ final class AppState {
 
     func deleteService(_ service: Service) {
         deleteService(id: service.id)
+    }
+
+    // MARK: - Server Management
+
+    func saveServers() {
+        Task {
+            do {
+                try await ServiceStore.shared.saveServers(servers)
+            } catch {
+                logger.error("Failed to save servers: \(error)")
+            }
+        }
+    }
+
+    func addServer(_ server: Server) {
+        servers.append(server)
+        saveServers()
+    }
+
+    func updateServer(_ server: Server) {
+        if let index = servers.firstIndex(where: { $0.id == server.id }) {
+            servers[index] = server
+            saveServers()
+        }
+    }
+
+    func deleteServer(id: UUID) {
+        servers.removeAll { $0.id == id }
+        saveServers()
+    }
+
+    func deleteServer(_ server: Server) {
+        deleteServer(id: server.id)
     }
 }

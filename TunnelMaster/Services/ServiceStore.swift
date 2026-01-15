@@ -51,6 +51,12 @@ final class ServiceStore {
         }
     }
 
+    private var serversURL: URL {
+        get throws {
+            try applicationSupportURL.appendingPathComponent("servers.json")
+        }
+    }
+
     // MARK: - Services
 
     func loadServices() async throws -> [Service] {
@@ -118,6 +124,29 @@ final class ServiceStore {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         let data = try encoder.encode(settings)
+        try data.write(to: url, options: .atomic)
+    }
+
+    // MARK: - Servers
+
+    func loadServers() async throws -> [Server] {
+        let url = try serversURL
+
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return []
+        }
+
+        let data = try Data(contentsOf: url)
+        return try decoder.decode([Server].self, from: data)
+    }
+
+    func saveServers(_ servers: [Server]) async throws {
+        let url = try serversURL
+
+        let directory = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        let data = try encoder.encode(servers)
         try data.write(to: url, options: .atomic)
     }
 }

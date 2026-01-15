@@ -300,9 +300,10 @@ struct DeployStepView: View {
 
         do {
             let deployer = Deployer(state: state)
-            let service = try await deployer.deploy()
+            let (service, server) = try await deployer.deploy()
             state.deployedService = service
             appState.addService(service)
+            appState.addServer(server)
         } catch {
             state.deploymentError = error.localizedDescription
         }

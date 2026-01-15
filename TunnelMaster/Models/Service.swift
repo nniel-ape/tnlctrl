@@ -5,6 +5,15 @@
 
 import Foundation
 
+// MARK: - ServiceSource
+
+enum ServiceSource: String, Codable, Hashable, Sendable {
+    case imported
+    case created
+}
+
+// MARK: - Service
+
 struct Service: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var name: String
@@ -15,6 +24,26 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
     var settings: [String: AnyCodableValue]
     var latency: Int?
     var isEnabled: Bool
+    var source: ServiceSource
+    var serverId: UUID?
+    var createdAt: Date
+
+    // MARK: - CodingKeys for migration
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case `protocol`
+        case server
+        case port
+        case credentialRef
+        case settings
+        case latency
+        case isEnabled
+        case source
+        case serverId
+        case createdAt
+    }
 
     init(
         id: UUID = UUID(),
@@ -25,7 +54,10 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
         credentialRef: String? = nil,
         settings: [String: AnyCodableValue] = [:],
         latency: Int? = nil,
-        isEnabled: Bool = true
+        isEnabled: Bool = true,
+        source: ServiceSource = .imported,
+        serverId: UUID? = nil,
+        createdAt: Date = Date()
     ) {
         self.id = id
         self.name = name
@@ -36,6 +68,45 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
         self.settings = settings
         self.latency = latency
         self.isEnabled = isEnabled
+        self.source = source
+        self.serverId = serverId
+        self.createdAt = createdAt
+    }
+
+    // MARK: - Codable with migration support
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.protocol = try container.decode(ProxyProtocol.self, forKey: .protocol)
+        self.server = try container.decode(String.self, forKey: .server)
+        self.port = try container.decode(Int.self, forKey: .port)
+        self.credentialRef = try container.decodeIfPresent(String.self, forKey: .credentialRef)
+        self.settings = try container.decodeIfPresent([String: AnyCodableValue].self, forKey: .settings) ?? [:]
+        self.latency = try container.decodeIfPresent(Int.self, forKey: .latency)
+        self.isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+
+        // Migration: new fields with defaults
+        self.source = try container.decodeIfPresent(ServiceSource.self, forKey: .source) ?? .imported
+        self.serverId = try container.decodeIfPresent(UUID.self, forKey: .serverId)
+        self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(`protocol`, forKey: .protocol)
+        try container.encode(server, forKey: .server)
+        try container.encode(port, forKey: .port)
+        try container.encodeIfPresent(credentialRef, forKey: .credentialRef)
+        try container.encode(settings, forKey: .settings)
+        try container.encodeIfPresent(latency, forKey: .latency)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encode(source, forKey: .source)
+        try container.encodeIfPresent(serverId, forKey: .serverId)
+        try container.encode(createdAt, forKey: .createdAt)
     }
 }
 

@@ -19,19 +19,39 @@ final class Deployer {
 
     // MARK: - Deploy
 
-    func deploy() async throws -> Service {
+    func deploy() async throws -> (Service, Server) {
         let settings = state.buildDeploymentSettings()
 
         guard let template = ProtocolTemplates.template(for: state.selectedProtocol) else {
             throw DeployerError.unsupportedProtocol
         }
 
-        switch state.deploymentTarget {
+        let baseService: Service = switch state.deploymentTarget {
         case .local:
-            return try await deployLocal(template: template, settings: settings)
+            try await deployLocal(template: template, settings: settings)
         case .remote:
-            return try await deployRemote(template: template, settings: settings)
+            try await deployRemote(template: template, settings: settings)
         }
+
+        // Create Server record
+        let server = Server(
+            name: "\(state.selectedProtocol.displayName) - \(state.deploymentTarget == .local ? "Local" : state.sshHost)",
+            host: state.deploymentTarget == .local ? "localhost" : state.sshHost,
+            sshPort: state.sshPort,
+            sshUsername: state.sshUsername,
+            sshKeyPath: state.sshKeyPath.isEmpty ? nil : state.sshKeyPath,
+            containerIds: [settings.containerName],
+            serviceIds: [baseService.id],
+            status: .active,
+            deploymentTarget: state.deploymentTarget
+        )
+
+        // Update Service with source and serverId
+        var service = baseService
+        service.source = .created
+        service.serverId = server.id
+
+        return (service, server)
     }
 
     // MARK: - Local Deployment
