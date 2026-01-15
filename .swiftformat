@@ -1,0 +1,96 @@
+# SwiftFormat Configuration for TunnelMaster
+
+# Swift version
+--swiftversion 5.9
+
+# File options
+--exclude .build,DerivedData,**/.build
+
+# Indentation
+--indent 4
+--tabwidth 4
+--smarttabs enabled
+--indentcase false
+--ifdef indent
+
+# Spacing
+--operatorfunc spaced
+--ranges spaced
+--nospaceoperators
+--typeattributes prev-line
+--varattributes same-line
+--funcattributes prev-line
+--storedvarattrs same-line
+--computedvarattrs same-line
+
+# Wrapping
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--wrapconditions after-first
+--wrapreturntype preserve
+--wrapeffects preserve
+--wraptypealiases preserve
+--closingparen balanced
+--maxwidth 140
+
+# Braces
+--allman false
+--elseposition same-line
+--guardelse next-line
+
+# Blank lines
+--lineaftermarks true
+--markextensions always
+--organizetypes class,actor,struct,enum,protocol,extension
+--extensionacl on-declarations
+--modifierorder
+
+# Imports
+--importgrouping alpha
+
+# Trailing
+--commas always
+--trimwhitespace always
+--linebreaks lf
+
+# Semicolons
+--semicolons never
+
+# Redundancy
+--redundanttype inferred
+--self init-only
+--selfrequired
+--stripunusedargs closure-only
+
+# Void
+--voidtype void
+
+# Empty
+--emptybraces no-space
+
+# Numbers
+--decimalgrouping 3,6
+--binarygrouping 4,8
+--octalgrouping 4,8
+--hexgrouping 4,8
+--fractiongrouping disabled
+--exponentgrouping disabled
+--hexliteralcase uppercase
+--exponentcase lowercase
+
+# Rules to enable
+--enable blankLineAfterImports
+--enable blankLinesBetweenImports
+--enable isEmpty
+--enable sortImports
+--enable wrapEnumCases
+
+# Rules to disable (can enable later for stricter formatting)
+--disable acronyms
+--disable markTypes
+--disable organizeDeclarations
+--disable redundantReturn
+--disable trailingCommas
+--disable wrapMultilineStatementBraces
+--disable wrapSwitchCases
