@@ -59,14 +59,33 @@ final class HelperInstaller {
         do {
             try daemonService.register()
 
-            // Wait a moment for the service to start
-            try await Task.sleep(for: .seconds(1))
+            // Reset XPC connection to ensure fresh connection to new helper
+            XPCClient.shared.resetConnection()
 
+            // Retry loop: helper may take a few seconds to become responsive
+            for attempt in 1 ... 3 {
+                try await Task.sleep(for: .seconds(2))
+
+                let responding = await XPCClient.shared.isHelperResponding(timeout: 5.0)
+                if responding {
+                    status = .installed
+                    return
+                }
+
+                if attempt < 3 {
+                    // Reset connection and retry
+                    XPCClient.shared.resetConnection()
+                }
+            }
+
+            // Final status check after all retries
             await checkStatus()
-
             if status != .installed {
                 throw HelperInstallerError.installFailed("Helper registered but not responding")
             }
+        } catch let error as HelperInstallerError {
+            await checkStatus()
+            throw error
         } catch let error as NSError {
             await checkStatus()
 

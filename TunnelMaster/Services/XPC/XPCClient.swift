@@ -54,6 +54,32 @@ final class XPCClient {
         // Connection was interrupted, will reconnect on next call
     }
 
+    /// Resets the XPC connection, forcing a fresh connection on next call.
+    /// Call this after helper installation to avoid stale connections.
+    func resetConnection() {
+        connection?.invalidate()
+        connection = nil
+    }
+
+    /// Executes an async operation with a timeout.
+    private func withTimeout<T: Sendable>(
+        seconds: Double,
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(for: .seconds(seconds))
+                throw XPCError.connectionFailed
+            }
+            guard let result = try await group.next() else {
+                throw XPCError.connectionFailed
+            }
+            group.cancelAll()
+            return result
+        }
+    }
+
     private func getProxy() throws -> HelperProtocol {
         let conn = try getConnection()
         guard let proxy = conn.remoteObjectProxyWithErrorHandler({ error in
@@ -131,9 +157,11 @@ final class XPCClient {
         }
     }
 
-    func isHelperResponding() async -> Bool {
+    func isHelperResponding(timeout: Double = 5.0) async -> Bool {
         do {
-            _ = try await getVersion()
+            _ = try await withTimeout(seconds: timeout) { [self] in
+                try await getVersion()
+            }
             return true
         } catch {
             return false
