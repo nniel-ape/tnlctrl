@@ -48,6 +48,17 @@ struct DeploymentSettings: Sendable {
     var method = "aes-256-gcm" // Shadowsocks
     var flow = "xtls-rprx-vision" // VLESS
 
+    // Hysteria2 settings
+    var hysteriaBandwidthUp = "100"
+    var hysteriaBandwidthDown = "100"
+    var hysteriaObfsType = "" // "salamander" or empty
+    var hysteriaObfsPassword = ""
+
+    // WireGuard settings
+    var wgAdminPassword = ""
+    var wgDefaultDNS = "1.1.1.1"
+    var wgAllowedIPs = "0.0.0.0/0"
+
     init(serverHost: String, port: Int) {
         self.serverHost = serverHost
         self.port = port
@@ -68,9 +79,17 @@ struct DeploymentSettings: Sendable {
 enum ProtocolTemplates {
     static let all: [ProtocolTemplate] = [
         VLESSTemplate(),
+        VMESSTemplate(),
         TrojanTemplate(),
-        ShadowsocksTemplate()
+        ShadowsocksTemplate(),
+        Hysteria2Template(),
+        WireGuardTemplate()
     ]
+
+    /// Protocols that can be deployed via the wizard
+    static var deployableProtocols: [ProxyProtocol] {
+        all.map(\.protocolType)
+    }
 
     static func template(for protocol: ProxyProtocol) -> ProtocolTemplate? {
         all.first { $0.protocolType == `protocol` }

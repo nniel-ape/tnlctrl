@@ -32,11 +32,16 @@ actor DockerManager {
     func runContainer(
         image: String,
         name: String,
-        ports: [Int: Int], // hostPort: containerPort
+        ports: [Int: Int] = [:], // hostPort: containerPort
+        portProtocols: [Int: String] = [:], // port: protocol (tcp/udp)
         environment: [String: String] = [:],
         volumes: [String: String] = [:], // hostPath: containerPath
         detached: Bool = true,
-        restart: RestartPolicy = .unless_stopped
+        restart: RestartPolicy = .unless_stopped,
+        networkMode: String? = nil, // "host", "bridge", etc.
+        capabilities: [String] = [], // "NET_ADMIN", "SYS_MODULE"
+        sysctls: [String: String] = [:], // "net.ipv4.ip_forward": "1"
+        command: [String] = [] // Command args after image
     ) async throws -> String {
         var args = ["run"]
 
@@ -50,14 +55,35 @@ actor DockerManager {
         args.append("--restart")
         args.append(restart.rawValue)
 
-        // Add port mappings
-        for (host, container) in ports {
-            args.append("-p")
-            args.append("\(host):\(container)")
+        // Add network mode
+        if let networkMode {
+            args.append("--network")
+            args.append(networkMode)
+        }
+
+        // Add capabilities
+        for cap in capabilities {
+            args.append("--cap-add")
+            args.append(cap)
+        }
+
+        // Add sysctls
+        for (key, value) in sysctls {
+            args.append("--sysctl")
+            args.append("\(key)=\(value)")
+        }
+
+        // Add port mappings (skip if host network mode)
+        if networkMode != "host" {
+            for (host, container) in ports {
+                let proto = portProtocols[host] ?? "tcp"
+                args.append("-p")
+                args.append("\(host):\(container)/\(proto)")
+            }
         }
 
         // Add environment variables
-        for (key, value) in environment {
+        for (key, value) in environment.sorted(by: { $0.key < $1.key }) {
             args.append("-e")
             args.append("\(key)=\(value)")
         }
@@ -69,6 +95,9 @@ actor DockerManager {
         }
 
         args.append(image)
+
+        // Add command after image
+        args.append(contentsOf: command)
 
         return try await executeDocker(args)
     }

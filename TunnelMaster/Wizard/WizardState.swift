@@ -47,11 +47,26 @@ final class WizardState {
     }
 
     // Protocol selection
-    var selectedProtocol: ProxyProtocol = .vless
+    var selectedProtocol: ProxyProtocol = .vless {
+        didSet {
+            // Update default port when protocol changes
+            serverPort = selectedProtocol.defaultPort
+        }
+    }
 
     // Configuration
     var serverPort = 443
     var useReality = false
+
+    // Hysteria2 specific
+    var hysteriaBandwidthUp = "100"
+    var hysteriaBandwidthDown = "100"
+    var hysteriaObfsEnabled = false
+    var hysteriaObfsPassword = ""
+
+    // WireGuard specific
+    var wgAdminPassword = ""
+    var wgDefaultDNS = "1.1.1.1"
 
     // Deployment
     var isDeploying = false
@@ -114,6 +129,15 @@ final class WizardState {
         selectedProtocol = .vless
         serverPort = 443
         useReality = false
+        // Hysteria2
+        hysteriaBandwidthUp = "100"
+        hysteriaBandwidthDown = "100"
+        hysteriaObfsEnabled = false
+        hysteriaObfsPassword = ""
+        // WireGuard
+        wgAdminPassword = ""
+        wgDefaultDNS = "1.1.1.1"
+        // Deployment
         isDeploying = false
         deploymentProgress = []
         deploymentError = nil
@@ -125,7 +149,20 @@ final class WizardState {
             serverHost: deploymentTarget == .local ? "localhost" : sshHost,
             port: serverPort
         )
+
+        // VLESS Reality
         settings.realityEnabled = useReality
+
+        // Hysteria2
+        settings.hysteriaBandwidthUp = hysteriaBandwidthUp
+        settings.hysteriaBandwidthDown = hysteriaBandwidthDown
+        settings.hysteriaObfsType = hysteriaObfsEnabled ? "salamander" : ""
+        settings.hysteriaObfsPassword = hysteriaObfsPassword
+
+        // WireGuard
+        settings.wgAdminPassword = wgAdminPassword
+        settings.wgDefaultDNS = wgDefaultDNS
+
         return settings
     }
 

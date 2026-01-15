@@ -102,22 +102,68 @@ final class Deployer {
         state.log("Generating server configuration...")
         let config = template.generateServerConfig(settings: settings)
 
-        // Write config to temp file
-        let configDir = FileManager.default.temporaryDirectory.appendingPathComponent("sing-box-\(settings.containerName)")
-        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
-        let configFile = configDir.appendingPathComponent("config.json")
-        try config.write(to: configFile, atomically: true, encoding: .utf8)
-        state.log("Configuration saved")
+        // Determine config paths based on template type
+        let (configDir, containerConfigDir, volumes, environment, command) = buildLocalConfig(
+            template: template,
+            settings: settings,
+            config: config
+        )
+
+        // Write config if not empty (some templates use env vars only)
+        if let configDir, !config.isEmpty {
+            try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+            let configFileName = (template as? Hysteria2Template)?.configFileName ?? "config.json"
+            let configFile = configDir.appendingPathComponent(configFileName)
+            try config.write(to: configFile, atomically: true, encoding: .utf8)
+            state.log("Configuration saved")
+        } else if config.isEmpty {
+            state.log("Using environment-based configuration")
+        }
+
+        // Determine ports and protocols
+        var ports: [Int: Int] = [:]
+        var portProtocols: [Int: String] = [:]
+
+        if template is Hysteria2Template {
+            // Hysteria2 uses host network mode, no port mapping needed
+        } else if template is WireGuardTemplate {
+            // WireGuard needs UDP for VPN and TCP for web UI
+            ports[settings.port] = settings.port
+            ports[51821] = 51821
+            portProtocols[settings.port] = "udp"
+            portProtocols[51821] = "tcp"
+        } else {
+            // Standard TCP ports
+            for port in template.requiredPorts {
+                ports[settings.port] = settings.port
+            }
+        }
+
+        // Determine network mode and capabilities
+        var networkMode: String?
+        var capabilities: [String] = []
+        var sysctls: [String: String] = [:]
+
+        if template is Hysteria2Template {
+            networkMode = "host"
+        } else if template is WireGuardTemplate {
+            capabilities = ["NET_ADMIN", "SYS_MODULE"]
+            sysctls = ["net.ipv4.ip_forward": "1"]
+        }
 
         // Run container
         state.log("Starting container \(settings.containerName)...")
-        let ports = Dictionary(uniqueKeysWithValues: template.requiredPorts.map { ($0, $0) })
-
         _ = try await dockerManager.runContainer(
             image: template.defaultImage,
             name: settings.containerName,
-            ports: ports.mapKeys { _ in settings.port },
-            volumes: [configDir.path: "/etc/sing-box"]
+            ports: ports,
+            portProtocols: portProtocols,
+            environment: environment,
+            volumes: volumes,
+            networkMode: networkMode,
+            capabilities: capabilities,
+            sysctls: sysctls,
+            command: command
         )
 
         // Wait a moment for container to start
@@ -138,6 +184,43 @@ final class Deployer {
         state.log("Deployment complete!")
 
         return service
+    }
+
+    /// Build config paths and volumes based on template type
+    private func buildLocalConfig(
+        template: ProtocolTemplate,
+        settings: DeploymentSettings,
+        config: String
+    ) -> (configDir: URL?, containerConfigDir: String, volumes: [String: String], environment: [String: String], command: [String]) {
+        if let hysteriaTemplate = template as? Hysteria2Template {
+            let configDir = FileManager.default.temporaryDirectory.appendingPathComponent("hysteria-\(settings.containerName)")
+            return (
+                configDir: configDir,
+                containerConfigDir: "/etc/hysteria",
+                volumes: [configDir.path: "/etc/hysteria:ro"],
+                environment: [:],
+                command: ["server", "-c", "/etc/hysteria/hysteria.yaml"]
+            )
+        } else if let wgTemplate = template as? WireGuardTemplate {
+            let configDir = FileManager.default.temporaryDirectory.appendingPathComponent("wireguard-\(settings.containerName)")
+            return (
+                configDir: nil, // WireGuard uses env vars
+                containerConfigDir: "/etc/wireguard",
+                volumes: [configDir.path: "/etc/wireguard"],
+                environment: wgTemplate.generateEnvironment(settings: settings),
+                command: []
+            )
+        } else {
+            // Standard sing-box based templates
+            let configDir = FileManager.default.temporaryDirectory.appendingPathComponent("sing-box-\(settings.containerName)")
+            return (
+                configDir: configDir,
+                containerConfigDir: "/etc/sing-box",
+                volumes: [configDir.path: "/etc/sing-box:ro"],
+                environment: [:],
+                command: ["run", "-c", "/etc/sing-box/config.json"]
+            )
+        }
     }
 
     // MARK: - Remote Deployment
@@ -177,9 +260,11 @@ final class Deployer {
         state.log("Generating server configuration...")
         let config = template.generateServerConfig(settings: settings)
 
-        // Create config directory and upload config
+        // Determine remote paths based on template type
+        let (remoteConfigDir, configFileName) = buildRemoteConfigPaths(template: template, settings: settings)
+
+        // Create config directory
         state.log("Uploading configuration...")
-        let remoteConfigDir = "/etc/sing-box-\(settings.containerName)"
         _ = try await sshClient.execute(
             command: "mkdir -p \(remoteConfigDir)",
             host: state.sshHost,
@@ -188,16 +273,20 @@ final class Deployer {
             privateKeyPath: keyPath
         )
 
-        // Write config via SSH (echo to file)
-        let escapedConfig = config.replacingOccurrences(of: "'", with: "'\\''")
-        _ = try await sshClient.execute(
-            command: "echo '\(escapedConfig)' > \(remoteConfigDir)/config.json",
-            host: state.sshHost,
-            port: state.sshPort,
-            username: state.sshUsername,
-            privateKeyPath: keyPath
-        )
-        state.log("Configuration uploaded")
+        // Write config via SSH if not using environment vars
+        if !config.isEmpty {
+            let escapedConfig = config.replacingOccurrences(of: "'", with: "'\\''")
+            _ = try await sshClient.execute(
+                command: "echo '\(escapedConfig)' > \(remoteConfigDir)/\(configFileName)",
+                host: state.sshHost,
+                port: state.sshPort,
+                username: state.sshUsername,
+                privateKeyPath: keyPath
+            )
+            state.log("Configuration uploaded")
+        } else {
+            state.log("Using environment-based configuration")
+        }
 
         // Pull image
         state.log("Pulling image \(template.defaultImage)...")
@@ -210,8 +299,21 @@ final class Deployer {
         )
         state.log("Image ready")
 
-        // Build Docker run command
-        let dockerArgs = template.generateDockerRunArgs(settings: settings)
+        // Build Docker run command with correct volume path
+        var dockerArgs = template.generateDockerRunArgs(settings: settings)
+
+        // Update volume path to use remote config directory
+        dockerArgs = dockerArgs.map { arg in
+            if arg.contains("/etc/sing-box") {
+                return arg.replacingOccurrences(of: "/etc/sing-box", with: remoteConfigDir)
+            } else if arg.contains("/etc/hysteria-\(settings.containerName)") {
+                return arg.replacingOccurrences(of: "/etc/hysteria-\(settings.containerName)", with: remoteConfigDir)
+            } else if arg.contains("/etc/wireguard-\(settings.containerName)") {
+                return arg.replacingOccurrences(of: "/etc/wireguard-\(settings.containerName)", with: remoteConfigDir)
+            }
+            return arg
+        }
+
         let dockerCommand = "run " + dockerArgs.dropFirst().joined(separator: " ") // Remove -d as it's in args
 
         // Run container
@@ -248,6 +350,20 @@ final class Deployer {
         state.log("Deployment complete!")
 
         return service
+    }
+
+    /// Build remote config paths based on template type
+    private func buildRemoteConfigPaths(
+        template: ProtocolTemplate,
+        settings: DeploymentSettings
+    ) -> (configDir: String, configFileName: String) {
+        if template is Hysteria2Template {
+            return ("/etc/hysteria-\(settings.containerName)", "hysteria.yaml")
+        } else if template is WireGuardTemplate {
+            return ("/etc/wireguard-\(settings.containerName)", "")
+        } else {
+            return ("/etc/sing-box-\(settings.containerName)", "config.json")
+        }
     }
 }
 
