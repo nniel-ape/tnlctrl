@@ -110,8 +110,8 @@ struct SingBoxConfigBuilder {
     private func buildOutbounds() async throws -> [[String: Any]] {
         var outbounds: [[String: Any]] = []
 
-        // Build chain outbound if configured
-        if !tunnelConfig.chain.isEmpty {
+        // Build chain outbound if chaining is enabled and configured
+        if tunnelConfig.chainEnabled && !tunnelConfig.chain.isEmpty {
             let chainOutbound = try await buildChainOutbound()
             outbounds.append(chainOutbound)
         }
@@ -160,11 +160,20 @@ struct SingBoxConfigBuilder {
     }
 
     private func buildSelectorOutbound(services: [Service]) -> [String: Any] {
-        [
+        // Use explicitly selected service, or fall back to first enabled
+        let defaultService: Service?
+        if let selectedId = tunnelConfig.selectedServiceId,
+           let selected = services.first(where: { $0.id == selectedId }) {
+            defaultService = selected
+        } else {
+            defaultService = services.first
+        }
+
+        return [
             "tag": "proxy",
             "type": "selector",
             "outbounds": services.map { $0.id.uuidString.lowercased() },
-            "default": services.first?.id.uuidString.lowercased() ?? ""
+            "default": defaultService?.id.uuidString.lowercased() ?? ""
         ]
     }
 
@@ -482,12 +491,21 @@ struct SingBoxConfigBuilder {
 
         route["rules"] = rules
 
-        // Set final outbound based on mode
+        // Set final outbound based on mode and config
+        let useChain = tunnelConfig.chainEnabled && !tunnelConfig.chain.isEmpty
         switch tunnelConfig.mode {
         case .full:
-            route["final"] = tunnelConfig.chain.isEmpty ? "proxy" : "chain"
+            route["final"] = useChain ? "chain" : "proxy"
         case .split:
-            route["final"] = "direct"
+            // Use finalOutbound from config
+            switch tunnelConfig.finalOutbound {
+            case .direct:
+                route["final"] = "direct"
+            case .proxy:
+                route["final"] = useChain ? "chain" : "proxy"
+            case .block:
+                route["final"] = "block"
+            }
         }
 
         route["auto_detect_interface"] = true
@@ -520,11 +538,12 @@ struct SingBoxConfigBuilder {
         }
 
         // Map outbound
+        let useChain = tunnelConfig.chainEnabled && !tunnelConfig.chain.isEmpty
         switch rule.outbound {
         case .direct:
             singBoxRule["outbound"] = "direct"
         case .proxy:
-            singBoxRule["outbound"] = tunnelConfig.chain.isEmpty ? "proxy" : "chain"
+            singBoxRule["outbound"] = useChain ? "chain" : "proxy"
         case .block:
             singBoxRule["outbound"] = "block"
         }
