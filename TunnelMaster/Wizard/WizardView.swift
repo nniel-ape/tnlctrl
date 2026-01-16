@@ -12,29 +12,16 @@ struct WizardView: View {
     @Environment(AppState.self) private var appState
     @State private var wizardState: WizardState
 
-    init(preselectedServer: Server? = nil) {
-        if let server = preselectedServer {
-            _wizardState = State(initialValue: WizardState(server: server))
-        } else {
-            _wizardState = State(initialValue: WizardState())
-        }
+    init(server: Server) {
+        _wizardState = State(initialValue: WizardState(server: server))
     }
 
     private var headerTitle: String {
         // During configuration/deploy, show the service name being created
         if wizardState.currentStep >= 2 {
-            let name = wizardState.effectiveServiceName
-            if let server = wizardState.preselectedServer {
-                return "Adding \(name) to \(server.name)"
-            }
-            return "Creating \(name)"
+            return "Adding \(wizardState.effectiveServiceName) to \(wizardState.server.name)"
         }
-
-        // Earlier steps
-        if let server = wizardState.preselectedServer {
-            return "Add Service to \(server.name)"
-        }
-        return "Add New Server"
+        return "Add Service to \(wizardState.server.name)"
     }
 
     /// Step index for display (0-based relative to visible steps)
@@ -84,8 +71,6 @@ struct WizardView: View {
 
     @ViewBuilder private var contentView: some View {
         switch wizardState.currentStep {
-        case 0:
-            TargetStepView(state: wizardState)
         case 1:
             ProtocolStepView(state: wizardState)
         case 2:
@@ -142,52 +127,6 @@ struct WizardView: View {
     }
 }
 
-// MARK: - Target Step
-
-struct TargetStepView: View {
-    @Bindable var state: WizardState
-
-    var body: some View {
-        Form {
-            Section {
-                Picker("Deployment Target", selection: $state.deploymentTarget) {
-                    ForEach(DeploymentTarget.allCases) { target in
-                        HStack {
-                            Image(systemName: target.systemImage)
-                            VStack(alignment: .leading) {
-                                Text(target.displayName)
-                                Text(target.description)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .tag(target)
-                    }
-                }
-                .pickerStyle(.radioGroup)
-                .labelsHidden()
-            }
-
-            if state.deploymentTarget == .remote {
-                Section("SSH Connection") {
-                    TextField("Host", text: $state.sshHost)
-                        .textContentType(.URL)
-
-                    TextField("Port", value: $state.sshPort, format: .number)
-
-                    TextField("Username", text: $state.sshUsername)
-                        .textContentType(.username)
-
-                    TextField("Private Key Path (optional)", text: $state.sshKeyPath)
-                        .help("Leave empty to use default SSH key")
-                }
-            }
-        }
-        .formStyle(.grouped)
-        .padding()
-    }
-}
-
 // MARK: - Protocol Step
 
 struct ProtocolStepView: View {
@@ -232,11 +171,6 @@ struct ConfigureStepView: View {
             Section("Names") {
                 TextField("Service Name", text: $state.serviceName, prompt: Text(state.defaultServiceName))
                     .help("Display name for this proxy service")
-
-                if state.preselectedServer == nil {
-                    TextField("Server Name", text: $state.serverName, prompt: Text(state.defaultServerName))
-                        .help("Display name for the server")
-                }
             }
 
             Section("Server Configuration") {
@@ -418,25 +352,15 @@ struct DeployStepView: View {
 
         do {
             let deployer = Deployer(state: state)
+            let service = try await deployer.deploy(to: state.server)
+            state.deployedService = service
+            appState.addService(service)
 
-            if let existingServer = state.preselectedServer {
-                // Deploy to existing server
-                let service = try await deployer.deployToExisting(server: existingServer)
-                state.deployedService = service
-                appState.addService(service)
-
-                // Update existing server's serviceIds and containerIds
-                var updatedServer = existingServer
-                updatedServer.serviceIds.append(service.id)
-                updatedServer.containerIds.append(state.buildDeploymentSettings().containerName)
-                appState.updateServer(updatedServer)
-            } else {
-                // Deploy new server
-                let (service, server) = try await deployer.deploy()
-                state.deployedService = service
-                appState.addService(service)
-                appState.addServer(server)
-            }
+            // Update server's serviceIds and containerIds
+            var updatedServer = state.server
+            updatedServer.serviceIds.append(service.id)
+            updatedServer.containerIds.append(state.buildDeploymentSettings().containerName)
+            appState.updateServer(updatedServer)
         } catch {
             state.deploymentError = error.localizedDescription
         }

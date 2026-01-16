@@ -12,7 +12,7 @@ struct OnboardingView: View {
     @Environment(AppState.self) private var appState
     @State private var currentPage = 0
     @State private var showingImportSheet = false
-    @State private var showingWizard = false
+    @State private var showingAddServerSheet = false
 
     private let totalPages = 4
 
@@ -71,8 +71,8 @@ struct OnboardingView: View {
             ImportSheet()
                 .environment(appState)
         }
-        .sheet(isPresented: $showingWizard) {
-            WizardView()
+        .sheet(isPresented: $showingAddServerSheet) {
+            AddServerSheet()
                 .environment(appState)
         }
     }
@@ -153,7 +153,7 @@ struct OnboardingView: View {
                 .font(.title)
                 .fontWeight(.semibold)
 
-            Text("Import an existing config or deploy a new server.")
+            Text("Import an existing config or add a server to deploy services.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 40)
@@ -164,15 +164,22 @@ struct OnboardingView: View {
                 }
 
                 Button("Add Server...") {
-                    showingWizard = true
+                    showingAddServerSheet = true
                 }
                 .buttonStyle(.borderedProminent)
             }
 
-            if !appState.services.isEmpty {
-                Label("\(appState.services.count) service(s) configured", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .padding(.top, 8)
+            if !appState.services.isEmpty || !appState.servers.isEmpty {
+                HStack(spacing: 12) {
+                    if !appState.servers.isEmpty {
+                        Label("\(appState.servers.count) server(s)", systemImage: "server.rack")
+                    }
+                    if !appState.services.isEmpty {
+                        Label("\(appState.services.count) service(s)", systemImage: "network")
+                    }
+                }
+                .foregroundStyle(.green)
+                .padding(.top, 8)
             }
 
             Spacer()

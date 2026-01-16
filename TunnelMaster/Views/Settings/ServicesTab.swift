@@ -10,7 +10,7 @@ struct ServicesTab: View {
     @State private var selectedServiceId: UUID?
     @State private var editingService: Service?
     @State private var showingImportSheet = false
-    @State private var showingWizard = false
+    @State private var showingAddServerSheet = false
     @State private var showingExportSheet = false
     @State private var exportFormat: ExportFormat = .singbox
     @State private var serverForNewService: Server?
@@ -28,8 +28,8 @@ struct ServicesTab: View {
             ImportSheet()
                 .environment(appState)
         }
-        .sheet(isPresented: $showingWizard) {
-            WizardView()
+        .sheet(isPresented: $showingAddServerSheet) {
+            AddServerSheet()
                 .environment(appState)
         }
         .sheet(isPresented: $showingExportSheet) {
@@ -40,7 +40,7 @@ struct ServicesTab: View {
                 .environment(appState)
         }
         .sheet(item: $serverForNewService) { server in
-            WizardView(preselectedServer: server)
+            WizardView(server: server)
                 .environment(appState)
         }
     }
@@ -54,16 +54,27 @@ struct ServicesTab: View {
                 .foregroundStyle(.secondary)
             Text("No Services")
                 .font(.title2)
-            Text("Import a config or deploy a new server to get started.")
+            Text("Import a config or deploy a service to a server.")
                 .foregroundStyle(.secondary)
             HStack(spacing: 12) {
                 Button("Import Config...") {
                     showingImportSheet = true
                 }
-                Button("Add Server...") {
-                    showingWizard = true
+                if appState.servers.isEmpty {
+                    Button("Add Server...") {
+                        showingAddServerSheet = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    Menu("Deploy Service...") {
+                        ForEach(appState.servers) { server in
+                            Button("to \(server.name)") {
+                                serverForNewService = server
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
             }
         }
         .padding()
@@ -96,13 +107,13 @@ struct ServicesTab: View {
             }
             Menu {
                 Button("Add Server...") {
-                    showingWizard = true
+                    showingAddServerSheet = true
                 }
                 if !appState.servers.isEmpty {
                     Divider()
-                    Menu("Add to Existing Server") {
+                    Menu("Deploy Service...") {
                         ForEach(appState.servers) { server in
-                            Button(server.name) {
+                            Button("to \(server.name)") {
                                 serverForNewService = server
                             }
                         }
@@ -194,14 +205,14 @@ struct ServicesTab: View {
             // TODO: Task 19 - Latency testing
         }
 
-        // Add service to same server (for created services)
+        // Deploy another service to the same server (for created services)
         if let serverId = service.serverId,
            let server = appState.servers.first(where: { $0.id == serverId }) {
             Divider()
             Button {
                 serverForNewService = server
             } label: {
-                Label("Add Service to \(server.name)", systemImage: "plus.circle")
+                Label("Deploy Service to \(server.name)", systemImage: "plus.circle")
             }
         }
 

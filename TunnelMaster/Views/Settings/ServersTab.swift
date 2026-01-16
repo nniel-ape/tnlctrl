@@ -9,7 +9,7 @@ struct ServersTab: View {
     @Environment(AppState.self) private var appState
     @State private var selectedServerId: UUID?
     @State private var editingServer: Server?
-    @State private var showingWizard = false
+    @State private var showingAddServerSheet = false
     @State private var serverForNewService: Server?
 
     var body: some View {
@@ -21,8 +21,8 @@ struct ServersTab: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sheet(isPresented: $showingWizard) {
-            WizardView()
+        .sheet(isPresented: $showingAddServerSheet) {
+            AddServerSheet()
                 .environment(appState)
         }
         .sheet(item: $editingServer) { server in
@@ -30,7 +30,7 @@ struct ServersTab: View {
                 .environment(appState)
         }
         .sheet(item: $serverForNewService) { server in
-            WizardView(preselectedServer: server)
+            WizardView(server: server)
                 .environment(appState)
         }
     }
@@ -44,10 +44,10 @@ struct ServersTab: View {
                 .foregroundStyle(.secondary)
             Text("No Servers")
                 .font(.title2)
-            Text("Deploy a new server to get started.")
+            Text("Add a server to start deploying services.")
                 .foregroundStyle(.secondary)
             Button("Add Server...") {
-                showingWizard = true
+                showingAddServerSheet = true
             }
             .buttonStyle(.borderedProminent)
         }
@@ -74,7 +74,7 @@ struct ServersTab: View {
             Spacer()
 
             Button("Add Server...") {
-                showingWizard = true
+                showingAddServerSheet = true
             }
             .buttonStyle(.borderedProminent)
         }
@@ -127,7 +127,7 @@ struct ServersTab: View {
         Button {
             serverForNewService = server
         } label: {
-            Label("Add Service...", systemImage: "plus.circle")
+            Label("Deploy Service...", systemImage: "plus.circle")
         }
 
         Divider()

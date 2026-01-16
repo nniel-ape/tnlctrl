@@ -11,39 +11,32 @@ import Foundation
 @MainActor
 final class WizardState {
     // Step tracking
-    var currentStep = 0
+    var currentStep = 1
 
-    // Preselected server (skips target step when set)
-    var preselectedServer: Server?
+    // Server to deploy to (required)
+    let server: Server
 
-    // Target selection
-    var deploymentTarget: DeploymentTarget = .local
-    var sshHost = ""
-    var sshPort = 22
-    var sshUsername = "root"
-    var sshKeyPath = ""
+    // Target selection (derived from server)
+    var deploymentTarget: DeploymentTarget
+    var sshHost: String
+    var sshPort: Int
+    var sshUsername: String
+    var sshKeyPath: String
 
     // MARK: - Computed Steps
 
-    var totalSteps: Int {
-        preselectedServer != nil ? 3 : 4
-    }
+    let totalSteps = 3
+    let minStep = 1
 
-    var minStep: Int {
-        preselectedServer != nil ? 1 : 0
-    }
+    // MARK: - Initializer
 
-    // MARK: - Initializers
-
-    convenience init(server: Server) {
-        self.init()
-        self.preselectedServer = server
+    init(server: Server) {
+        self.server = server
         self.deploymentTarget = server.deploymentTarget
         self.sshHost = server.host
         self.sshPort = server.sshPort
         self.sshUsername = server.sshUsername
         self.sshKeyPath = server.sshKeyPath ?? ""
-        self.currentStep = 1 // Skip target step
     }
 
     // Protocol selection
@@ -70,7 +63,6 @@ final class WizardState {
 
     // Custom naming
     var serviceName = ""
-    var serverName = ""
 
     // Deployment
     var isDeploying = false
@@ -81,31 +73,17 @@ final class WizardState {
     // MARK: - Computed Names
 
     var defaultServiceName: String {
-        let host = deploymentTarget == .local ? "Local" : sshHost
-        return "\(selectedProtocol.displayName) - \(host.isEmpty ? "Server" : host)"
-    }
-
-    var defaultServerName: String {
-        deploymentTarget == .local ? "Local" : (sshHost.isEmpty ? "Server" : sshHost)
+        "\(selectedProtocol.displayName) - \(server.name)"
     }
 
     var effectiveServiceName: String {
         serviceName.trimmingCharacters(in: .whitespaces).isEmpty ? defaultServiceName : serviceName
     }
 
-    var effectiveServerName: String {
-        serverName.trimmingCharacters(in: .whitespaces).isEmpty ? defaultServerName : serverName
-    }
-
     // MARK: - Computed
 
     var canProceed: Bool {
         switch currentStep {
-        case 0: // Target step
-            if deploymentTarget == .remote {
-                return !sshHost.isEmpty && !sshUsername.isEmpty
-            }
-            return true
         case 1: // Protocol step
             return true
         case 2: // Configure step
@@ -119,9 +97,8 @@ final class WizardState {
 
     var stepTitle: String {
         switch currentStep {
-        case 0: "Select Target"
         case 1: "Choose Protocol"
-        case 2: "Configure Server"
+        case 2: "Configure Service"
         case 3: "Deploy"
         default: ""
         }
@@ -143,12 +120,6 @@ final class WizardState {
 
     func reset() {
         currentStep = minStep
-        preselectedServer = nil
-        deploymentTarget = .local
-        sshHost = ""
-        sshPort = 22
-        sshUsername = "root"
-        sshKeyPath = ""
         selectedProtocol = .vless
         serverPort = 443
         useReality = false
@@ -162,7 +133,6 @@ final class WizardState {
         wgDefaultDNS = "1.1.1.1"
         // Custom naming
         serviceName = ""
-        serverName = ""
         // Deployment
         isDeploying = false
         deploymentProgress = []
