@@ -62,25 +62,15 @@ struct TunnelConfigValidator {
     static func validate(config: TunnelConfig, services: [Service]) -> ValidationResult {
         var issues: [ValidationIssue] = []
 
-        // Check selected service
-        let enabledServices = services.filter(\.isEnabled)
-
-        if enabledServices.isEmpty {
+        // Check services exist
+        if services.isEmpty {
             issues.append(ValidationIssue(
                 severity: .error,
-                message: "No enabled services available",
-                suggestion: "Enable at least one service in the Services tab"
+                message: "No services available",
+                suggestion: "Add at least one service in the Services tab"
             ))
         } else if let selectedId = config.selectedServiceId {
-            if let service = services.first(where: { $0.id == selectedId }) {
-                if !service.isEnabled {
-                    issues.append(ValidationIssue(
-                        severity: .warning,
-                        message: "Selected service \"\(service.name)\" is disabled",
-                        suggestion: "Enable the service or select a different one"
-                    ))
-                }
-            } else {
+            if !services.contains(where: { $0.id == selectedId }) {
                 issues.append(ValidationIssue(
                     severity: .error,
                     message: "Selected service no longer exists",
@@ -98,17 +88,9 @@ struct TunnelConfigValidator {
                     suggestion: "Add services to the chain or disable chaining"
                 ))
             } else {
-                // Check each service in chain
+                // Check each service in chain exists
                 for (index, serviceId) in config.chain.enumerated() {
-                    if let service = services.first(where: { $0.id == serviceId }) {
-                        if !service.isEnabled {
-                            issues.append(ValidationIssue(
-                                severity: .warning,
-                                message: "Chain service #\(index + 1) \"\(service.name)\" is disabled",
-                                suggestion: "Enable the service or remove it from the chain"
-                            ))
-                        }
-                    } else {
+                    if !services.contains(where: { $0.id == serviceId }) {
                         issues.append(ValidationIssue(
                             severity: .error,
                             message: "Chain service #\(index + 1) no longer exists",

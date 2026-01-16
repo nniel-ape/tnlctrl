@@ -50,10 +50,6 @@ final class AppState {
         return services.first { $0.id == id }
     }
 
-    var enabledServices: [Service] {
-        services.filter(\.isEnabled)
-    }
-
     var importedServices: [Service] {
         services.filter { $0.source == .imported }
     }

@@ -889,32 +889,6 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         )
     }
 
-    // MARK: - Disabled Services
-
-    func testBuildSkipsDisabledServices() async throws {
-        await mockKeychain.preloadCredential("uuid1", ref: "cred-1")
-        await mockKeychain.preloadCredential("uuid2", ref: "cred-2")
-
-        var enabledService = ConfigFixtures.makeVLESSService(credentialRef: "cred-1")
-        enabledService.isEnabled = true
-
-        var disabledService = ConfigFixtures.makeVMessService(credentialRef: "cred-2")
-        disabledService.isEnabled = false
-
-        let builder = makeBuilder(services: [enabledService, disabledService])
-
-        let json = try await builder.build()
-        let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
-
-        // Should have VLESS but not VMess
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")
-        let vmessOutbound = findOutbound(in: outbounds, type: "vmess")
-
-        XCTAssertNotNil(vlessOutbound)
-        XCTAssertNil(vmessOutbound)
-    }
-
     // MARK: - Multiple Services
 
     func testBuildMultipleServices() async throws {

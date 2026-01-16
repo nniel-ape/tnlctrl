@@ -64,35 +64,34 @@ struct TunnelTab: View {
 
     private var outboundServiceSection: some View {
         @Bindable var state = appState
-        let enabledServices = appState.services.filter(\.isEnabled)
 
         return Section {
             // Service picker
-            if enabledServices.isEmpty {
+            if appState.services.isEmpty {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
-                    Text("No services enabled")
+                    Text("No services available")
                         .foregroundStyle(.secondary)
                 }
-                Text("Enable a service in the Services tab first.")
+                Text("Add a service in the Services tab first.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 Picker("Service", selection: Binding(
                     get: {
-                        // If no service selected, use first enabled
+                        // If no service selected, use first available
                         if let selected = state.tunnelConfig.selectedServiceId,
-                           enabledServices.contains(where: { $0.id == selected }) {
+                           appState.services.contains(where: { $0.id == selected }) {
                             return selected
                         }
-                        return enabledServices.first?.id ?? UUID()
+                        return appState.services.first?.id ?? UUID()
                     },
                     set: { newValue in
                         state.tunnelConfig.selectedServiceId = newValue
                     }
                 )) {
-                    ForEach(enabledServices) { service in
+                    ForEach(appState.services) { service in
                         Label {
                             HStack {
                                 Text(service.name)
@@ -112,7 +111,7 @@ struct TunnelTab: View {
 
             // Chain toggle
             Toggle("Enable chaining (multi-hop)", isOn: $state.tunnelConfig.chainEnabled)
-                .disabled(enabledServices.count < 2)
+                .disabled(appState.services.count < 2)
 
             // Chain editor
             if appState.tunnelConfig.chainEnabled {
@@ -125,7 +124,6 @@ struct TunnelTab: View {
 
     private var chainEditor: some View {
         @Bindable var state = appState
-        let enabledServices = appState.services.filter(\.isEnabled)
         let chainServices = appState.tunnelConfig.chain.compactMap { chainId in
             appState.services.first { $0.id == chainId }
         }
@@ -157,7 +155,7 @@ struct TunnelTab: View {
             }
 
             // Add to chain button
-            let availableForChain = enabledServices.filter { service in
+            let availableForChain = appState.services.filter { service in
                 !appState.tunnelConfig.chain.contains(service.id)
             }
 

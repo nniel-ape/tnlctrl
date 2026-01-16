@@ -82,7 +82,7 @@ struct SingBoxConfigBuilder {
         ]
 
         // Add proxy server IPs (skip domain names - they'll use auto_detect_interface)
-        for service in services where service.isEnabled && isIPAddress(service.server) {
+        for service in services where isIPAddress(service.server) {
             excludeIPs.append("\(service.server)/32")
         }
 
@@ -117,16 +117,14 @@ struct SingBoxConfigBuilder {
         }
 
         // Build proxy outbound (selector)
-        let enabledServices = services.filter(\.isEnabled)
-
         // Always create proxy selector (even with single service) since DNS/route reference it
-        if !enabledServices.isEmpty {
-            let selector = buildSelectorOutbound(services: enabledServices)
+        if !services.isEmpty {
+            let selector = buildSelectorOutbound(services: services)
             outbounds.append(selector)
         }
 
         // Build individual service outbounds
-        for service in enabledServices {
+        for service in services {
             let outbound = try await buildServiceOutbound(service)
             outbounds.append(outbound)
         }
@@ -600,7 +598,6 @@ extension ProxyProtocol {
 enum ConfigBuilderError: LocalizedError {
     case serializationFailed
     case emptyChain
-    case noEnabledServices
     case credentialNotFound(String)
     case missingCredential(String, String)
 
@@ -610,8 +607,6 @@ enum ConfigBuilderError: LocalizedError {
             "Failed to serialize configuration to JSON"
         case .emptyChain:
             "Proxy chain contains no valid services"
-        case .noEnabledServices:
-            "No enabled services found"
         case let .credentialNotFound(ref):
             "Credential not found in Keychain: \(ref)"
         case let .missingCredential(proto, name):

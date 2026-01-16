@@ -23,7 +23,6 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
     var credentialRef: String?
     var settings: [String: AnyCodableValue]
     var latency: Int?
-    var isEnabled: Bool
     var source: ServiceSource
     var serverId: UUID?
     var createdAt: Date
@@ -39,7 +38,6 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
         case credentialRef
         case settings
         case latency
-        case isEnabled
         case source
         case serverId
         case createdAt
@@ -54,7 +52,6 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
         credentialRef: String? = nil,
         settings: [String: AnyCodableValue] = [:],
         latency: Int? = nil,
-        isEnabled: Bool = true,
         source: ServiceSource = .imported,
         serverId: UUID? = nil,
         createdAt: Date = Date()
@@ -67,7 +64,6 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
         self.credentialRef = credentialRef
         self.settings = settings
         self.latency = latency
-        self.isEnabled = isEnabled
         self.source = source
         self.serverId = serverId
         self.createdAt = createdAt
@@ -85,7 +81,6 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
         self.credentialRef = try container.decodeIfPresent(String.self, forKey: .credentialRef)
         self.settings = try container.decodeIfPresent([String: AnyCodableValue].self, forKey: .settings) ?? [:]
         self.latency = try container.decodeIfPresent(Int.self, forKey: .latency)
-        self.isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
 
         // Migration: new fields with defaults
         self.source = try container.decodeIfPresent(ServiceSource.self, forKey: .source) ?? .imported
@@ -103,7 +98,6 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
         try container.encodeIfPresent(credentialRef, forKey: .credentialRef)
         try container.encode(settings, forKey: .settings)
         try container.encodeIfPresent(latency, forKey: .latency)
-        try container.encode(isEnabled, forKey: .isEnabled)
         try container.encode(source, forKey: .source)
         try container.encodeIfPresent(serverId, forKey: .serverId)
         try container.encode(createdAt, forKey: .createdAt)

@@ -45,9 +45,8 @@ final class TunnelManager {
             throw TunnelManagerError.alreadyTransitioning
         }
 
-        let enabledServices = services.filter(\.isEnabled)
-        guard !enabledServices.isEmpty else {
-            throw TunnelManagerError.noEnabledServices
+        guard !services.isEmpty else {
+            throw TunnelManagerError.noServices
         }
 
         isTransitioning = true
@@ -56,7 +55,7 @@ final class TunnelManager {
 
         do {
             // Build sing-box config
-            let builder = SingBoxConfigBuilder(services: enabledServices, tunnelConfig: tunnelConfig)
+            let builder = SingBoxConfigBuilder(services: services, tunnelConfig: tunnelConfig)
             let configJSON = try await builder.build()
 
             // Debug: log generated config
@@ -107,13 +106,12 @@ final class TunnelManager {
             throw TunnelManagerError.notRunning
         }
 
-        let enabledServices = services.filter(\.isEnabled)
-        guard !enabledServices.isEmpty else {
-            throw TunnelManagerError.noEnabledServices
+        guard !services.isEmpty else {
+            throw TunnelManagerError.noServices
         }
 
         do {
-            let builder = SingBoxConfigBuilder(services: enabledServices, tunnelConfig: tunnelConfig)
+            let builder = SingBoxConfigBuilder(services: services, tunnelConfig: tunnelConfig)
             let configJSON = try await builder.build()
             try await xpcClient.reloadConfig(configJSON: configJSON)
         } catch {
@@ -165,7 +163,7 @@ final class TunnelManager {
 enum TunnelManagerError: LocalizedError {
     case helperNotInstalled
     case alreadyTransitioning
-    case noEnabledServices
+    case noServices
     case notRunning
 
     var errorDescription: String? {
@@ -174,8 +172,8 @@ enum TunnelManagerError: LocalizedError {
             "Privileged helper is not installed. Install it from Settings > General."
         case .alreadyTransitioning:
             "Tunnel is already starting or stopping"
-        case .noEnabledServices:
-            "No enabled proxy services configured"
+        case .noServices:
+            "No proxy services configured"
         case .notRunning:
             "Tunnel is not running"
         }
