@@ -63,7 +63,7 @@ struct VLESSTemplate: ProtocolTemplate {
         }
 
         return Service(
-            name: "VLESS - \(settings.serverHost)",
+            name: settings.serviceName.isEmpty ? "VLESS - \(settings.serverHost)" : settings.serviceName,
             protocol: .vless,
             server: settings.serverHost,
             port: settings.port,

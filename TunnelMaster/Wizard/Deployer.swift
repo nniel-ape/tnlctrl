@@ -61,7 +61,7 @@ final class Deployer {
 
         // Create Server record
         let server = Server(
-            name: "\(state.selectedProtocol.displayName) - \(state.deploymentTarget == .local ? "Local" : state.sshHost)",
+            name: state.effectiveServerName,
             host: state.deploymentTarget == .local ? "localhost" : state.sshHost,
             sshPort: state.sshPort,
             sshUsername: state.sshUsername,
@@ -314,7 +314,7 @@ final class Deployer {
             return arg
         }
 
-        let dockerCommand = "run " + dockerArgs.dropFirst().joined(separator: " ") // Remove -d as it's in args
+        let dockerCommand = "run " + dockerArgs.joined(separator: " ")
 
         // Run container
         state.log("Starting container...")

@@ -163,7 +163,7 @@ struct OnboardingView: View {
                     showingImportSheet = true
                 }
 
-                Button("Deploy Server...") {
+                Button("Add Server...") {
                     showingWizard = true
                 }
                 .buttonStyle(.borderedProminent)

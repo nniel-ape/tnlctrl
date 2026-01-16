@@ -68,11 +68,34 @@ final class WizardState {
     var wgAdminPassword = ""
     var wgDefaultDNS = "1.1.1.1"
 
+    // Custom naming
+    var serviceName = ""
+    var serverName = ""
+
     // Deployment
     var isDeploying = false
     var deploymentProgress: [String] = []
     var deploymentError: String?
     var deployedService: Service?
+
+    // MARK: - Computed Names
+
+    var defaultServiceName: String {
+        let host = deploymentTarget == .local ? "Local" : sshHost
+        return "\(selectedProtocol.displayName) - \(host.isEmpty ? "Server" : host)"
+    }
+
+    var defaultServerName: String {
+        deploymentTarget == .local ? "Local" : (sshHost.isEmpty ? "Server" : sshHost)
+    }
+
+    var effectiveServiceName: String {
+        serviceName.trimmingCharacters(in: .whitespaces).isEmpty ? defaultServiceName : serviceName
+    }
+
+    var effectiveServerName: String {
+        serverName.trimmingCharacters(in: .whitespaces).isEmpty ? defaultServerName : serverName
+    }
 
     // MARK: - Computed
 
@@ -137,6 +160,9 @@ final class WizardState {
         // WireGuard
         wgAdminPassword = ""
         wgDefaultDNS = "1.1.1.1"
+        // Custom naming
+        serviceName = ""
+        serverName = ""
         // Deployment
         isDeploying = false
         deploymentProgress = []
@@ -162,6 +188,9 @@ final class WizardState {
         // WireGuard
         settings.wgAdminPassword = wgAdminPassword
         settings.wgDefaultDNS = wgDefaultDNS
+
+        // Custom naming
+        settings.serviceName = effectiveServiceName
 
         return settings
     }

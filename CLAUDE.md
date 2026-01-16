@@ -90,6 +90,30 @@ Service name: `nniel.TunnelMaster.helper`
 Sensitive data (UUIDs, passwords, private keys) stored in Keychain via `KeychainManager`.
 Services store only a `credentialRef` (UUID reference). `SingBoxConfigBuilder` retrieves actual credentials when generating configs.
 
+## Domain Model
+
+### Server vs Service
+
+- **Server** — A physical or virtual machine that can run Docker containers (VPS, local Docker host). Named by its address/hostname by default. One server can host multiple services.
+- **Service** — A proxy or VPN configuration (VLESS, VMess, Hysteria2, WireGuard, etc.). Each service runs in a Docker container on a server. Has a user-friendly name like "Work VPN" or "US Proxy".
+
+### Relationships
+
+```
+Server (physical machine)
+├── host: "192.168.1.100" or "my-vps.example.com"
+├── name: defaults to host address
+├── containerIds: ["tunnelmaster-1234", "tunnelmaster-5678"]
+└── serviceIds: [uuid1, uuid2]
+
+Service (proxy/VPN config)
+├── name: "Work VPN", "US VLESS", etc.
+├── protocol: .vless, .hysteria2, .wireguard, etc.
+├── server: host address
+├── port: 443
+└── serverId: -> Server.id (if deployed via wizard)
+```
+
 ## Code Organization
 
 ```

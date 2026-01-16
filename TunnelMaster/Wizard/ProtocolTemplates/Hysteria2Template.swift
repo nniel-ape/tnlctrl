@@ -90,7 +90,7 @@ struct Hysteria2Template: ProtocolTemplate {
         }
 
         return Service(
-            name: "Hysteria2 - \(settings.serverHost)",
+            name: settings.serviceName.isEmpty ? "Hysteria2 - \(settings.serverHost)" : settings.serviceName,
             protocol: .hysteria2,
             server: settings.serverHost,
             port: settings.port,

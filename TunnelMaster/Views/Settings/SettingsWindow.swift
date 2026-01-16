@@ -12,7 +12,12 @@ struct SettingsWindow: View {
         TabView {
             ServicesTab()
                 .tabItem {
-                    Label("Services", systemImage: "server.rack")
+                    Label("Services", systemImage: "point.3.connected.trianglepath.dotted")
+                }
+
+            ServersTab()
+                .tabItem {
+                    Label("Servers", systemImage: "server.rack")
                 }
 
             TunnelTab()

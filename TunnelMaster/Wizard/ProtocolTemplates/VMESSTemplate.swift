@@ -53,7 +53,7 @@ struct VMESSTemplate: ProtocolTemplate {
 
     func generateClientService(settings: DeploymentSettings) -> Service {
         Service(
-            name: "VMess - \(settings.serverHost)",
+            name: settings.serviceName.isEmpty ? "VMess - \(settings.serverHost)" : settings.serviceName,
             protocol: .vmess,
             server: settings.serverHost,
             port: settings.port,

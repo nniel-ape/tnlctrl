@@ -60,7 +60,7 @@ struct ServicesTab: View {
                 Button("Import Config...") {
                     showingImportSheet = true
                 }
-                Button("Deploy Server...") {
+                Button("Add Server...") {
                     showingWizard = true
                 }
                 .buttonStyle(.borderedProminent)
@@ -95,7 +95,7 @@ struct ServicesTab: View {
                 showingImportSheet = true
             }
             Menu {
-                Button("New Server...") {
+                Button("Add Server...") {
                     showingWizard = true
                 }
                 if !appState.servers.isEmpty {
@@ -109,7 +109,7 @@ struct ServicesTab: View {
                     }
                 }
             } label: {
-                Text("Deploy...")
+                Text("Add...")
             }
             .buttonStyle(.borderedProminent)
         }

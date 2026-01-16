@@ -38,7 +38,7 @@ struct ShadowsocksTemplate: ProtocolTemplate {
 
     func generateClientService(settings: DeploymentSettings) -> Service {
         Service(
-            name: "Shadowsocks - \(settings.serverHost)",
+            name: settings.serviceName.isEmpty ? "Shadowsocks - \(settings.serverHost)" : settings.serviceName,
             protocol: .shadowsocks,
             server: settings.serverHost,
             port: settings.port,

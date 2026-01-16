@@ -45,7 +45,7 @@ struct TrojanTemplate: ProtocolTemplate {
 
     func generateClientService(settings: DeploymentSettings) -> Service {
         Service(
-            name: "Trojan - \(settings.serverHost)",
+            name: settings.serviceName.isEmpty ? "Trojan - \(settings.serverHost)" : settings.serviceName,
             protocol: .trojan,
             server: settings.serverHost,
             port: settings.port,

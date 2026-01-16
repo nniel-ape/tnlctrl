@@ -50,7 +50,7 @@ struct WireGuardTemplate: ProtocolTemplate {
         // WireGuard client config is different - needs to be generated from wg-easy web UI
         // This creates a placeholder that the user can update with actual peer config
         Service(
-            name: "WireGuard - \(settings.serverHost)",
+            name: settings.serviceName.isEmpty ? "WireGuard - \(settings.serverHost)" : settings.serviceName,
             protocol: .wireguard,
             server: settings.serverHost,
             port: settings.port,

@@ -21,10 +21,20 @@ struct WizardView: View {
     }
 
     private var headerTitle: String {
+        // During configuration/deploy, show the service name being created
+        if wizardState.currentStep >= 2 {
+            let name = wizardState.effectiveServiceName
+            if let server = wizardState.preselectedServer {
+                return "Adding \(name) to \(server.name)"
+            }
+            return "Creating \(name)"
+        }
+
+        // Earlier steps
         if let server = wizardState.preselectedServer {
             return "Add Service to \(server.name)"
         }
-        return "Deploy New Server"
+        return "Add New Server"
     }
 
     /// Step index for display (0-based relative to visible steps)
@@ -219,6 +229,16 @@ struct ConfigureStepView: View {
 
     var body: some View {
         Form {
+            Section("Names") {
+                TextField("Service Name", text: $state.serviceName, prompt: Text(state.defaultServiceName))
+                    .help("Display name for this proxy service")
+
+                if state.preselectedServer == nil {
+                    TextField("Server Name", text: $state.serverName, prompt: Text(state.defaultServerName))
+                        .help("Display name for the server")
+                }
+            }
+
             Section("Server Configuration") {
                 TextField("Port", value: $state.serverPort, format: .number)
                     .help("Port for the proxy server")
