@@ -13,8 +13,6 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 0) {
             statusSection
             Divider()
-            servicesSection
-            Divider()
             actionsSection
         }
         .frame(width: 220)
@@ -53,55 +51,6 @@ struct MenuBarView: View {
         }
     }
 
-    private var servicesSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if appState.enabledServices.isEmpty {
-                Button {} label: {
-                    Text("No services configured")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .disabled(true)
-            } else {
-                ForEach(appState.enabledServices.prefix(5)) { service in
-                    Button {} label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: service.protocol.systemImage)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 16)
-                            Text(service.name)
-                                .lineLimit(1)
-                            Spacer()
-                            if let latency = service.latency {
-                                Text("\(latency)ms")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(true)
-                }
-
-                if appState.enabledServices.count > 5 {
-                    Text("+\(appState.enabledServices.count - 5) more")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
-                }
-            }
-        }
-    }
-
     private var actionsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             MenuButton(
@@ -118,14 +67,19 @@ struct MenuBarView: View {
 
             Button {
                 openSettings()
-                // Bring Settings window to front (handles case when already open)
-                DispatchQueue.main.async {
+                // Bring Settings window to front after menu bar panel dismisses
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     NSApplication.shared.setActivationPolicy(.regular)
                     NSApplication.shared.activate(ignoringOtherApps: true)
-                    for window in NSApplication.shared.windows where window.isVisible && window.canBecomeKey {
-                        window.makeKeyAndOrderFront(nil)
-                        break
+                    // Find and focus the Settings window specifically
+                    for window in NSApplication.shared.windows {
+                        if window.title == "Settings" || window.identifier?.rawValue.contains("settings") == true {
+                            window.makeKeyAndOrderFront(nil)
+                            return
+                        }
                     }
+                    // Fallback: bring any visible window to front
+                    NSApplication.shared.windows.first { $0.isVisible && $0.canBecomeKey }?.makeKeyAndOrderFront(nil)
                 }
             } label: {
                 HStack(spacing: 8) {
