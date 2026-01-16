@@ -137,21 +137,19 @@ struct TunnelTab: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                // Chain visualization
-                HStack(spacing: 4) {
+                // Chain list with drag-to-reorder
+                List {
                     ForEach(Array(chainServices.enumerated()), id: \.element.id) { index, service in
-                        HStack(spacing: 4) {
-                            ChainServiceBadge(service: service, index: index + 1) {
-                                state.tunnelConfig.chain.removeAll { $0 == service.id }
-                            }
-                            if index < chainServices.count - 1 {
-                                Image(systemName: "arrow.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
+                        ChainServiceRow(service: service, index: index + 1)
+                    }
+                    .onMove { from, to in
+                        state.tunnelConfig.chain.move(fromOffsets: from, toOffset: to)
+                    }
+                    .onDelete { offsets in
+                        state.tunnelConfig.chain.remove(atOffsets: offsets)
                     }
                 }
+                .frame(minHeight: 60, maxHeight: 150)
             }
 
             // Add to chain button
@@ -340,34 +338,33 @@ struct TunnelTab: View {
 
 // MARK: - Supporting Views
 
-private struct ChainServiceBadge: View {
+private struct ChainServiceRow: View {
     let service: Service
     let index: Int
-    let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack {
+            // Drag handle indicator
+            Image(systemName: "line.3.horizontal")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+
+            // Position number
             Text("\(index).")
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
+                .frame(width: 20)
+
+            // Protocol icon
             Image(systemName: service.protocol.systemImage)
-                .font(.caption)
+                .foregroundStyle(.blue)
+
+            // Service name
             Text(service.name)
-                .font(.caption)
                 .lineLimit(1)
-            Button {
-                onRemove()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+
+            Spacer()
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(.secondary.opacity(0.15))
-        .clipShape(Capsule())
     }
 }
 
