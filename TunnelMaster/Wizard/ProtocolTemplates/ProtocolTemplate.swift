@@ -33,7 +33,7 @@ struct DeploymentSettings: Sendable {
     var uuid: String
     var password: String
     var containerName: String
-    var serviceName: String = ""
+    var serviceName = ""
 
     // TLS settings
     var tlsEnabled = true

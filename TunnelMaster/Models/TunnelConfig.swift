@@ -12,6 +12,7 @@ struct TunnelConfig: Codable, Hashable, Sendable {
     var chain: [UUID]
     var rules: [RoutingRule]
     var finalOutbound: RuleOutbound
+    var customPresets: [RulePreset]
 
     init(
         mode: TunnelMode = .full,
@@ -19,7 +20,8 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         chainEnabled: Bool = false,
         chain: [UUID] = [],
         rules: [RoutingRule] = [],
-        finalOutbound: RuleOutbound = .direct
+        finalOutbound: RuleOutbound = .direct,
+        customPresets: [RulePreset] = []
     ) {
         self.mode = mode
         self.selectedServiceId = selectedServiceId
@@ -27,9 +29,15 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         self.chain = chain
         self.rules = rules
         self.finalOutbound = finalOutbound
+        self.customPresets = customPresets
     }
 
     nonisolated static let `default` = TunnelConfig()
+
+    /// All presets (built-in + custom)
+    var allPresets: [RulePreset] {
+        RulePreset.builtInPresets + customPresets
+    }
 
     // MARK: - Codable with migration support
 
@@ -40,20 +48,22 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         case chain
         case rules
         case finalOutbound
+        case customPresets
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        mode = try container.decode(TunnelMode.self, forKey: .mode)
-        rules = try container.decodeIfPresent([RoutingRule].self, forKey: .rules) ?? []
-        chain = try container.decodeIfPresent([UUID].self, forKey: .chain) ?? []
+        self.mode = try container.decode(TunnelMode.self, forKey: .mode)
+        self.rules = try container.decodeIfPresent([RoutingRule].self, forKey: .rules) ?? []
+        self.chain = try container.decodeIfPresent([UUID].self, forKey: .chain) ?? []
 
         // New fields with migration defaults
-        selectedServiceId = try container.decodeIfPresent(UUID.self, forKey: .selectedServiceId)
-        chainEnabled = try container.decodeIfPresent(Bool.self, forKey: .chainEnabled) ?? !chain.isEmpty
-        finalOutbound = try container.decodeIfPresent(RuleOutbound.self, forKey: .finalOutbound)
+        self.selectedServiceId = try container.decodeIfPresent(UUID.self, forKey: .selectedServiceId)
+        self.chainEnabled = try container.decodeIfPresent(Bool.self, forKey: .chainEnabled) ?? !chain.isEmpty
+        self.finalOutbound = try container.decodeIfPresent(RuleOutbound.self, forKey: .finalOutbound)
             ?? (mode == .split ? .direct : .proxy)
+        self.customPresets = try container.decodeIfPresent([RulePreset].self, forKey: .customPresets) ?? []
     }
 }
 

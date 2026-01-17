@@ -10,6 +10,7 @@ struct TunnelTab: View {
 
     @State private var showingRuleSheet = false
     @State private var editingRule: RoutingRule?
+    @State private var showingPresetManager = false
 
     var body: some View {
         @Bindable var state = appState
@@ -27,7 +28,7 @@ struct TunnelTab: View {
             appState.saveTunnelConfig()
         }
         .sheet(isPresented: $showingRuleSheet) {
-            RuleEditSheet(rule: editingRule) { rule in
+            RuleBuilderSheet(rule: editingRule) { rule in
                 if let existing = editingRule {
                     if let index = appState.tunnelConfig.rules.firstIndex(where: { $0.id == existing.id }) {
                         appState.tunnelConfig.rules[index] = rule
@@ -36,6 +37,9 @@ struct TunnelTab: View {
                     appState.tunnelConfig.rules.append(rule)
                 }
             }
+        }
+        .sheet(isPresented: $showingPresetManager) {
+            PresetManagerSheet()
         }
     }
 
@@ -202,42 +206,69 @@ struct TunnelTab: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
+                // Rules summary
+                let enabledCount = appState.tunnelConfig.rules.filter(\.isEnabled).count
+                let totalCount = appState.tunnelConfig.rules.count
+                if enabledCount < totalCount {
+                    Text("\(enabledCount) of \(totalCount) rules enabled")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 List {
-                    ForEach(state.tunnelConfig.rules) { rule in
-                        RuleRow(rule: rule)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
+                    ForEach(Array(state.tunnelConfig.rules.enumerated()), id: \.element.id) { index, rule in
+                        RuleRow(
+                            rule: rule,
+                            isEnabled: Binding(
+                                get: { state.tunnelConfig.rules[index].isEnabled },
+                                set: { state.tunnelConfig.rules[index].isEnabled = $0 }
+                            )
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            editingRule = rule
+                            showingRuleSheet = true
+                        }
+                        .contextMenu {
+                            // Toggle enabled
+                            Button {
+                                state.tunnelConfig.rules[index].isEnabled.toggle()
+                            } label: {
+                                Label(
+                                    rule.isEnabled ? "Disable" : "Enable",
+                                    systemImage: rule.isEnabled ? "eye.slash" : "eye"
+                                )
+                            }
+
+                            Button {
                                 editingRule = rule
                                 showingRuleSheet = true
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
                             }
-                            .contextMenu {
-                                Button {
-                                    editingRule = rule
-                                    showingRuleSheet = true
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
 
-                                Button {
-                                    // Duplicate rule
-                                    let newRule = RoutingRule(
-                                        type: rule.type,
-                                        value: rule.value,
-                                        outbound: rule.outbound
-                                    )
-                                    state.tunnelConfig.rules.append(newRule)
-                                } label: {
-                                    Label("Duplicate", systemImage: "doc.on.doc")
-                                }
-
-                                Divider()
-
-                                Button(role: .destructive) {
-                                    state.tunnelConfig.rules.removeAll { $0.id == rule.id }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
+                            Button {
+                                // Duplicate rule
+                                let newRule = RoutingRule(
+                                    type: rule.type,
+                                    value: rule.value,
+                                    outbound: rule.outbound,
+                                    isEnabled: rule.isEnabled,
+                                    note: rule.note
+                                )
+                                state.tunnelConfig.rules.append(newRule)
+                            } label: {
+                                Label("Duplicate", systemImage: "doc.on.doc")
                             }
+
+                            Divider()
+
+                            Button(role: .destructive) {
+                                state.tunnelConfig.rules.removeAll { $0.id == rule.id }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                     .onDelete { offsets in
                         state.tunnelConfig.rules.remove(atOffsets: offsets)
@@ -277,23 +308,39 @@ struct TunnelTab: View {
     private var presetsRow: some View {
         @Bindable var state = appState
 
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(RulePreset.builtInPresets) { preset in
-                    PresetChip(preset: preset) {
-                        // Add preset rules, avoiding duplicates
-                        for rule in preset.rules {
-                            let exists = state.tunnelConfig.rules.contains {
-                                $0.type == rule.type && $0.value.lowercased() == rule.value.lowercased()
-                            }
-                            if !exists {
-                                state.tunnelConfig.rules.append(rule)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Quick Presets")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    showingPresetManager = true
+                } label: {
+                    Label("Manage", systemImage: "slider.horizontal.3")
+                        .font(.caption)
+                }
+                .buttonStyle(.link)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(appState.tunnelConfig.allPresets) { preset in
+                        PresetChip(preset: preset) {
+                            // Add preset rules, avoiding duplicates
+                            for rule in preset.rules {
+                                let exists = state.tunnelConfig.rules.contains {
+                                    $0.type == rule.type && $0.value.lowercased() == rule.value.lowercased()
+                                }
+                                if !exists {
+                                    state.tunnelConfig.rules.append(rule)
+                                }
                             }
                         }
                     }
                 }
+                .padding(.vertical, 4)
             }
-            .padding(.vertical, 4)
         }
     }
 
@@ -306,7 +353,7 @@ struct TunnelTab: View {
         )
 
         return Section {
-            if result.isValid && !result.hasWarnings {
+            if result.isValid, !result.hasWarnings {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
@@ -377,27 +424,51 @@ private struct PresetChip: View {
             onApply()
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: "plus.circle.fill")
+                Image(systemName: preset.icon)
                     .font(.caption)
                 Text(preset.name)
                     .font(.caption)
+                Text("(\(preset.rules.count))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(.blue.opacity(0.1))
-            .foregroundStyle(.blue)
+            .background(chipColor.opacity(0.1))
+            .foregroundStyle(chipColor)
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)
         .help(preset.description)
     }
+
+    private var chipColor: Color {
+        switch preset.color {
+        case .blue: .blue
+        case .purple: .purple
+        case .pink: .pink
+        case .red: .red
+        case .orange: .orange
+        case .yellow: .yellow
+        case .green: .green
+        case .teal: .teal
+        case .gray: .gray
+        }
+    }
 }
 
 private struct RuleRow: View {
     let rule: RoutingRule
+    @Binding var isEnabled: Bool
 
     var body: some View {
         HStack {
+            // Toggle
+            Toggle("", isOn: $isEnabled)
+                .toggleStyle(.switch)
+                .scaleEffect(0.7)
+                .frame(width: 36)
+
             // Drag handle indicator
             Image(systemName: "line.3.horizontal")
                 .font(.caption)
@@ -408,23 +479,33 @@ private struct RuleRow: View {
                 .font(.caption)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(badgeColor.opacity(0.2))
-                .foregroundStyle(badgeColor)
+                .background(badgeColor.opacity(isEnabled ? 0.2 : 0.1))
+                .foregroundStyle(isEnabled ? badgeColor : .secondary)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
 
             // Value
-            Text(rule.value)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(rule.value)
+                    .lineLimit(1)
+                    .foregroundStyle(isEnabled ? .primary : .secondary)
+                if let note = rule.note, !note.isEmpty {
+                    Text(note)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
 
             Spacer()
 
             // Outbound indicator
             Image(systemName: rule.outbound.systemImage)
-                .foregroundStyle(outboundColor)
+                .foregroundStyle(isEnabled ? outboundColor : .secondary)
             Text(rule.outbound.displayName)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+        .opacity(isEnabled ? 1.0 : 0.6)
     }
 
     private var badgeColor: Color {

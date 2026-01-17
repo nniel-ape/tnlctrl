@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct TunnelConfigValidator {
+enum TunnelConfigValidator {
     // MARK: - Types
 
     enum ValidationSeverity: Sendable {

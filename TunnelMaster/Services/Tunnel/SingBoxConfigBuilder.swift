@@ -111,7 +111,7 @@ struct SingBoxConfigBuilder {
         var outbounds: [[String: Any]] = []
 
         // Build chain outbound if chaining is enabled and configured
-        if tunnelConfig.chainEnabled && !tunnelConfig.chain.isEmpty {
+        if tunnelConfig.chainEnabled, !tunnelConfig.chain.isEmpty {
             let chainOutbound = try await buildChainOutbound()
             outbounds.append(chainOutbound)
         }
@@ -159,12 +159,11 @@ struct SingBoxConfigBuilder {
 
     private func buildSelectorOutbound(services: [Service]) -> [String: Any] {
         // Use explicitly selected service, or fall back to first enabled
-        let defaultService: Service?
-        if let selectedId = tunnelConfig.selectedServiceId,
-           let selected = services.first(where: { $0.id == selectedId }) {
-            defaultService = selected
+        let defaultService: Service? = if let selectedId = tunnelConfig.selectedServiceId,
+                                          let selected = services.first(where: { $0.id == selectedId }) {
+            selected
         } else {
-            defaultService = services.first
+            services.first
         }
 
         return [
@@ -481,8 +480,8 @@ struct SingBoxConfigBuilder {
             "outbound": "direct"
         ])
 
-        // Add user-defined rules
-        for rule in tunnelConfig.rules {
+        // Add user-defined rules (only enabled ones)
+        for rule in tunnelConfig.rules where rule.isEnabled {
             let singBoxRule = buildRule(rule)
             rules.append(singBoxRule)
         }
