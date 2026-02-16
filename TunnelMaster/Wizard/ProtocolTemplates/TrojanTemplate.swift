@@ -10,7 +10,7 @@ import Foundation
 struct TrojanTemplate: ProtocolTemplate {
     let protocolType: ProxyProtocol = .trojan
     let description = "Disguises traffic as HTTPS, requires TLS certificate"
-    let defaultImage = "ghcr.io/sagernet/sing-box:latest"
+    let defaultImage = "ghcr.io/sagernet/sing-box:v1.12.22"
     let requiredPorts = [443]
 
     func generateServerConfig(settings: DeploymentSettings) -> String {

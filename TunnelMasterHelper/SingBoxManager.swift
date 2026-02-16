@@ -17,17 +17,20 @@ actor SingBoxManager {
     private let restartDelay: TimeInterval = 2.0
 
     private var singBoxPath: URL {
-        // In production, this would be bundled with the helper
-        // For now, look in common locations
-        let bundledPath = Bundle.main.url(forResource: "sing-box", withExtension: nil)
-        if let path = bundledPath, FileManager.default.fileExists(atPath: path.path) {
-            return path
+        // Look for sing-box bundled next to the helper executable
+        // When installed: TunnelMaster.app/Contents/Library/LaunchDaemons/sing-box
+        let executableURL = URL(fileURLWithPath: ProcessInfo.processInfo.arguments[0])
+            .resolvingSymlinksInPath()
+        let bundledPath = executableURL.deletingLastPathComponent()
+            .appendingPathComponent("sing-box")
+        if FileManager.default.fileExists(atPath: bundledPath.path) {
+            return bundledPath
         }
 
-        // Check Homebrew paths
+        // Fallback: Homebrew paths (for development)
         let homebrewPaths = [
-            "/opt/homebrew/bin/sing-box", // Apple Silicon
-            "/usr/local/bin/sing-box", // Intel
+            "/opt/homebrew/bin/sing-box",
+            "/usr/local/bin/sing-box",
             "/opt/homebrew/opt/sing-box/bin/sing-box"
         ]
 
@@ -35,7 +38,6 @@ actor SingBoxManager {
             return URL(fileURLWithPath: path)
         }
 
-        // Default fallback
         return URL(fileURLWithPath: "/opt/homebrew/bin/sing-box")
     }
 

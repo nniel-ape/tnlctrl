@@ -10,7 +10,7 @@ import Foundation
 struct VMESSTemplate: ProtocolTemplate {
     let protocolType: ProxyProtocol = .vmess
     let description = "Popular V2Ray protocol with flexible transport options"
-    let defaultImage = "ghcr.io/sagernet/sing-box:v1.12.0"
+    let defaultImage = "ghcr.io/sagernet/sing-box:v1.12.22"
     let requiredPorts = [443]
 
     func generateServerConfig(settings: DeploymentSettings) -> String {

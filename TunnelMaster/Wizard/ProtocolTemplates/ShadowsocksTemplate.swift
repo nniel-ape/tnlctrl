@@ -10,7 +10,7 @@ import Foundation
 struct ShadowsocksTemplate: ProtocolTemplate {
     let protocolType: ProxyProtocol = .shadowsocks
     let description = "Simple, fast encrypted tunnel with AEAD cipher support"
-    let defaultImage = "ghcr.io/sagernet/sing-box:latest"
+    let defaultImage = "ghcr.io/sagernet/sing-box:v1.12.22"
     let requiredPorts = [8388]
 
     func generateServerConfig(settings: DeploymentSettings) -> String {

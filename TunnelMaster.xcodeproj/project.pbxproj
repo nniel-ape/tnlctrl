@@ -157,6 +157,7 @@
 				55B869802F16725F00906E9A /* Frameworks */,
 				55B869812F16725F00906E9A /* Resources */,
 				55B86A002F16968800906E9A /* CopyFiles */,
+				55B86A252F17100000906E9A /* Bundle sing-box */,
 			);
 			buildRules = (
 			);
@@ -316,6 +317,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "export PATH=\"/opt/homebrew/bin:$PATH\"\nif which swiftformat > /dev/null; then\n  swiftformat . --lint || true\nelse\n  echo \"warning: SwiftFormat not installed, download from https://github.com/nicklockwood/SwiftFormat\"\nfi\n";
+		};
+		55B86A252F17100000906E9A /* Bundle sing-box */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/TunnelMasterHelper/bin/sing-box",
+			);
+			name = "Bundle sing-box";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Library/LaunchDaemons/sing-box",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "SING_BOX_SRC=\"${SRCROOT}/TunnelMasterHelper/bin/sing-box\"\nSING_BOX_DST=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchDaemons/sing-box\"\n\nif [ -f \"$SING_BOX_SRC\" ]; then\n    cp \"$SING_BOX_SRC\" \"$SING_BOX_DST\"\n    chmod +x \"$SING_BOX_DST\"\n    echo \"Bundled sing-box binary\"\nelse\n    echo \"warning: sing-box binary not found at $SING_BOX_SRC. Run Scripts/download-sing-box.sh to download it.\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

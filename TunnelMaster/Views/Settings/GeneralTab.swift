@@ -124,7 +124,15 @@ struct GeneralTab: View {
 
             Section("About") {
                 LabeledContent("Version", value: "1.0.0 (1)")
-                LabeledContent("sing-box", value: "v1.10.0 (bundled)")
+                LabeledContent("sing-box") {
+                    if singBoxBundled {
+                        Text("v1.12.22 (bundled)")
+                    } else {
+                        Label("v1.12.22 (Homebrew fallback)", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.caption)
+                    }
+                }
 
                 Link("View on GitHub", destination: URLs.github)
             }
@@ -206,6 +214,12 @@ struct GeneralTab: View {
         case .installing:
             EmptyView()
         }
+    }
+
+    private var singBoxBundled: Bool {
+        let singBoxURL = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Library/LaunchDaemons/sing-box")
+        return FileManager.default.fileExists(atPath: singBoxURL.path)
     }
 
     private func installHelper() async {
