@@ -487,6 +487,42 @@ struct SingBoxConfigBuilder {
 
         route["rules"] = rules
 
+        // Build rule_set definitions for geoip/geosite rules (sing-box 1.12+ format)
+        var ruleSetTags = Set<String>()
+        var ruleSets: [[String: Any]] = []
+
+        for rule in tunnelConfig.rules where rule.isEnabled {
+            let tag: String?
+            let url: String?
+
+            switch rule.type {
+            case .geoip:
+                tag = "geoip-\(rule.value)"
+                url = "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-\(rule.value).srs"
+            case .geosite:
+                tag = "geosite-\(rule.value)"
+                url = "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-\(rule.value).srs"
+            default:
+                tag = nil
+                url = nil
+            }
+
+            if let tag, let url, !ruleSetTags.contains(tag) {
+                ruleSetTags.insert(tag)
+                ruleSets.append([
+                    "tag": tag,
+                    "type": "remote",
+                    "format": "binary",
+                    "url": url,
+                    "download_detour": "direct"
+                ])
+            }
+        }
+
+        if !ruleSets.isEmpty {
+            route["rule_set"] = ruleSets
+        }
+
         // Set final outbound based on mode and config
         let useChain = tunnelConfig.chainEnabled && !tunnelConfig.chain.isEmpty
         switch tunnelConfig.mode {
@@ -528,9 +564,9 @@ struct SingBoxConfigBuilder {
         case .ipCidr:
             singBoxRule["ip_cidr"] = [rule.value]
         case .geoip:
-            singBoxRule["geoip"] = [rule.value]
+            singBoxRule["rule_set"] = ["geoip-\(rule.value)"]
         case .geosite:
-            singBoxRule["geosite"] = [rule.value]
+            singBoxRule["rule_set"] = ["geosite-\(rule.value)"]
         }
 
         // Map outbound

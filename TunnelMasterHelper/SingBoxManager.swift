@@ -200,12 +200,23 @@ actor SingBoxManager {
                 }
             }
         } else {
-            // Logging disabled: redirect to /dev/null (no buffer issues)
-            process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
+            // Logging disabled: use real pipes with drain handlers (not FileHandle.nullDevice)
+            // FileHandle.nullDevice has fd -1 which can cause undefined behavior with dup2
+            let outputPipe = Pipe()
+            let errorPipe = Pipe()
+            process.standardOutput = outputPipe
+            process.standardError = errorPipe
 
-            // Set up termination handler
+            // Drain stdout immediately to prevent pipe buffer deadlock
+            outputPipe.fileHandleForReading.readabilityHandler = { handle in
+                _ = handle.availableData
+            }
+
+            // Termination handler with cleanup (matches logs-on path)
             process.terminationHandler = { [weak self] terminatedProcess in
+                outputPipe.fileHandleForReading.readabilityHandler = nil
+                errorPipe.fileHandleForReading.readabilityHandler = nil
+
                 let exitCode = terminatedProcess.terminationStatus
                 NSLog("SingBoxManager: sing-box exited with code \(exitCode)")
 
@@ -213,6 +224,32 @@ actor SingBoxManager {
                     await self?.handleTermination(exitCode: exitCode)
                 }
             }
+
+            try process.run()
+            self.process = process
+
+            NSLog("SingBoxManager: sing-box started (PID: \(process.processIdentifier))")
+
+            // Wait briefly to check if it started successfully
+            try await Task.sleep(for: .milliseconds(500))
+
+            if !process.isRunning {
+                let stderrData = errorPipe.fileHandleForReading.availableData
+                let stderrText = String(data: stderrData, encoding: .utf8)?
+                    .components(separatedBy: .newlines)
+                    .filter { !$0.isEmpty }
+                    .prefix(5)
+                    .joined(separator: "\n") ?? ""
+
+                NSLog("SingBoxManager: sing-box startup failed with exit code \(process.terminationStatus)")
+                throw SingBoxError.startFailed(process.terminationStatus, stderrText)
+            }
+
+            // Process started successfully — now drain stderr too
+            errorPipe.fileHandleForReading.readabilityHandler = { handle in
+                _ = handle.availableData
+            }
+            return
         }
 
         try process.run()
