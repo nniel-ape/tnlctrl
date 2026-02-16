@@ -11,6 +11,7 @@ struct TunnelTab: View {
     @State private var showingRuleSheet = false
     @State private var editingRule: RoutingRule?
     @State private var showingPresetManager = false
+    @State private var selectedRuleId: UUID?
 
     var body: some View {
         @Bindable var state = appState
@@ -32,6 +33,9 @@ struct TunnelTab: View {
                 if let existing = editingRule {
                     if let index = appState.tunnelConfig.rules.firstIndex(where: { $0.id == existing.id }) {
                         appState.tunnelConfig.rules[index] = rule
+                    } else {
+                        // Rule was deleted while editing — save as new rule
+                        appState.tunnelConfig.rules.append(rule)
                     }
                 } else {
                     appState.tunnelConfig.rules.append(rule)
@@ -215,7 +219,7 @@ struct TunnelTab: View {
                         .foregroundStyle(.secondary)
                 }
 
-                List {
+                List(selection: $selectedRuleId) {
                     ForEach(Array(state.tunnelConfig.rules.enumerated()), id: \.element.id) { index, rule in
                         RuleRow(
                             rule: rule,
@@ -224,51 +228,7 @@ struct TunnelTab: View {
                                 set: { state.tunnelConfig.rules[index].isEnabled = $0 }
                             )
                         )
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            editingRule = rule
-                            showingRuleSheet = true
-                        }
-                        .contextMenu {
-                            // Toggle enabled
-                            Button {
-                                state.tunnelConfig.rules[index].isEnabled.toggle()
-                            } label: {
-                                Label(
-                                    rule.isEnabled ? "Disable" : "Enable",
-                                    systemImage: rule.isEnabled ? "eye.slash" : "eye"
-                                )
-                            }
-
-                            Button {
-                                editingRule = rule
-                                showingRuleSheet = true
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-
-                            Button {
-                                // Duplicate rule
-                                let newRule = RoutingRule(
-                                    type: rule.type,
-                                    value: rule.value,
-                                    outbound: rule.outbound,
-                                    isEnabled: rule.isEnabled,
-                                    note: rule.note
-                                )
-                                state.tunnelConfig.rules.append(newRule)
-                            } label: {
-                                Label("Duplicate", systemImage: "doc.on.doc")
-                            }
-
-                            Divider()
-
-                            Button(role: .destructive) {
-                                state.tunnelConfig.rules.removeAll { $0.id == rule.id }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
+                        .tag(rule.id)
                     }
                     .onDelete { offsets in
                         state.tunnelConfig.rules.remove(atOffsets: offsets)
@@ -277,7 +237,32 @@ struct TunnelTab: View {
                         state.tunnelConfig.rules.move(fromOffsets: from, toOffset: to)
                     }
                 }
+                .listStyle(.inset)
+                .alternatingRowBackgrounds()
+                .contextMenu(
+                    forSelectionType: UUID.self,
+                    menu: { ids in
+                        if let id = ids.first,
+                           let index = appState.tunnelConfig.rules.firstIndex(where: { $0.id == id }) {
+                            ruleContextMenu(for: appState.tunnelConfig.rules[index], at: index)
+                        }
+                    },
+                    primaryAction: { ids in
+                        // Double-click opens edit sheet
+                        if let id = ids.first,
+                           let rule = appState.tunnelConfig.rules.first(where: { $0.id == id }) {
+                            editingRule = rule
+                            showingRuleSheet = true
+                        }
+                    }
+                )
                 .frame(minHeight: 100, maxHeight: 250)
+                .onDeleteCommand {
+                    if let selectedId = selectedRuleId {
+                        appState.tunnelConfig.rules.removeAll { $0.id == selectedId }
+                        selectedRuleId = nil
+                    }
+                }
             }
 
             // Add rule button
@@ -341,6 +326,52 @@ struct TunnelTab: View {
                 }
                 .padding(.vertical, 4)
             }
+        }
+    }
+
+    // MARK: - Rule Context Menu
+
+    @ViewBuilder
+    private func ruleContextMenu(
+        for rule: RoutingRule,
+        at index: Int
+    ) -> some View {
+        Button {
+            appState.tunnelConfig.rules[index].isEnabled.toggle()
+        } label: {
+            Label(
+                rule.isEnabled ? "Disable" : "Enable",
+                systemImage: rule.isEnabled ? "eye.slash" : "eye"
+            )
+        }
+
+        Button {
+            editingRule = rule
+            showingRuleSheet = true
+        } label: {
+            Label("Edit", systemImage: "pencil")
+        }
+
+        Button {
+            let newRule = RoutingRule(
+                type: rule.type,
+                value: rule.value,
+                outbound: rule.outbound,
+                isEnabled: rule.isEnabled,
+                note: rule.note
+            )
+            appState.tunnelConfig.rules.append(newRule)
+        } label: {
+            Label("Duplicate", systemImage: "doc.on.doc")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            appState.tunnelConfig.rules.removeAll { $0.id == rule.id }
+            selectedRuleId = nil
+        } label: {
+            Label("Delete", systemImage: "trash")
         }
     }
 
@@ -462,32 +493,22 @@ private struct RuleRow: View {
     @Binding var isEnabled: Bool
 
     var body: some View {
-        HStack {
-            // Toggle
+        HStack(spacing: 8) {
+            // Checkbox (native macOS for list items)
             Toggle("", isOn: $isEnabled)
-                .toggleStyle(.switch)
-                .scaleEffect(0.7)
-                .frame(width: 36)
+                .toggleStyle(.checkbox)
+                .labelsHidden()
 
-            // Drag handle indicator
-            Image(systemName: "line.3.horizontal")
+            // Rule type icon
+            Image(systemName: rule.type.systemImage)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+                .frame(width: 14)
 
-            // Rule type badge
-            Text(rule.type.displayName)
-                .font(.caption)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(badgeColor.opacity(isEnabled ? 0.2 : 0.1))
-                .foregroundStyle(isEnabled ? badgeColor : .secondary)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-
-            // Value
-            VStack(alignment: .leading, spacing: 2) {
+            // Value & note
+            VStack(alignment: .leading, spacing: 1) {
                 Text(rule.value)
                     .lineLimit(1)
-                    .foregroundStyle(isEnabled ? .primary : .secondary)
                 if let note = rule.note, !note.isEmpty {
                     Text(note)
                         .font(.caption2)
@@ -495,30 +516,21 @@ private struct RuleRow: View {
                         .lineLimit(1)
                 }
             }
+            .foregroundStyle(isEnabled ? .primary : .tertiary)
 
             Spacer()
 
+            // Rule type (text only, no badge)
+            Text(rule.type.displayName)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+
             // Outbound indicator
-            Image(systemName: rule.outbound.systemImage)
-                .foregroundStyle(isEnabled ? outboundColor : .secondary)
             Text(rule.outbound.displayName)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isEnabled ? outboundColor : Color.secondary)
         }
-        .opacity(isEnabled ? 1.0 : 0.6)
-    }
-
-    private var badgeColor: Color {
-        switch rule.type {
-        case .domain, .domainSuffix, .domainKeyword:
-            .purple
-        case .ipCidr:
-            .orange
-        case .geoip, .geosite:
-            .teal
-        case .processName, .processPath:
-            .gray
-        }
+        .padding(.vertical, 2)
     }
 
     private var outboundColor: Color {
