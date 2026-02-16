@@ -174,11 +174,12 @@ struct ImportSheet: View {
                 }
                 importedCount = services.count
                 configText = ""
+            }
 
-                // Auto-dismiss after success
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    dismiss()
-                }
+            // Auto-dismiss after success
+            try? await Task.sleep(for: .seconds(1.5))
+            await MainActor.run {
+                dismiss()
             }
         } catch {
             await MainActor.run {
@@ -226,10 +227,12 @@ struct ImportSheet: View {
                     appState.addService(service)
                 }
                 importedCount = services.count
+            }
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    dismiss()
-                }
+            // Auto-dismiss after success
+            try? await Task.sleep(for: .seconds(1.5))
+            await MainActor.run {
+                dismiss()
             }
         } catch {
             await MainActor.run {

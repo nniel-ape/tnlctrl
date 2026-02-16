@@ -17,15 +17,22 @@ struct RuleBuilderSheet: View {
     @State private var outbound: RuleOutbound = .proxy
     @State private var note = ""
 
-    // Sub-sheets
-    @State private var showingAppPicker = false
-    @State private var showingDomainInput = false
-    @State private var showingGeoSiteBrowser = false
-    @State private var showingGeoIPBrowser = false
-    @State private var showingIPRangeInput = false
+    /// Sub-sheet
+    @State private var activeSheet: PickerSheet?
 
     private let existingRule: RoutingRule?
     private let onSave: (RoutingRule) -> Void
+
+    enum PickerSheet: Identifiable {
+        case app
+        case domain
+        case geoSite
+        case geoIP
+        case ipRange
+        var id: Self {
+            self
+        }
+    }
 
     enum BuilderStep {
         case category
@@ -58,39 +65,38 @@ struct RuleBuilderSheet: View {
             footer
         }
         .frame(width: 500, height: 450)
-        .sheet(isPresented: $showingAppPicker) {
-            AppPickerView { processName, type in
-                ruleValue = processName
-                selectedRuleType = type
-                step = .action
-            }
-        }
-        .sheet(isPresented: $showingDomainInput) {
-            DomainInputView { domain, type in
-                ruleValue = domain
-                selectedRuleType = type
-                step = .action
-            }
-        }
-        .sheet(isPresented: $showingGeoSiteBrowser) {
-            GeoSiteBrowserView { category in
-                ruleValue = category
-                selectedRuleType = .geosite
-                step = .action
-            }
-        }
-        .sheet(isPresented: $showingGeoIPBrowser) {
-            GeoIPBrowserView { country in
-                ruleValue = country
-                selectedRuleType = .geoip
-                step = .action
-            }
-        }
-        .sheet(isPresented: $showingIPRangeInput) {
-            IPRangeInputView { cidr in
-                ruleValue = cidr
-                selectedRuleType = .ipCidr
-                step = .action
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .app:
+                AppPickerView { processName, type in
+                    ruleValue = processName
+                    selectedRuleType = type
+                    step = .action
+                }
+            case .domain:
+                DomainInputView { domain, type in
+                    ruleValue = domain
+                    selectedRuleType = type
+                    step = .action
+                }
+            case .geoSite:
+                GeoSiteBrowserView { category in
+                    ruleValue = category
+                    selectedRuleType = .geosite
+                    step = .action
+                }
+            case .geoIP:
+                GeoIPBrowserView { country in
+                    ruleValue = country
+                    selectedRuleType = .geoip
+                    step = .action
+                }
+            case .ipRange:
+                IPRangeInputView { cidr in
+                    ruleValue = cidr
+                    selectedRuleType = .ipCidr
+                    step = .action
+                }
             }
         }
     }
@@ -244,15 +250,15 @@ struct RuleBuilderSheet: View {
     private func openValueInput(for category: RuleCategory) {
         switch category {
         case .app:
-            showingAppPicker = true
+            activeSheet = .app
         case .domain:
-            showingDomainInput = true
+            activeSheet = .domain
         case .geoSite:
-            showingGeoSiteBrowser = true
+            activeSheet = .geoSite
         case .geoIP:
-            showingGeoIPBrowser = true
+            activeSheet = .geoIP
         case .ip:
-            showingIPRangeInput = true
+            activeSheet = .ipRange
         }
     }
 
