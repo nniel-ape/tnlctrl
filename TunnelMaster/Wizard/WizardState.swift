@@ -107,7 +107,7 @@ final class WizardState {
     // MARK: - Actions
 
     func nextStep() {
-        if currentStep < totalSteps - 1 {
+        if currentStep < minStep + totalSteps - 1 {
             currentStep += 1
         }
     }

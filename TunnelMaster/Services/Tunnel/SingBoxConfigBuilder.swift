@@ -210,8 +210,9 @@ struct SingBoxConfigBuilder {
             outbound["transport"] = transportSettings
         }
 
-        // Add detour for chain
-        if let detourIndex = tunnelConfig.chain.firstIndex(of: service.id),
+        // Add detour for chain (only when chaining is enabled)
+        if tunnelConfig.chainEnabled,
+           let detourIndex = tunnelConfig.chain.firstIndex(of: service.id),
            detourIndex + 1 < tunnelConfig.chain.count {
             let nextServiceId = tunnelConfig.chain[detourIndex + 1]
             outbound["detour"] = nextServiceId.uuidString.lowercased()

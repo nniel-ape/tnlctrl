@@ -220,12 +220,16 @@ struct TunnelTab: View {
                 }
 
                 List(selection: $selectedRuleId) {
-                    ForEach(Array(state.tunnelConfig.rules.enumerated()), id: \.element.id) { index, rule in
+                    ForEach(Array(state.tunnelConfig.rules.enumerated()), id: \.element.id) { _, rule in
                         RuleRow(
                             rule: rule,
                             isEnabled: Binding(
-                                get: { state.tunnelConfig.rules[index].isEnabled },
-                                set: { state.tunnelConfig.rules[index].isEnabled = $0 }
+                                get: { state.tunnelConfig.rules.first(where: { $0.id == rule.id })?.isEnabled ?? true },
+                                set: { newValue in
+                                    if let idx = state.tunnelConfig.rules.firstIndex(where: { $0.id == rule.id }) {
+                                        state.tunnelConfig.rules[idx].isEnabled = newValue
+                                    }
+                                }
                             )
                         )
                         .tag(rule.id)

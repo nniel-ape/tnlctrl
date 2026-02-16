@@ -98,7 +98,7 @@ final class Deployer {
         } else {
             // Standard TCP ports
             for port in template.requiredPorts {
-                ports[settings.port] = settings.port
+                ports[port] = port
             }
         }
 
@@ -265,14 +265,22 @@ final class Deployer {
         // Build Docker run command with correct volume path
         var dockerArgs = template.generateDockerRunArgs(settings: settings)
 
-        // Update volume path to use remote config directory
+        // Update host-side volume paths to use remote config directory
+        // Only replace the host portion of -v mounts, not container-internal paths
         dockerArgs = dockerArgs.map { arg in
-            if arg.contains("/etc/sing-box") {
-                return arg.replacingOccurrences(of: "/etc/sing-box", with: remoteConfigDir)
-            } else if arg.contains("/etc/hysteria-\(settings.containerName)") {
-                return arg.replacingOccurrences(of: "/etc/hysteria-\(settings.containerName)", with: remoteConfigDir)
-            } else if arg.contains("/etc/wireguard-\(settings.containerName)") {
-                return arg.replacingOccurrences(of: "/etc/wireguard-\(settings.containerName)", with: remoteConfigDir)
+            // Handle volume mount args like "/etc/sing-box:/etc/sing-box:ro"
+            if arg.contains(":/etc/sing-box") {
+                let parts = arg.split(separator: ":", maxSplits: 1).map(String.init)
+                guard parts.count == 2 else { return arg }
+                return remoteConfigDir + ":" + parts[1]
+            } else if arg.contains(":/etc/hysteria") {
+                let parts = arg.split(separator: ":", maxSplits: 1).map(String.init)
+                guard parts.count == 2 else { return arg }
+                return remoteConfigDir + ":" + parts[1]
+            } else if arg.contains(":/etc/wireguard") {
+                let parts = arg.split(separator: ":", maxSplits: 1).map(String.init)
+                guard parts.count == 2 else { return arg }
+                return remoteConfigDir + ":" + parts[1]
             }
             return arg
         }

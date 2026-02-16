@@ -235,8 +235,7 @@ struct PresetManagerSheet: View {
     }
 
     private func duplicatePreset(_ preset: RulePreset) {
-        var newPreset = preset
-        newPreset = RulePreset(
+        let newPreset = RulePreset(
             name: "\(preset.name) Copy",
             description: preset.description,
             rules: preset.rules,

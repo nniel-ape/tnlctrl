@@ -29,7 +29,7 @@ struct Hysteria2Template: ProtocolTemplate {
             "",
             "auth:",
             "  type: password",
-            "  password: \(settings.password)"
+            "  password: \"\(settings.password.replacingOccurrences(of: "\"", with: "\\\""))\""
         ]
 
         // Add obfuscation if enabled
