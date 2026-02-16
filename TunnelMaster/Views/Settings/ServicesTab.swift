@@ -14,6 +14,8 @@ struct ServicesTab: View {
     @State private var showingExportSheet = false
     @State private var exportFormat: ExportFormat = .singbox
     @State private var serverForNewService: Server?
+    @State private var pingAllTask: Task<Void, Never>?
+    private let latencyTester = LatencyTester.shared
 
     var body: some View {
         Group {
@@ -99,6 +101,19 @@ struct ServicesTab: View {
 
             Spacer()
 
+            if latencyTester.isPingingAll {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Pinging...")
+                    .foregroundStyle(.secondary)
+            } else {
+                Button {
+                    pingAll()
+                } label: {
+                    Label("Ping All", systemImage: "bolt.horizontal")
+                }
+            }
+
             Button("Export...") {
                 showingExportSheet = true
             }
@@ -139,8 +154,11 @@ struct ServicesTab: View {
                 )
 
                 ForEach(appState.createdServices) { service in
-                    ServiceRow(service: service)
-                        .tag(service.id)
+                    ServiceRow(
+                        service: service,
+                        isPinging: latencyTester.pingingServiceIds.contains(service.id)
+                    )
+                    .tag(service.id)
                 }
                 .onMove(perform: moveCreatedServices)
                 .onDelete(perform: deleteCreatedServices)
@@ -154,8 +172,11 @@ struct ServicesTab: View {
                 )
 
                 ForEach(appState.importedServices) { service in
-                    ServiceRow(service: service)
-                        .tag(service.id)
+                    ServiceRow(
+                        service: service,
+                        isPinging: latencyTester.pingingServiceIds.contains(service.id)
+                    )
+                    .tag(service.id)
                 }
                 .onMove(perform: moveImportedServices)
                 .onDelete(perform: deleteImportedServices)
@@ -202,8 +223,20 @@ struct ServicesTab: View {
         }
 
         Button("Test Latency") {
-            // TODO: Task 19 - Latency testing
+            Task {
+                let result = await latencyTester.testLatency(for: service)
+                if let index = appState.services.firstIndex(where: { $0.id == service.id }) {
+                    switch result {
+                    case let .success(ms):
+                        appState.services[index].latency = ms
+                    case .timeout, .error:
+                        appState.services[index].latency = -1
+                    }
+                    appState.saveServices()
+                }
+            }
         }
+        .disabled(latencyTester.pingingServiceIds.contains(service.id))
 
         // Deploy another service to the same server (for created services)
         if let serverId = service.serverId,
@@ -220,6 +253,25 @@ struct ServicesTab: View {
 
         Button("Delete", role: .destructive) {
             appState.deleteService(service)
+        }
+    }
+
+    // MARK: - Ping All
+
+    private func pingAll() {
+        pingAllTask?.cancel()
+        pingAllTask = Task {
+            await latencyTester.testAll(services: appState.services) { id, result in
+                if let index = appState.services.firstIndex(where: { $0.id == id }) {
+                    switch result {
+                    case let .success(ms):
+                        appState.services[index].latency = ms
+                    case .timeout, .error:
+                        appState.services[index].latency = -1
+                    }
+                }
+            }
+            appState.saveServices()
         }
     }
 
@@ -258,6 +310,7 @@ struct ServicesTab: View {
 
 struct ServiceRow: View {
     let service: Service
+    var isPinging = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -286,8 +339,11 @@ struct ServiceRow: View {
                 .background(.secondary.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
 
-            // Latency badge (if available)
-            if let latency = service.latency {
+            // Latency badge or spinner
+            if isPinging {
+                ProgressView()
+                    .controlSize(.small)
+            } else if let latency = service.latency {
                 LatencyBadge(ms: latency)
             }
         }
@@ -301,7 +357,7 @@ struct LatencyBadge: View {
     let ms: Int
 
     var body: some View {
-        Text("\(ms) ms")
+        Text(label)
             .font(.caption)
             .foregroundStyle(color)
             .padding(.horizontal, 6)
@@ -310,7 +366,12 @@ struct LatencyBadge: View {
             .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 
+    private var label: String {
+        ms < 0 ? "timeout" : "\(ms) ms"
+    }
+
     private var color: Color {
+        if ms < 0 { return .gray }
         if ms < 100 { return .green }
         if ms < 300 { return .yellow }
         return .red
