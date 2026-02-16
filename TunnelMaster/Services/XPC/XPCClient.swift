@@ -64,16 +64,17 @@ final class XPCClient {
     /// Executes an async operation with a timeout.
     private func withTimeout<T: Sendable>(
         seconds: Double,
-        operation: @escaping @Sendable () async throws -> T
+        operation name: String,
+        _ operation: @escaping @Sendable () async throws -> T
     ) async throws -> T {
         try await withThrowingTaskGroup(of: T.self) { group in
             group.addTask { try await operation() }
             group.addTask {
                 try await Task.sleep(for: .seconds(seconds))
-                throw XPCError.connectionFailed
+                throw XPCError.timeout(name)
             }
             guard let result = try await group.next() else {
-                throw XPCError.connectionFailed
+                throw XPCError.timeout(name)
             }
             group.cancelAll()
             return result
@@ -97,12 +98,14 @@ final class XPCClient {
     func startTunnel(configJSON: String, enableLogs: Bool) async throws {
         let proxy = try getProxy()
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            proxy.startTunnel(configJSON: configJSON, enableLogs: enableLogs) { success, errorMessage in
-                if success {
-                    continuation.resume()
-                } else {
-                    continuation.resume(throwing: XPCError.operationFailed(errorMessage ?? "Unknown error"))
+        try await withTimeout(seconds: 30, operation: "startTunnel") {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                proxy.startTunnel(configJSON: configJSON, enableLogs: enableLogs) { success, errorMessage in
+                    if success {
+                        continuation.resume()
+                    } else {
+                        continuation.resume(throwing: XPCError.operationFailed(errorMessage ?? "Unknown error"))
+                    }
                 }
             }
         }
@@ -111,12 +114,14 @@ final class XPCClient {
     func stopTunnel() async throws {
         let proxy = try getProxy()
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            proxy.stopTunnel { success, errorMessage in
-                if success {
-                    continuation.resume()
-                } else {
-                    continuation.resume(throwing: XPCError.operationFailed(errorMessage ?? "Unknown error"))
+        try await withTimeout(seconds: 15, operation: "stopTunnel") {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                proxy.stopTunnel { success, errorMessage in
+                    if success {
+                        continuation.resume()
+                    } else {
+                        continuation.resume(throwing: XPCError.operationFailed(errorMessage ?? "Unknown error"))
+                    }
                 }
             }
         }
@@ -125,10 +130,12 @@ final class XPCClient {
     func getStatus() async throws -> TunnelStatus {
         let proxy = try getProxy()
 
-        return try await withCheckedThrowingContinuation { continuation in
-            proxy.getStatus { isRunning, statusCode in
-                let status = TunnelStatus(rawValue: statusCode) ?? (isRunning ? .running : .stopped)
-                continuation.resume(returning: status)
+        return try await withTimeout(seconds: 5, operation: "getStatus") {
+            try await withCheckedThrowingContinuation { continuation in
+                proxy.getStatus { isRunning, statusCode in
+                    let status = TunnelStatus(rawValue: statusCode) ?? (isRunning ? .running : .stopped)
+                    continuation.resume(returning: status)
+                }
             }
         }
     }
@@ -136,12 +143,14 @@ final class XPCClient {
     func reloadConfig(configJSON: String) async throws {
         let proxy = try getProxy()
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            proxy.reloadConfig(configJSON: configJSON) { success, errorMessage in
-                if success {
-                    continuation.resume()
-                } else {
-                    continuation.resume(throwing: XPCError.operationFailed(errorMessage ?? "Unknown error"))
+        try await withTimeout(seconds: 15, operation: "reloadConfig") {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                proxy.reloadConfig(configJSON: configJSON) { success, errorMessage in
+                    if success {
+                        continuation.resume()
+                    } else {
+                        continuation.resume(throwing: XPCError.operationFailed(errorMessage ?? "Unknown error"))
+                    }
                 }
             }
         }
@@ -150,16 +159,18 @@ final class XPCClient {
     func getVersion() async throws -> String {
         let proxy = try getProxy()
 
-        return await withCheckedContinuation { continuation in
-            proxy.getVersion { version in
-                continuation.resume(returning: version)
+        return try await withTimeout(seconds: 5, operation: "getVersion") {
+            try await withCheckedThrowingContinuation { continuation in
+                proxy.getVersion { version in
+                    continuation.resume(returning: version)
+                }
             }
         }
     }
 
     func isHelperResponding(timeout: Double = 5.0) async -> Bool {
         do {
-            _ = try await withTimeout(seconds: timeout) { [self] in
+            _ = try await withTimeout(seconds: timeout, operation: "isHelperResponding") { [self] in
                 try await getVersion()
             }
             return true
@@ -175,6 +186,7 @@ enum XPCError: LocalizedError {
     case connectionFailed
     case operationFailed(String)
     case helperNotInstalled
+    case timeout(String)
 
     var errorDescription: String? {
         switch self {
@@ -184,6 +196,8 @@ enum XPCError: LocalizedError {
             "Helper operation failed: \(message)"
         case .helperNotInstalled:
             "Privileged helper is not installed"
+        case let .timeout(operation):
+            "Helper not responding (\(operation) timed out)"
         }
     }
 }

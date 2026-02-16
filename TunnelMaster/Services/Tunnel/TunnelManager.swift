@@ -31,6 +31,8 @@ final class TunnelManager {
     private let notificationService = NotificationService.shared
 
     private var statusCheckTask: Task<Void, Never>?
+    private var consecutiveStatusFailures = 0
+    private let maxConsecutiveFailures = 3
 
     private init() {}
 
@@ -50,6 +52,7 @@ final class TunnelManager {
         }
 
         isTransitioning = true
+        defer { isTransitioning = false }
         error = nil
         status = .connecting
 
@@ -71,8 +74,6 @@ final class TunnelManager {
             status = .error
             throw error
         }
-
-        isTransitioning = false
     }
 
     // MARK: - Stop
@@ -83,6 +84,7 @@ final class TunnelManager {
         }
 
         isTransitioning = true
+        defer { isTransitioning = false }
         error = nil
         status = .disconnecting
 
@@ -95,8 +97,6 @@ final class TunnelManager {
             status = .error
             throw error
         }
-
-        isTransitioning = false
     }
 
     // MARK: - Reload Config
@@ -125,19 +125,30 @@ final class TunnelManager {
     func refreshStatus() async {
         do {
             let newStatus = try await xpcClient.getStatus()
+            consecutiveStatusFailures = 0
             if status != .connecting, status != .disconnecting {
                 status = newStatus
             }
         } catch {
-            if status == .running {
-                status = .error
-                self.error = "Lost connection to helper"
+            consecutiveStatusFailures += 1
+            // swiftformat:disable:next redundantSelf
+            logger.warning("Status poll failed (\(self.consecutiveStatusFailures)/\(self.maxConsecutiveFailures)): \(error)")
+
+            if consecutiveStatusFailures >= maxConsecutiveFailures {
+                // swiftformat:disable:next redundantSelf
+                logger.error("Stopping status polling after \(self.consecutiveStatusFailures) consecutive failures")
+                stopStatusPolling()
+                if status == .running {
+                    status = .error
+                    self.error = "Lost connection to helper"
+                }
             }
         }
     }
 
     private func startStatusPolling() {
         stopStatusPolling()
+        consecutiveStatusFailures = 0
         statusCheckTask = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))

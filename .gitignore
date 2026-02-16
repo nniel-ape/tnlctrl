@@ -9,3 +9,4 @@ DerivedData/
 
 # ralphex progress logs
 .ralphex/progress/
+.claude/
