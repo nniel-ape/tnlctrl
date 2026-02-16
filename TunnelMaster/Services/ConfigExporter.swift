@@ -327,7 +327,9 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case clash = "Clash"
     case uris = "URIs"
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var fileExtension: String {
         switch self {

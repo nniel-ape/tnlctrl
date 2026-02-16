@@ -69,7 +69,9 @@ enum PresetColor: String, Codable, CaseIterable, Identifiable, Sendable {
     case teal
     case gray
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         rawValue.capitalized

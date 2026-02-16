@@ -29,7 +29,9 @@ struct DomainCategory: Identifiable, Hashable, Sendable {
     let icon: String
     let domains: [DomainSuggestion]
 
-    var domainCount: Int { domains.count }
+    var domainCount: Int {
+        domains.count
+    }
 }
 
 /// Database of popular domains organized by category
@@ -426,7 +428,9 @@ enum CountryCodeDatabase {
         let name: String
         let flag: String
 
-        var id: String { code }
+        var id: String {
+            code
+        }
     }
 
     static let countries: [Country] = [

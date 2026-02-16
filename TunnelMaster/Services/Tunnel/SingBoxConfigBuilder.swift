@@ -148,13 +148,11 @@ struct SingBoxConfigBuilder {
 
         // Create chain outbound using first service with detour to next
         // sing-box chains work by setting detour on each outbound
-        let chainOutbound: [String: Any] = [
+        return [
             "tag": "chain",
             "type": "selector",
             "outbounds": [firstService.id.uuidString.lowercased()]
         ]
-
-        return chainOutbound
     }
 
     private func buildSelectorOutbound(services: [Service]) -> [String: Any] {

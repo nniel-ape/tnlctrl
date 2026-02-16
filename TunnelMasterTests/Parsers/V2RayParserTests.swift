@@ -24,26 +24,26 @@ final class V2RayParserTests: XCTestCase {
 
     // MARK: - canImport Tests
 
-    func testCanImportV2RayConfig() {
-        let data = ConfigFixtures.V2Ray.vlessVnext.data(using: .utf8)!
+    func testCanImportV2RayConfig() throws {
+        let data = try XCTUnwrap(ConfigFixtures.V2Ray.vlessVnext.data(using: .utf8))
         XCTAssertTrue(parser.canImport(data: data))
     }
 
-    func testCannotImportSingBoxConfig() {
+    func testCannotImportSingBoxConfig() throws {
         // sing-box doesn't have "protocol" field in outbounds
-        let data = ConfigFixtures.SingBox.vlessOutbound.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.vlessOutbound.data(using: .utf8))
         XCTAssertFalse(parser.canImport(data: data))
     }
 
-    func testCannotImportInvalidJSON() {
-        let data = ConfigFixtures.SingBox.invalidJSON.data(using: .utf8)!
+    func testCannotImportInvalidJSON() throws {
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.invalidJSON.data(using: .utf8))
         XCTAssertFalse(parser.canImport(data: data))
     }
 
     // MARK: - VLESS Parsing
 
     func testParseVLESSVnext() async throws {
-        let data = ConfigFixtures.V2Ray.vlessVnext.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.V2Ray.vlessVnext.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -74,7 +74,7 @@ final class V2RayParserTests: XCTestCase {
     // MARK: - VMess Parsing
 
     func testParseVMessVnext() async throws {
-        let data = ConfigFixtures.V2Ray.vmessVnext.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.V2Ray.vmessVnext.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -103,7 +103,7 @@ final class V2RayParserTests: XCTestCase {
     // MARK: - Trojan Parsing
 
     func testParseTrojanServers() async throws {
-        let data = ConfigFixtures.V2Ray.trojanServers.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.V2Ray.trojanServers.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -152,7 +152,7 @@ final class V2RayParserTests: XCTestCase {
             ]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -192,7 +192,7 @@ final class V2RayParserTests: XCTestCase {
             ]
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -206,13 +206,13 @@ final class V2RayParserTests: XCTestCase {
 
     // MARK: - Error Cases
 
-    func testParseMissingOutbounds() async {
+    func testParseMissingOutbounds() async throws {
         let json = """
         {
             "inbounds": []
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         do {
             _ = try await parser.parse(data: data)
             XCTFail("Expected error for missing outbounds")

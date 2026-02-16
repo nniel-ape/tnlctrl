@@ -33,8 +33,8 @@ final class SingBoxConfigBuilderTests: XCTestCase {
     }
 
     private func parseJSON(_ json: String) throws -> [String: Any] {
-        let data = json.data(using: .utf8)!
-        return try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
 
     private func findOutbound(in outbounds: [[String: Any]], type: String) -> [String: Any]? {
@@ -70,7 +70,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let log = config["log"] as! [String: Any]
+        let log = try XCTUnwrap(config["log"] as? [String: Any])
 
         XCTAssertEqual(log["level"] as? String, "info")
         XCTAssertEqual(log["timestamp"] as? Bool, true)
@@ -83,7 +83,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let inbounds = config["inbounds"] as! [[String: Any]]
+        let inbounds = try XCTUnwrap(config["inbounds"] as? [[String: Any]])
 
         XCTAssertEqual(inbounds.count, 1)
         let tun = inbounds[0]
@@ -111,7 +111,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let experimental = config["experimental"] as! [String: Any]
+        let experimental = try XCTUnwrap(config["experimental"] as? [String: Any])
         let cacheFile = experimental["cache_file"] as? [String: Any]
 
         XCTAssertNotNil(cacheFile)
@@ -128,9 +128,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let dns = config["dns"] as! [String: Any]
+        let dns = try XCTUnwrap(config["dns"] as? [String: Any])
 
-        let servers = dns["servers"] as! [[String: Any]]
+        let servers = try XCTUnwrap(dns["servers"] as? [[String: Any]])
         XCTAssertGreaterThanOrEqual(servers.count, 2, "Should have at least 2 DNS servers")
 
         // Check for proxy DNS
@@ -158,9 +158,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
 
         XCTAssertEqual(vlessOutbound["type"] as? String, "vless")
         XCTAssertEqual(vlessOutbound["server"] as? String, "example.com")
@@ -186,15 +186,15 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
 
         // Verify Reality settings
-        let tls = vlessOutbound["tls"] as! [String: Any]
+        let tls = try XCTUnwrap(vlessOutbound["tls"] as? [String: Any])
         XCTAssertEqual(tls["server_name"] as? String, "www.microsoft.com")
 
-        let reality = tls["reality"] as! [String: Any]
+        let reality = try XCTUnwrap(tls["reality"] as? [String: Any])
         XCTAssertEqual(reality["enabled"] as? Bool, true)
         XCTAssertEqual(reality["public_key"] as? String, "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0")
         XCTAssertEqual(reality["short_id"] as? String, "0123456789abcdef")
@@ -215,9 +215,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
 
         let transport = vlessOutbound["transport"] as? [String: Any]
         XCTAssertNotNil(transport)
@@ -232,9 +232,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
 
         let transport = vlessOutbound["transport"] as? [String: Any]
         XCTAssertNotNil(transport)
@@ -252,9 +252,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
 
         let transport = vlessOutbound["transport"] as? [String: Any]
         XCTAssertNotNil(transport)
@@ -274,9 +274,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vmessOutbound = findOutbound(in: outbounds, type: "vmess")!
+        let vmessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vmess"))
 
         XCTAssertEqual(vmessOutbound["type"] as? String, "vmess")
         XCTAssertEqual(vmessOutbound["uuid"] as? String, "test-uuid")
@@ -299,9 +299,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vmessOutbound = findOutbound(in: outbounds, type: "vmess")!
+        let vmessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vmess"))
         XCTAssertEqual(vmessOutbound["security"] as? String, "chacha20-poly1305")
     }
 
@@ -315,9 +315,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vmessOutbound = findOutbound(in: outbounds, type: "vmess")!
+        let vmessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vmess"))
         XCTAssertEqual(vmessOutbound["security"] as? String, "aes-128-gcm")
     }
 
@@ -331,9 +331,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vmessOutbound = findOutbound(in: outbounds, type: "vmess")!
+        let vmessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vmess"))
         XCTAssertEqual(vmessOutbound["security"] as? String, "zero")
     }
 
@@ -344,9 +344,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vmessOutbound = findOutbound(in: outbounds, type: "vmess")!
+        let vmessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vmess"))
 
         let transport = vmessOutbound["transport"] as? [String: Any]
         XCTAssertEqual(transport?["type"] as? String, "grpc")
@@ -362,9 +362,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let trojanOutbound = findOutbound(in: outbounds, type: "trojan")!
+        let trojanOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "trojan"))
 
         XCTAssertEqual(trojanOutbound["password"] as? String, "password123")
         XCTAssertNotNil(trojanOutbound["tls"])
@@ -384,9 +384,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let trojanOutbound = findOutbound(in: outbounds, type: "trojan")!
+        let trojanOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "trojan"))
 
         let transport = trojanOutbound["transport"] as? [String: Any]
         XCTAssertEqual(transport?["type"] as? String, "grpc")
@@ -400,9 +400,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let trojanOutbound = findOutbound(in: outbounds, type: "trojan")!
+        let trojanOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "trojan"))
 
         let transport = trojanOutbound["transport"] as? [String: Any]
         XCTAssertEqual(transport?["type"] as? String, "ws")
@@ -418,9 +418,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let ssOutbound = findOutbound(in: outbounds, type: "shadowsocks")!
+        let ssOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "shadowsocks"))
 
         XCTAssertEqual(ssOutbound["method"] as? String, "aes-256-gcm")
         XCTAssertEqual(ssOutbound["password"] as? String, "password123")
@@ -435,9 +435,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let ssOutbound = findOutbound(in: outbounds, type: "shadowsocks")!
+        let ssOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "shadowsocks"))
 
         XCTAssertEqual(ssOutbound["method"] as? String, "2022-blake3-aes-256-gcm")
     }
@@ -449,9 +449,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let ssOutbound = findOutbound(in: outbounds, type: "shadowsocks")!
+        let ssOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "shadowsocks"))
 
         XCTAssertEqual(ssOutbound["method"] as? String, "chacha20-ietf-poly1305")
     }
@@ -465,9 +465,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let wgOutbound = findOutbound(in: outbounds, type: "wireguard")!
+        let wgOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "wireguard"))
 
         XCTAssertEqual(wgOutbound["private_key"] as? String, "WG_PRIVATE_KEY")
         XCTAssertEqual(wgOutbound["peer_public_key"] as? String, "PEER_PUBLIC_KEY")
@@ -482,9 +482,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let wgOutbound = findOutbound(in: outbounds, type: "wireguard")!
+        let wgOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "wireguard"))
 
         XCTAssertEqual(wgOutbound["private_key"] as? String, "WG_PRIVATE_KEY_FULL")
         XCTAssertEqual(wgOutbound["peer_public_key"] as? String, "Z1XXLsKYkYxuiYjJIkRvtIKFepCYHTgON+GwPq7SOV4=")
@@ -508,9 +508,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let hy2Outbound = findOutbound(in: outbounds, type: "hysteria2")!
+        let hy2Outbound = try XCTUnwrap(findOutbound(in: outbounds, type: "hysteria2"))
 
         XCTAssertEqual(hy2Outbound["password"] as? String, "password123")
         XCTAssertEqual(hy2Outbound["up_mbps"] as? Int, 100)
@@ -528,9 +528,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let hy2Outbound = findOutbound(in: outbounds, type: "hysteria2")!
+        let hy2Outbound = try XCTUnwrap(findOutbound(in: outbounds, type: "hysteria2"))
 
         XCTAssertEqual(hy2Outbound["password"] as? String, "hy2-password")
         XCTAssertEqual(hy2Outbound["up_mbps"] as? Int, 100)
@@ -552,9 +552,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let hy2Outbound = findOutbound(in: outbounds, type: "hysteria2")!
+        let hy2Outbound = try XCTUnwrap(findOutbound(in: outbounds, type: "hysteria2"))
 
         XCTAssertEqual(hy2Outbound["password"] as? String, "hy2-min-password")
         // Should not have obfs when not specified
@@ -570,9 +570,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let socksOutbound = findOutbound(in: outbounds, type: "socks")!
+        let socksOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "socks"))
 
         XCTAssertEqual(socksOutbound["server"] as? String, "socks.example.com")
         XCTAssertEqual(socksOutbound["server_port"] as? Int, 1080)
@@ -588,9 +588,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let socksOutbound = findOutbound(in: outbounds, type: "socks")!
+        let socksOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "socks"))
 
         XCTAssertEqual(socksOutbound["server"] as? String, "socks-noauth.example.com")
         XCTAssertEqual(socksOutbound["server_port"] as? Int, 1080)
@@ -608,9 +608,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let trojanOutbound = findOutbound(in: outbounds, type: "trojan")!
+        let trojanOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "trojan"))
 
         let tls = trojanOutbound["tls"] as? [String: Any]
         XCTAssertEqual(tls?["insecure"] as? Bool, true)
@@ -623,9 +623,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
 
         let tls = vlessOutbound["tls"] as? [String: Any]
         let utls = tls?["utls"] as? [String: Any]
@@ -640,9 +640,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
 
         let tls = vlessOutbound["tls"] as? [String: Any]
         let utls = tls?["utls"] as? [String: Any]
@@ -656,9 +656,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
 
         let tls = vlessOutbound["tls"] as? [String: Any]
         let utls = tls?["utls"] as? [String: Any]
@@ -674,9 +674,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let selector = findOutbound(in: outbounds, tag: "proxy")!
+        let selector = try XCTUnwrap(findOutbound(in: outbounds, tag: "proxy"))
         XCTAssertEqual(selector["type"] as? String, "selector")
         XCTAssertNotNil(selector["outbounds"])
     }
@@ -688,7 +688,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
         let direct = findOutbound(in: outbounds, tag: "direct")
         let block = findOutbound(in: outbounds, tag: "block")
@@ -709,7 +709,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let parsedConfig = try parseJSON(json)
-        let route = parsedConfig["route"] as! [String: Any]
+        let route = try XCTUnwrap(parsedConfig["route"] as? [String: Any])
 
         XCTAssertEqual(route["final"] as? String, "proxy")
         XCTAssertEqual(route["auto_detect_interface"] as? Bool, true)
@@ -723,11 +723,11 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let parsedConfig = try parseJSON(json)
-        let route = parsedConfig["route"] as! [String: Any]
+        let route = try XCTUnwrap(parsedConfig["route"] as? [String: Any])
 
         XCTAssertEqual(route["final"] as? String, "direct")
 
-        let rules = route["rules"] as! [[String: Any]]
+        let rules = try XCTUnwrap(route["rules"] as? [[String: Any]])
         // Should have DNS rule + user rules
         XCTAssertGreaterThan(rules.count, 1)
     }
@@ -747,8 +747,8 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let parsedConfig = try parseJSON(json)
-        let route = parsedConfig["route"] as! [String: Any]
-        let rules = route["rules"] as! [[String: Any]]
+        let route = try XCTUnwrap(parsedConfig["route"] as? [String: Any])
+        let rules = try XCTUnwrap(route["rules"] as? [[String: Any]])
 
         // Find domain rule
         let domainRule = rules.first { ($0["domain"] as? [String])?.contains("example.com") == true }
@@ -778,8 +778,8 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let parsedConfig = try parseJSON(json)
-        let route = parsedConfig["route"] as! [String: Any]
-        let rules = route["rules"] as! [[String: Any]]
+        let route = try XCTUnwrap(parsedConfig["route"] as? [String: Any])
+        let rules = try XCTUnwrap(route["rules"] as? [[String: Any]])
 
         // Verify domain rules
         let domainRule = rules.first { ($0["domain"] as? [String])?.contains("exact.example.com") == true }
@@ -838,7 +838,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let parsedConfig = try parseJSON(json)
-        let outbounds = parsedConfig["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(parsedConfig["outbounds"] as? [[String: Any]])
 
         // Should have chain selector
         let chainOutbound = findOutbound(in: outbounds, tag: "chain")
@@ -846,7 +846,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         XCTAssertEqual(chainOutbound?["type"] as? String, "selector")
 
         // Route final should be chain
-        let route = parsedConfig["route"] as! [String: Any]
+        let route = try XCTUnwrap(parsedConfig["route"] as? [String: Any])
         XCTAssertEqual(route["final"] as? String, "chain")
     }
 
@@ -876,7 +876,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let parsedConfig = try parseJSON(json)
-        let outbounds = parsedConfig["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(parsedConfig["outbounds"] as? [[String: Any]])
 
         // First service in chain should have detour to second
         let firstOutbound = outbounds.first {
@@ -902,7 +902,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
         // Both protocols should be present
         let vlessOutbound = findOutbound(in: outbounds, type: "vless")
@@ -912,8 +912,8 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         XCTAssertNotNil(trojanOutbound)
 
         // Selector should include both
-        let selector = findOutbound(in: outbounds, tag: "proxy")!
-        let selectorOutbounds = selector["outbounds"] as! [String]
+        let selector = try XCTUnwrap(findOutbound(in: outbounds, tag: "proxy"))
+        let selectorOutbounds = try XCTUnwrap(selector["outbounds"] as? [String])
         XCTAssertEqual(selectorOutbounds.count, 2)
     }
 
@@ -941,7 +941,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
         // All protocols should be present
         XCTAssertNotNil(findOutbound(in: outbounds, type: "vless"), "VLESS should be present")
@@ -953,8 +953,8 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         XCTAssertNotNil(findOutbound(in: outbounds, type: "socks"), "SOCKS5 should be present")
 
         // Selector should include all 7 services
-        let selector = findOutbound(in: outbounds, tag: "proxy")!
-        let selectorOutbounds = selector["outbounds"] as! [String]
+        let selector = try XCTUnwrap(findOutbound(in: outbounds, tag: "proxy"))
+        let selectorOutbounds = try XCTUnwrap(selector["outbounds"] as? [String])
         XCTAssertEqual(selectorOutbounds.count, 7)
     }
 
@@ -1016,7 +1016,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         let json = try await builder.build()
 
         // Validate it's parseable JSON
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         XCTAssertNoThrow(try JSONSerialization.jsonObject(with: data))
     }
 
@@ -1047,8 +1047,8 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         XCTAssertNotNil(dnsIndex)
         XCTAssertNotNil(expIndex)
         XCTAssertNotNil(inboundsIndex)
-        XCTAssertLessThan(dnsIndex!, expIndex!)
-        XCTAssertLessThan(expIndex!, inboundsIndex!)
+        XCTAssertLessThan(try XCTUnwrap(dnsIndex), try XCTUnwrap(expIndex))
+        XCTAssertLessThan(try XCTUnwrap(expIndex), try XCTUnwrap(inboundsIndex))
     }
 
     // MARK: - Transport Tests
@@ -1074,10 +1074,10 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vmessOutbound = findOutbound(in: outbounds, type: "vmess")!
-        let transport = vmessOutbound["transport"] as! [String: Any]
+        let vmessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vmess"))
+        let transport = try XCTUnwrap(vmessOutbound["transport"] as? [String: Any])
 
         XCTAssertEqual(transport["type"] as? String, "ws")
         XCTAssertEqual(transport["path"] as? String, "/custom-ws-path")
@@ -1104,10 +1104,10 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
-        let transport = vlessOutbound["transport"] as! [String: Any]
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
+        let transport = try XCTUnwrap(vlessOutbound["transport"] as? [String: Any])
 
         XCTAssertEqual(transport["type"] as? String, "grpc")
         XCTAssertEqual(transport["service_name"] as? String, "CustomGrpcService")
@@ -1134,10 +1134,10 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vmessOutbound = findOutbound(in: outbounds, type: "vmess")!
-        let transport = vmessOutbound["transport"] as! [String: Any]
+        let vmessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vmess"))
+        let transport = try XCTUnwrap(vmessOutbound["transport"] as? [String: Any])
 
         XCTAssertEqual(transport["type"] as? String, "http")
         XCTAssertEqual(transport["path"] as? String, "/http-path")
@@ -1163,10 +1163,10 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
-        let transport = vlessOutbound["transport"] as! [String: Any]
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
+        let transport = try XCTUnwrap(vlessOutbound["transport"] as? [String: Any])
 
         XCTAssertEqual(transport["type"] as? String, "quic")
     }
@@ -1190,9 +1190,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
 
         // Should not have transport section for plain TCP
         XCTAssertNil(vlessOutbound["transport"])
@@ -1215,9 +1215,9 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vlessOutbound = findOutbound(in: outbounds, type: "vless")!
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
 
         // Empty flow should not be included
         XCTAssertNil(vlessOutbound["flow"])
@@ -1243,10 +1243,10 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let json = try await builder.build()
         let config = try parseJSON(json)
-        let outbounds = config["outbounds"] as! [[String: Any]]
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
 
-        let vmessOutbound = findOutbound(in: outbounds, type: "vmess")!
-        let transport = vmessOutbound["transport"] as! [String: Any]
+        let vmessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vmess"))
+        let transport = try XCTUnwrap(vmessOutbound["transport"] as? [String: Any])
 
         XCTAssertEqual(transport["path"] as? String, "/path?ed=2048")
     }

@@ -71,7 +71,9 @@ enum TunnelMode: String, Codable, CaseIterable, Identifiable, Sendable {
     case full
     case split
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         switch self {

@@ -14,10 +14,14 @@ struct Hysteria2Template: ProtocolTemplate {
     let requiredPorts = [443]
 
     /// Hysteria2 uses YAML configuration, not JSON
-    var configFileName: String { "hysteria.yaml" }
+    var configFileName: String {
+        "hysteria.yaml"
+    }
 
     /// Requires host network mode for optimal UDP performance
-    var requiresHostNetwork: Bool { true }
+    var requiresHostNetwork: Bool {
+        true
+    }
 
     func generateServerConfig(settings: DeploymentSettings) -> String {
         var lines: [String] = [

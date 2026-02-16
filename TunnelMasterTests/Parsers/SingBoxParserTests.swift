@@ -24,25 +24,25 @@ final class SingBoxParserTests: XCTestCase {
 
     // MARK: - canImport Tests
 
-    func testCanImportValidSingBoxConfig() {
-        let data = ConfigFixtures.SingBox.vlessOutbound.data(using: .utf8)!
+    func testCanImportValidSingBoxConfig() throws {
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.vlessOutbound.data(using: .utf8))
         XCTAssertTrue(parser.canImport(data: data))
     }
 
-    func testCannotImportMissingOutbounds() {
-        let data = ConfigFixtures.SingBox.missingOutbounds.data(using: .utf8)!
+    func testCannotImportMissingOutbounds() throws {
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.missingOutbounds.data(using: .utf8))
         XCTAssertFalse(parser.canImport(data: data))
     }
 
-    func testCannotImportInvalidJSON() {
-        let data = ConfigFixtures.SingBox.invalidJSON.data(using: .utf8)!
+    func testCannotImportInvalidJSON() throws {
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.invalidJSON.data(using: .utf8))
         XCTAssertFalse(parser.canImport(data: data))
     }
 
     // MARK: - VLESS Parsing
 
     func testParseVLESSOutbound() async throws {
-        let data = ConfigFixtures.SingBox.vlessOutbound.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.vlessOutbound.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -76,7 +76,7 @@ final class SingBoxParserTests: XCTestCase {
     // MARK: - VMess Parsing
 
     func testParseVMessOutbound() async throws {
-        let data = ConfigFixtures.SingBox.vmessOutbound.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.vmessOutbound.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -100,7 +100,7 @@ final class SingBoxParserTests: XCTestCase {
     // MARK: - Trojan Parsing
 
     func testParseTrojanOutbound() async throws {
-        let data = ConfigFixtures.SingBox.trojanOutbound.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.trojanOutbound.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -122,7 +122,7 @@ final class SingBoxParserTests: XCTestCase {
     // MARK: - Shadowsocks Parsing
 
     func testParseShadowsocksOutbound() async throws {
-        let data = ConfigFixtures.SingBox.shadowsocksOutbound.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.shadowsocksOutbound.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -139,7 +139,7 @@ final class SingBoxParserTests: XCTestCase {
     // MARK: - WireGuard Parsing
 
     func testParseWireGuardOutbound() async throws {
-        let data = ConfigFixtures.SingBox.wireguardOutbound.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.wireguardOutbound.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -158,7 +158,7 @@ final class SingBoxParserTests: XCTestCase {
     // MARK: - Hysteria2 Parsing
 
     func testParseHysteria2Outbound() async throws {
-        let data = ConfigFixtures.SingBox.hysteria2Outbound.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.hysteria2Outbound.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -178,7 +178,7 @@ final class SingBoxParserTests: XCTestCase {
     // MARK: - Multiple Outbounds
 
     func testParseMultipleOutbounds() async throws {
-        let data = ConfigFixtures.SingBox.multipleOutbounds.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.multipleOutbounds.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         // Should only parse proxy outbounds (vless, vmess), skip direct/block
@@ -193,8 +193,8 @@ final class SingBoxParserTests: XCTestCase {
 
     // MARK: - Error Cases
 
-    func testParseInvalidJSON() async {
-        let data = ConfigFixtures.SingBox.invalidJSON.data(using: .utf8)!
+    func testParseInvalidJSON() async throws {
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.invalidJSON.data(using: .utf8))
         do {
             _ = try await parser.parse(data: data)
             XCTFail("Expected error for invalid JSON")
@@ -209,8 +209,8 @@ final class SingBoxParserTests: XCTestCase {
         }
     }
 
-    func testParseMissingOutbounds() async {
-        let data = ConfigFixtures.SingBox.missingOutbounds.data(using: .utf8)!
+    func testParseMissingOutbounds() async throws {
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.missingOutbounds.data(using: .utf8))
         do {
             _ = try await parser.parse(data: data)
             XCTFail("Expected error for missing outbounds")
@@ -226,7 +226,7 @@ final class SingBoxParserTests: XCTestCase {
     }
 
     func testParseEmptyOutbounds() async throws {
-        let data = ConfigFixtures.SingBox.emptyOutbounds.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.SingBox.emptyOutbounds.data(using: .utf8))
         let services = try await parser.parse(data: data)
         XCTAssertTrue(services.isEmpty)
     }

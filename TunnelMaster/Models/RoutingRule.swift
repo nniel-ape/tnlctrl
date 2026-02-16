@@ -62,14 +62,16 @@ enum RuleType: String, Codable, CaseIterable, Identifiable, Sendable {
     case domainSuffix = "domain_suffix"
     case domainKeyword = "domain_keyword"
 
-    // IP rules
+    /// IP rules
     case ipCidr = "ip_cidr"
 
     // Geo rules
     case geoip
     case geosite
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         switch self {
@@ -139,7 +141,9 @@ enum RuleCategory: String, CaseIterable, Identifiable, Sendable {
     case geoSite
     case geoIP
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         switch self {
@@ -187,7 +191,9 @@ enum RuleOutbound: String, Codable, CaseIterable, Identifiable, Sendable {
     case proxy
     case block
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         switch self {

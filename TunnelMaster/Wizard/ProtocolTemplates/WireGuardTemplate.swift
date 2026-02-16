@@ -14,13 +14,19 @@ struct WireGuardTemplate: ProtocolTemplate {
     let requiredPorts = [51820, 51821] // WireGuard UDP + Web UI TCP
 
     /// wg-easy uses environment variables instead of config file
-    var usesEnvironmentConfig: Bool { true }
+    var usesEnvironmentConfig: Bool {
+        true
+    }
 
     /// Requires special capabilities for network management
-    var requiredCapabilities: [String] { ["NET_ADMIN", "SYS_MODULE"] }
+    var requiredCapabilities: [String] {
+        ["NET_ADMIN", "SYS_MODULE"]
+    }
 
     /// Required sysctls for IP forwarding
-    var requiredSysctls: [String: String] { ["net.ipv4.ip_forward": "1"] }
+    var requiredSysctls: [String: String] {
+        ["net.ipv4.ip_forward": "1"]
+    }
 
     func generateServerConfig(settings: DeploymentSettings) -> String {
         // wg-easy uses environment variables, not a config file

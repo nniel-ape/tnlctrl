@@ -24,20 +24,20 @@ final class ClashParserTests: XCTestCase {
 
     // MARK: - canImport Tests
 
-    func testCanImportClashConfig() {
-        let data = ConfigFixtures.Clash.multiLineProxy.data(using: .utf8)!
+    func testCanImportClashConfig() throws {
+        let data = try XCTUnwrap(ConfigFixtures.Clash.multiLineProxy.data(using: .utf8))
         XCTAssertTrue(parser.canImport(data: data))
     }
 
-    func testCannotImportNoProxiesSection() {
-        let data = ConfigFixtures.Clash.noProxiesSection.data(using: .utf8)!
+    func testCannotImportNoProxiesSection() throws {
+        let data = try XCTUnwrap(ConfigFixtures.Clash.noProxiesSection.data(using: .utf8))
         XCTAssertFalse(parser.canImport(data: data))
     }
 
     // MARK: - Multi-line Proxy Format
 
     func testParseMultiLineProxy() async throws {
-        let data = ConfigFixtures.Clash.multiLineProxy.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.Clash.multiLineProxy.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -64,7 +64,7 @@ final class ClashParserTests: XCTestCase {
     // MARK: - Inline Proxy Format
 
     func testParseInlineProxy() async throws {
-        let data = ConfigFixtures.Clash.inlineProxy.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.Clash.inlineProxy.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -85,7 +85,7 @@ final class ClashParserTests: XCTestCase {
     // MARK: - Multiple Proxies
 
     func testParseMultipleProxies() async throws {
-        let data = ConfigFixtures.Clash.multipleProxies.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.Clash.multipleProxies.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 2, "Expected 2 services, got \(services.count)")
@@ -102,7 +102,7 @@ final class ClashParserTests: XCTestCase {
     // MARK: - Shadowsocks
 
     func testParseShadowsocksProxy() async throws {
-        let data = ConfigFixtures.Clash.shadowsocksProxy.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.Clash.shadowsocksProxy.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -125,7 +125,7 @@ final class ClashParserTests: XCTestCase {
     // MARK: - Empty/Missing Proxies
 
     func testParseNoProxiesReturnsEmpty() async throws {
-        let data = ConfigFixtures.Clash.noProxiesSection.data(using: .utf8)!
+        let data = try XCTUnwrap(ConfigFixtures.Clash.noProxiesSection.data(using: .utf8))
         let services = try await parser.parse(data: data)
         XCTAssertTrue(services.isEmpty)
     }
@@ -143,7 +143,7 @@ final class ClashParserTests: XCTestCase {
             skip-cert-verify: true
             ws-path: /websocket
         """
-        let data = yaml.data(using: .utf8)!
+        let data = try XCTUnwrap(yaml.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -165,7 +165,7 @@ final class ClashParserTests: XCTestCase {
             privateKey: WG_PRIVATE_KEY
             publicKey: WG_PUBLIC_KEY
         """
-        let data = yaml.data(using: .utf8)!
+        let data = try XCTUnwrap(yaml.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")
@@ -186,7 +186,7 @@ final class ClashParserTests: XCTestCase {
             port: 443
             uuid: "test-uuid"
         """
-        let data = yaml.data(using: .utf8)!
+        let data = try XCTUnwrap(yaml.data(using: .utf8))
         let services = try await parser.parse(data: data)
 
         XCTAssertEqual(services.count, 1, "Expected 1 service, got \(services.count)")

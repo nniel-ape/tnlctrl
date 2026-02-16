@@ -14,7 +14,9 @@ enum ProxyProtocol: String, Codable, CaseIterable, Identifiable, Sendable {
     case wireguard
     case hysteria2
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         switch self {

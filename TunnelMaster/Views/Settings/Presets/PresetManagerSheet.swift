@@ -283,7 +283,9 @@ struct PresetManagerSheet: View {
 // MARK: - Preset Document for Export
 
 struct PresetDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
+    static var readableContentTypes: [UTType] {
+        [.json]
+    }
 
     let preset: RulePreset
 

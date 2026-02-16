@@ -22,7 +22,9 @@ protocol ProtocolTemplate {
 }
 
 extension ProtocolTemplate {
-    var displayName: String { protocolType.displayName }
+    var displayName: String {
+        protocolType.displayName
+    }
 }
 
 // MARK: - Deployment Settings

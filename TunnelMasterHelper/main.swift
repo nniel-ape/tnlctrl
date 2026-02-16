@@ -60,7 +60,7 @@ final class HelperService: NSObject, HelperProtocol {
 // MARK: - XPC Listener Delegate
 
 final class HelperDelegate: NSObject, NSXPCListenerDelegate {
-    // Keep a single shared service instance
+    /// Keep a single shared service instance
     private let service = HelperService()
 
     // Track active connections to prevent deallocation

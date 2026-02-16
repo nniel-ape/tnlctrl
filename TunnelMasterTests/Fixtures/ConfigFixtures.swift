@@ -14,13 +14,13 @@ enum ConfigFixtures {
     // MARK: - URI Schemes
 
     enum URIs {
-        // VLESS with Reality (2024+ scheme)
+        /// VLESS with Reality (2024+ scheme)
         static let vlessReality = "vless://550e8400-e29b-41d4-a716-446655440000@example.com:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.microsoft.com&fp=chrome&pbk=abc123publickey&sid=deadbeef&type=tcp#MyVLESS-Reality"
 
-        // VLESS with TLS
+        /// VLESS with TLS
         static let vlessTLS = "vless://550e8400-e29b-41d4-a716-446655440000@example.com:443?encryption=none&security=tls&sni=example.com&type=ws&path=%2Fwebsocket#MyVLESS-TLS"
 
-        // VMess (v2rayN format, base64 encoded JSON)
+        /// VMess (v2rayN format, base64 encoded JSON)
         static let vmess: String = {
             let json: [String: Any] = [
                 "v": "2",
@@ -39,36 +39,36 @@ enum ConfigFixtures {
             return "vmess://" + data.base64EncodedString()
         }()
 
-        // Trojan
+        /// Trojan
         static let trojan = "trojan://password123@trojan.example.com:443?sni=trojan.example.com&alpn=h2%2Chttp%2F1.1#MyTrojan"
 
-        // Shadowsocks (SIP002 format)
+        /// Shadowsocks (SIP002 format)
         static let shadowsocks: String = {
             // aes-256-gcm:password123
             let userInfo = "aes-256-gcm:password123".data(using: .utf8)!.base64EncodedString()
             return "ss://\(userInfo)@ss.example.com:8388#MyShadowsocks"
         }()
 
-        // Shadowsocks (legacy format)
+        /// Shadowsocks (legacy format)
         static let shadowsocksLegacy: String = {
             // method:password@host:port
             let full = "aes-256-gcm:password123@ss.example.com:8388".data(using: .utf8)!.base64EncodedString()
             return "ss://\(full)#MyShadowsocks-Legacy"
         }()
 
-        // SOCKS5 with auth
+        /// SOCKS5 with auth
         static let socks5WithAuth = "socks5://user:pass123@socks.example.com:1080#MySOCKS5"
 
-        // SOCKS5 without auth
+        /// SOCKS5 without auth
         static let socks5NoAuth = "socks5://socks.example.com:1080#MySOCKS5-NoAuth"
 
-        // Hysteria2 (new support)
+        /// Hysteria2 (new support)
         static let hysteria2 = "hy2://password123@hy2.example.com:443?sni=hy2.example.com&insecure=0&obfs=salamander&obfs-password=obfspass123#MyHysteria2"
 
-        // Hysteria2 minimal
+        /// Hysteria2 minimal
         static let hysteria2Minimal = "hysteria2://password123@hy2.example.com:443#MyHysteria2-Minimal"
 
-        // Multiple URIs (subscription format)
+        /// Multiple URIs (subscription format)
         static let multipleURIs = """
         # Comment line should be ignored
         vless://550e8400-e29b-41d4-a716-446655440000@server1.example.com:443?security=tls#Server1

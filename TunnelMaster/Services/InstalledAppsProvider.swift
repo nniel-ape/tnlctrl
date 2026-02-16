@@ -19,7 +19,7 @@ struct InstalledApp: Identifiable, Hashable, Sendable {
     let path: String
     let processName: String
 
-    // Icon is loaded separately to avoid Sendable issues
+    /// Icon is loaded separately to avoid Sendable issues
     var icon: NSImage? {
         NSWorkspace.shared.icon(forFile: path)
     }

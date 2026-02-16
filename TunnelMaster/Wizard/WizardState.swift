@@ -10,10 +10,10 @@ import Foundation
 @Observable
 @MainActor
 final class WizardState {
-    // Step tracking
+    /// Step tracking
     var currentStep = 1
 
-    // Server to deploy to (required)
+    /// Server to deploy to (required)
     let server: Server
 
     // Target selection (derived from server)
@@ -39,7 +39,7 @@ final class WizardState {
         self.sshKeyPath = server.sshKeyPath ?? ""
     }
 
-    // Protocol selection
+    /// Protocol selection
     var selectedProtocol: ProxyProtocol = .vless {
         didSet {
             // Update default port when protocol changes
@@ -61,7 +61,7 @@ final class WizardState {
     var wgAdminPassword = ""
     var wgDefaultDNS = "1.1.1.1"
 
-    // Custom naming
+    /// Custom naming
     var serviceName = ""
 
     // Deployment
@@ -176,7 +176,9 @@ enum DeploymentTarget: String, Codable, CaseIterable, Identifiable, Sendable {
     case local
     case remote
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         switch self {
