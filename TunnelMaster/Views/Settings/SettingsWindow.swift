@@ -37,8 +37,8 @@ struct SettingsWindow: View {
             // Delay to let the window fully initialize before activating
             DispatchQueue.main.async {
                 NSApplication.shared.activate(ignoringOtherApps: true)
-                // Find and focus the Settings window
                 for window in NSApplication.shared.windows where window.isVisible && window.canBecomeKey {
+                    window.styleMask.insert(.resizable)
                     window.makeKeyAndOrderFront(nil)
                     break
                 }
