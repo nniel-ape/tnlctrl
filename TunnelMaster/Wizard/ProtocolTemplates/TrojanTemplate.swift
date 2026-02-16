@@ -52,7 +52,8 @@ struct TrojanTemplate: ProtocolTemplate {
             settings: [
                 "password": .string(settings.password),
                 "tls": .bool(true),
-                "sni": .string(settings.sni)
+                "sni": .string(settings.sni),
+                "containerName": .string(settings.containerName)
             ]
         )
     }

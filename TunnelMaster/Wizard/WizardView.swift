@@ -12,8 +12,12 @@ struct WizardView: View {
     @Environment(AppState.self) private var appState
     @State private var wizardState: WizardState
 
-    init(server: Server) {
-        _wizardState = State(initialValue: WizardState(server: server))
+    init(server: Server, usedPorts: Set<Int> = [], usedContainerNames: Set<String> = []) {
+        _wizardState = State(initialValue: WizardState(
+            server: server,
+            usedPorts: usedPorts,
+            usedContainerNames: usedContainerNames
+        ))
     }
 
     private var headerTitle: String {
@@ -359,7 +363,9 @@ struct DeployStepView: View {
             // Update server's serviceIds and containerIds
             var updatedServer = state.server
             updatedServer.serviceIds.append(service.id)
-            updatedServer.containerIds.append(state.buildDeploymentSettings().containerName)
+            if let containerName = service.settings["containerName"]?.stringValue {
+                updatedServer.containerIds.append(containerName)
+            }
             appState.updateServer(updatedServer)
         } catch {
             state.deploymentError = error.localizedDescription

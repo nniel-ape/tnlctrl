@@ -43,6 +43,12 @@ final class Deployer {
         return service
     }
 
+    /// Persistent directory for Docker volume-mounted container configs (survives /tmp cleanup).
+    static let containerConfigDir: URL = {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return appSupport.appendingPathComponent("TunnelMaster/containers", isDirectory: true)
+    }()
+
     // MARK: - Local Deployment
 
     private func deployLocal(template: ProtocolTemplate, settings: DeploymentSettings) async throws -> Service {
@@ -156,7 +162,7 @@ final class Deployer {
         config: String
     ) -> (configDir: URL?, containerConfigDir: String, volumes: [String: String], environment: [String: String], command: [String]) {
         if let hysteriaTemplate = template as? Hysteria2Template {
-            let configDir = FileManager.default.temporaryDirectory.appendingPathComponent("hysteria-\(settings.containerName)")
+            let configDir = Self.containerConfigDir.appendingPathComponent("hysteria-\(settings.containerName)")
             return (
                 configDir: configDir,
                 containerConfigDir: "/etc/hysteria",
@@ -165,7 +171,7 @@ final class Deployer {
                 command: ["server", "-c", "/etc/hysteria/hysteria.yaml"]
             )
         } else if let wgTemplate = template as? WireGuardTemplate {
-            let configDir = FileManager.default.temporaryDirectory.appendingPathComponent("wireguard-\(settings.containerName)")
+            let configDir = Self.containerConfigDir.appendingPathComponent("wireguard-\(settings.containerName)")
             return (
                 configDir: nil, // WireGuard uses env vars
                 containerConfigDir: "/etc/wireguard",
@@ -175,7 +181,7 @@ final class Deployer {
             )
         } else {
             // Standard sing-box based templates
-            let configDir = FileManager.default.temporaryDirectory.appendingPathComponent("sing-box-\(settings.containerName)")
+            let configDir = Self.containerConfigDir.appendingPathComponent("sing-box-\(settings.containerName)")
             return (
                 configDir: configDir,
                 containerConfigDir: "/etc/sing-box",
@@ -229,18 +235,23 @@ final class Deployer {
         // Create config directory
         state.log("Uploading configuration...")
         _ = try await sshClient.execute(
-            command: "mkdir -p \(remoteConfigDir)",
+            command: "mkdir -p \(SSHClient.shellQuote(remoteConfigDir))",
             host: state.sshHost,
             port: state.sshPort,
             username: state.sshUsername,
             privateKeyPath: keyPath
         )
 
-        // Write config via SSH if not using environment vars
+        // Upload config via SCP if not using environment vars
         if !config.isEmpty {
-            let escapedConfig = config.replacingOccurrences(of: "'", with: "'\\''")
-            _ = try await sshClient.execute(
-                command: "echo '\(escapedConfig)' > \(remoteConfigDir)/\(configFileName)",
+            let tmpFile = FileManager.default.temporaryDirectory
+                .appendingPathComponent("tm-upload-\(UUID().uuidString).conf")
+            try config.write(to: tmpFile, atomically: true, encoding: .utf8)
+            defer { try? FileManager.default.removeItem(at: tmpFile) }
+
+            try await sshClient.uploadFile(
+                localPath: tmpFile.path,
+                remotePath: "\(remoteConfigDir)/\(configFileName)",
                 host: state.sshHost,
                 port: state.sshPort,
                 username: state.sshUsername,
@@ -285,7 +296,7 @@ final class Deployer {
             return arg
         }
 
-        let dockerCommand = "run " + dockerArgs.joined(separator: " ")
+        let dockerCommand = "run " + dockerArgs.map { SSHClient.shellQuote($0) }.joined(separator: " ")
 
         // Run container
         state.log("Starting container...")
@@ -301,7 +312,7 @@ final class Deployer {
         try await Task.sleep(for: .seconds(2))
 
         let statusOutput = try await sshClient.runDockerRemotely(
-            command: "inspect --format '{{.State.Status}}' \(settings.containerName)",
+            command: "inspect --format '{{.State.Status}}' \(SSHClient.shellQuote(settings.containerName))",
             host: state.sshHost,
             port: state.sshPort,
             username: state.sshUsername,

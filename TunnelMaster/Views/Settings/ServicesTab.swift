@@ -15,6 +15,7 @@ struct ServicesTab: View {
     @State private var exportFormat: ExportFormat = .singbox
     @State private var serverForNewService: Server?
     @State private var pingAllTask: Task<Void, Never>?
+    @State private var servicesToDelete: [Service] = []
     private let latencyTester = LatencyTester.shared
 
     var body: some View {
@@ -42,8 +43,35 @@ struct ServicesTab: View {
                 .environment(appState)
         }
         .sheet(item: $serverForNewService) { server in
-            WizardView(server: server)
-                .environment(appState)
+            let serverServices = appState.services.filter { $0.serverId == server.id }
+            WizardView(
+                server: server,
+                usedPorts: Set(serverServices.map(\.port)),
+                usedContainerNames: Set(server.containerIds)
+            )
+            .environment(appState)
+        }
+        .confirmationDialog(
+            "Delete Service\(servicesToDelete.count > 1 ? "s" : "")",
+            isPresented: Binding(
+                get: { !servicesToDelete.isEmpty },
+                set: { if !$0 { servicesToDelete = [] } }
+            )
+        ) {
+            let toDelete = servicesToDelete
+            Button("Delete and Remove \(toDelete.count) Container\(toDelete.count == 1 ? "" : "s")", role: .destructive) {
+                Task {
+                    for service in toDelete {
+                        await appState.deleteService(service)
+                    }
+                }
+            }
+        } message: {
+            if servicesToDelete.count == 1, let service = servicesToDelete.first {
+                Text("This will stop and remove the Docker container for \"\(service.name)\". This cannot be undone.")
+            } else {
+                Text("This will stop and remove \(servicesToDelete.count) Docker containers. This cannot be undone.")
+            }
         }
     }
 
@@ -252,7 +280,11 @@ struct ServicesTab: View {
         Divider()
 
         Button("Delete", role: .destructive) {
-            appState.deleteService(service)
+            if service.source == .created {
+                servicesToDelete = [service]
+            } else {
+                Task { await appState.deleteService(service) }
+            }
         }
     }
 
@@ -293,15 +325,24 @@ struct ServicesTab: View {
 
     private func deleteCreatedServices(at offsets: IndexSet) {
         let created = appState.createdServices
+        var needConfirmation: [Service] = []
         for index in offsets {
-            appState.deleteService(created[index])
+            let service = created[index]
+            if service.source == .created {
+                needConfirmation.append(service)
+            } else {
+                Task { await appState.deleteService(service) }
+            }
+        }
+        if !needConfirmation.isEmpty {
+            servicesToDelete = needConfirmation
         }
     }
 
     private func deleteImportedServices(at offsets: IndexSet) {
         let imported = appState.importedServices
         for index in offsets {
-            appState.deleteService(imported[index])
+            Task { await appState.deleteService(imported[index]) }
         }
     }
 }

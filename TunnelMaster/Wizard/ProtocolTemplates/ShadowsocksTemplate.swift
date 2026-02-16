@@ -44,7 +44,8 @@ struct ShadowsocksTemplate: ProtocolTemplate {
             port: settings.port,
             settings: [
                 "method": .string(settings.method),
-                "password": .string(settings.password)
+                "password": .string(settings.password),
+                "containerName": .string(settings.containerName)
             ]
         )
     }

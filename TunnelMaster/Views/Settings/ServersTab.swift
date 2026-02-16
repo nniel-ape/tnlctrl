@@ -11,6 +11,7 @@ struct ServersTab: View {
     @State private var editingServer: Server?
     @State private var showingAddServerSheet = false
     @State private var serverForNewService: Server?
+    @State private var serversToDelete: [Server] = []
 
     var body: some View {
         Group {
@@ -30,8 +31,42 @@ struct ServersTab: View {
                 .environment(appState)
         }
         .sheet(item: $serverForNewService) { server in
-            WizardView(server: server)
-                .environment(appState)
+            let serverServices = appState.services.filter { $0.serverId == server.id }
+            WizardView(
+                server: server,
+                usedPorts: Set(serverServices.map(\.port)),
+                usedContainerNames: Set(server.containerIds)
+            )
+            .environment(appState)
+        }
+        .confirmationDialog(
+            "Delete Server\(serversToDelete.count > 1 ? "s" : "")",
+            isPresented: Binding(
+                get: { !serversToDelete.isEmpty },
+                set: { if !$0 { serversToDelete = [] } }
+            )
+        ) {
+            let toDelete = serversToDelete
+            let totalServices = toDelete.reduce(0) { acc, srv in acc + appState.services.filter { $0.serverId == srv.id }.count }
+            Button(
+                totalServices > 0
+                    ? "Delete \(toDelete.count) Server\(toDelete.count == 1 ? "" : "s") and \(totalServices) Container\(totalServices == 1 ? "" : "s")"
+                    : "Delete \(toDelete.count) Server\(toDelete.count == 1 ? "" : "s")",
+                role: .destructive
+            ) {
+                Task {
+                    for server in toDelete {
+                        await appState.deleteServer(server)
+                    }
+                }
+            }
+        } message: {
+            let totalServices = serversToDelete.reduce(0) { acc, srv in acc + appState.services.filter { $0.serverId == srv.id }.count }
+            if totalServices > 0 {
+                Text("This will stop and remove \(totalServices) Docker container\(totalServices == 1 ? "" : "s"). This cannot be undone.")
+            } else {
+                Text("Delete \(serversToDelete.count) server\(serversToDelete.count == 1 ? "" : "s")? This cannot be undone.")
+            }
         }
     }
 
@@ -133,15 +168,30 @@ struct ServersTab: View {
         Divider()
 
         Button("Delete", role: .destructive) {
-            appState.deleteServer(server)
+            let hasServices = appState.services.contains { $0.serverId == server.id }
+            if hasServices {
+                serversToDelete = [server]
+            } else {
+                Task { await appState.deleteServer(server) }
+            }
         }
     }
 
     // MARK: - Delete
 
     private func deleteServers(at offsets: IndexSet) {
+        var needConfirmation: [Server] = []
         for index in offsets {
-            appState.deleteServer(appState.servers[index])
+            let server = appState.servers[index]
+            let hasServices = appState.services.contains { $0.serverId == server.id }
+            if hasServices {
+                needConfirmation.append(server)
+            } else {
+                Task { await appState.deleteServer(server) }
+            }
+        }
+        if !needConfirmation.isEmpty {
+            serversToDelete = needConfirmation
         }
     }
 }

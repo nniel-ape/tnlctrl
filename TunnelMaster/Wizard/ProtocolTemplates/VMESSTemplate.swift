@@ -62,7 +62,8 @@ struct VMESSTemplate: ProtocolTemplate {
                 "alterId": .int(0),
                 "security": .string("auto"),
                 "tls": .bool(settings.tlsEnabled),
-                "sni": .string(settings.sni)
+                "sni": .string(settings.sni),
+                "containerName": .string(settings.containerName)
             ]
         )
     }

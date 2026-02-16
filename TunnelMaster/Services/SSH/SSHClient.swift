@@ -143,6 +143,14 @@ actor SSHClient {
         )
     }
 
+    // MARK: - Shell Quoting
+
+    /// POSIX-safe shell quoting: wraps value in single quotes, escaping embedded single quotes.
+    /// `foo'bar` → `'foo'\''bar'`
+    static func shellQuote(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
     // MARK: - Helpers
 
     private func buildSSHArgs(

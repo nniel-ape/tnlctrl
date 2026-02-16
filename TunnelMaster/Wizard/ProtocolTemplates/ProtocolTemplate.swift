@@ -62,13 +62,30 @@ struct DeploymentSettings: Sendable {
     var wgDefaultDNS = "1.1.1.1"
     var wgAllowedIPs = "0.0.0.0/0"
 
+    /// Creates settings with fresh random identity fields.
     init(serverHost: String, port: Int) {
         self.serverHost = serverHost
         self.port = port
         self.uuid = UUID().uuidString
         self.password = Self.generateSecurePassword()
-        self.containerName = "tunnelmaster-\(Int.random(in: 1000 ... 9999))"
+        self.containerName = Self.sanitizeContainerName("tunnelmaster-\(Int.random(in: 1000 ... 9999))")
         self.sni = serverHost
+    }
+
+    /// Creates settings with caller-provided identity fields (used by WizardState cache).
+    init(serverHost: String, port: Int, uuid: String, password: String, containerName: String) {
+        self.serverHost = serverHost
+        self.port = port
+        self.uuid = uuid
+        self.password = password
+        self.containerName = containerName
+        self.sni = serverHost
+    }
+
+    /// Strip any characters not allowed in Docker container names.
+    static func sanitizeContainerName(_ name: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-"))
+        return String(name.unicodeScalars.filter { allowed.contains($0) })
     }
 
     static func generateSecurePassword(length: Int = 24) -> String {

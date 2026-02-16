@@ -93,6 +93,8 @@ struct Hysteria2Template: ProtocolTemplate {
             serviceSettings["down"] = .string(settings.hysteriaBandwidthDown)
         }
 
+        serviceSettings["containerName"] = .string(settings.containerName)
+
         return Service(
             name: settings.serviceName.isEmpty ? "Hysteria2 - \(settings.serverHost)" : settings.serviceName,
             protocol: .hysteria2,

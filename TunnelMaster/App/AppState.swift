@@ -145,7 +145,25 @@ final class AppState {
         }
     }
 
-    func deleteService(id: UUID) {
+    func deleteService(id: UUID) async {
+        guard let service = services.first(where: { $0.id == id }) else { return }
+        let server = service.serverId.flatMap { sid in servers.first { $0.id == sid } }
+
+        if service.source == .created {
+            await cleanupContainer(for: service, server: server)
+        }
+
+        // Remove from server's tracking arrays
+        if let server {
+            if var updated = servers.first(where: { $0.id == server.id }) {
+                updated.serviceIds.removeAll { $0 == id }
+                if let containerName = service.settings["containerName"]?.stringValue {
+                    updated.containerIds.removeAll { $0 == containerName }
+                }
+                updateServer(updated)
+            }
+        }
+
         services.removeAll { $0.id == id }
         if activeServiceId == id {
             activeServiceId = nil
@@ -153,8 +171,8 @@ final class AppState {
         saveServices()
     }
 
-    func deleteService(_ service: Service) {
-        deleteService(id: service.id)
+    func deleteService(_ service: Service) async {
+        await deleteService(id: service.id)
     }
 
     // MARK: - Server Management
@@ -181,12 +199,64 @@ final class AppState {
         }
     }
 
-    func deleteServer(id: UUID) {
+    func deleteServer(id: UUID) async {
+        guard let server = servers.first(where: { $0.id == id }) else { return }
+
+        // Cascade-delete all services on this server
+        let serverServices = services.filter { $0.serverId == id }
+        for service in serverServices {
+            await cleanupContainer(for: service, server: server)
+        }
+        services.removeAll { $0.serverId == id }
+
         servers.removeAll { $0.id == id }
         saveServers()
+        saveServices()
     }
 
-    func deleteServer(_ server: Server) {
-        deleteServer(id: server.id)
+    func deleteServer(_ server: Server) async {
+        await deleteServer(id: server.id)
+    }
+
+    // MARK: - Container Cleanup
+
+    /// Best-effort cleanup of a Docker container associated with a service.
+    private func cleanupContainer(for service: Service, server: Server?) async {
+        guard let containerName = service.settings["containerName"]?.stringValue,
+              !containerName.isEmpty
+        else { return }
+
+        if server?.deploymentTarget == .local || server == nil {
+            // Local Docker cleanup
+            do {
+                try await DockerManager.shared.stopContainer(name: containerName)
+            } catch {
+                logger.warning("Failed to stop container \(containerName): \(error)")
+            }
+            do {
+                try await DockerManager.shared.removeContainer(name: containerName, force: true)
+            } catch {
+                logger.warning("Failed to remove container \(containerName): \(error)")
+            }
+            // Remove local config directory
+            let configDir = Deployer.containerConfigDir
+            for prefix in ["sing-box-", "hysteria-", "wireguard-"] {
+                let dir = configDir.appendingPathComponent("\(prefix)\(containerName)")
+                try? FileManager.default.removeItem(at: dir)
+            }
+        } else if let server {
+            // Remote cleanup (best-effort)
+            do {
+                _ = try await SSHClient.shared.runDockerRemotely(
+                    command: "rm -f \(SSHClient.shellQuote(containerName))",
+                    host: server.host,
+                    port: server.sshPort,
+                    username: server.sshUsername,
+                    privateKeyPath: server.sshKeyPath
+                )
+            } catch {
+                logger.warning("Failed to clean up remote container \(containerName): \(error)")
+            }
+        }
     }
 }

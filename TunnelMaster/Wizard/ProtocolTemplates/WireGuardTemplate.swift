@@ -62,7 +62,8 @@ struct WireGuardTemplate: ProtocolTemplate {
             port: settings.port,
             settings: [
                 "web_ui_port": .int(51821),
-                "note": .string("Configure client from wg-easy web UI at http://\(settings.serverHost):51821")
+                "note": .string("Configure client from wg-easy web UI at http://\(settings.serverHost):51821"),
+                "containerName": .string(settings.containerName)
             ]
         )
     }

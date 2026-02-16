@@ -52,7 +52,8 @@ struct VLESSTemplate: ProtocolTemplate {
             "uuid": .string(settings.uuid),
             "flow": .string(settings.flow),
             "tls": .bool(settings.tlsEnabled),
-            "sni": .string(settings.sni)
+            "sni": .string(settings.sni),
+            "containerName": .string(settings.containerName)
         ]
 
         if settings.realityEnabled {
