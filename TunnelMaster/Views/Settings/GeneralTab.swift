@@ -6,10 +6,8 @@
 import SwiftUI
 
 private enum URLs {
-    // swiftlint:disable force_unwrapping
     static let github = URL(string: "https://github.com")!
     static let loginItemsSettings = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")!
-    // swiftlint:enable force_unwrapping
 }
 
 struct GeneralTab: View {

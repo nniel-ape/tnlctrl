@@ -313,22 +313,24 @@ struct TunnelTab: View {
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(appState.tunnelConfig.allPresets) { preset in
-                        PresetChip(preset: preset) {
-                            // Add preset rules, avoiding duplicates
-                            for rule in preset.rules {
-                                let exists = state.tunnelConfig.rules.contains {
-                                    $0.type == rule.type && $0.value.lowercased() == rule.value.lowercased()
-                                }
-                                if !exists {
-                                    state.tunnelConfig.rules.append(rule)
+                GlassEffectContainer(spacing: 8) {
+                    HStack(spacing: 8) {
+                        ForEach(appState.tunnelConfig.allPresets) { preset in
+                            PresetChip(preset: preset) {
+                                // Add preset rules, avoiding duplicates
+                                for rule in preset.rules {
+                                    let exists = state.tunnelConfig.rules.contains {
+                                        $0.type == rule.type && $0.value.lowercased() == rule.value.lowercased()
+                                    }
+                                    if !exists {
+                                        state.tunnelConfig.rules.append(rule)
+                                    }
                                 }
                             }
                         }
                     }
+                    .padding(.vertical, 4)
                 }
-                .padding(.vertical, 4)
             }
         }
     }
@@ -469,9 +471,8 @@ private struct PresetChip: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(chipColor.opacity(0.1))
-            .foregroundStyle(chipColor)
-            .clipShape(Capsule())
+            .foregroundStyle(.primary)
+            .glassEffect(.regular.tint(chipColor.opacity(0.3)).interactive(), in: .capsule)
         }
         .buttonStyle(.plain)
         .help(preset.description)

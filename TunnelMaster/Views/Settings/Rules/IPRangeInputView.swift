@@ -20,9 +20,13 @@ struct IPRangeInputView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            presetsSection
-            Divider()
-            manualInputSection
+            ScrollView {
+                VStack(spacing: 0) {
+                    presetsSection
+                    Divider()
+                    manualInputSection
+                }
+            }
             Divider()
             footer
         }

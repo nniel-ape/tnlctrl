@@ -92,8 +92,9 @@ struct MenuBarView: View {
                 .padding(.vertical, 6)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 6))
             }
-            .buttonStyle(MenuButtonStyle())
+            .buttonStyle(.plain)
 
             MenuButton(title: "Quit TunnelMaster", systemImage: "power") {
                 NSApplication.shared.terminate(nil)
@@ -108,8 +109,6 @@ private struct MenuButton: View {
     var disabled = false
     let action: () -> Void
 
-    @State private var isHovered = false
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
@@ -121,22 +120,11 @@ private struct MenuButton: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isHovered && !disabled ? Color.accentColor.opacity(0.15) : Color.clear)
             .contentShape(Rectangle())
+            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 6))
         }
         .buttonStyle(.plain)
         .disabled(disabled)
         .opacity(disabled ? 0.5 : 1)
-        .onHover { isHovered = $0 }
-    }
-}
-
-private struct MenuButtonStyle: ButtonStyle {
-    @State private var isHovered = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
-            .onHover { isHovered = $0 }
     }
 }

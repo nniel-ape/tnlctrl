@@ -56,12 +56,12 @@ struct OnboardingView: View {
                     Button("Next") {
                         withAnimation { currentPage += 1 }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                 } else {
                     Button("Get Started") {
                         completeOnboarding()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                 }
             }
             .padding()
