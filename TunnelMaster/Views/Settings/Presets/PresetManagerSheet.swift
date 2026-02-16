@@ -128,19 +128,23 @@ struct PresetManagerSheet: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(preset.name)
                     .fontWeight(.medium)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Text(preset.description)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 Text("\(preset.rules.count) rules")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
+            .layoutPriority(1)
 
-            Spacer()
+            Spacer(minLength: 4)
 
             // Actions
-            HStack(spacing: 8) {
+            HStack(spacing: 12) {
                 // Apply button
                 Button {
                     applyPreset(preset)
@@ -149,6 +153,7 @@ struct PresetManagerSheet: View {
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
 
                 // More menu
                 Menu {
@@ -189,10 +194,12 @@ struct PresetManagerSheet: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
+                        .font(.body)
                 }
                 .menuStyle(.borderlessButton)
-                .frame(width: 24)
+                .fixedSize()
             }
+            .fixedSize()
         }
         .padding()
         .background(Color.gray.opacity(0.05))

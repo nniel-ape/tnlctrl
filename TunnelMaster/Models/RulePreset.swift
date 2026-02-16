@@ -82,26 +82,11 @@ enum PresetColor: String, Codable, CaseIterable, Identifiable, Sendable {
 
 extension RulePreset {
     static let builtInPresets: [RulePreset] = [
-        .chinaDirect,
         .streaming,
         .blockAds,
         .socialMedia,
         .privateDirect
     ]
-
-    /// Route China traffic directly (bypass proxy)
-    static let chinaDirect = RulePreset(
-        id: "china-direct",
-        name: "China Direct",
-        description: "Route traffic to China directly",
-        rules: [
-            RoutingRule(type: .geoip, value: "cn", outbound: .direct),
-            RoutingRule(type: .geosite, value: "cn", outbound: .direct)
-        ],
-        isBuiltIn: true,
-        icon: "flag",
-        color: .red
-    )
 
     /// Route streaming services through proxy
     static let streaming = RulePreset(
