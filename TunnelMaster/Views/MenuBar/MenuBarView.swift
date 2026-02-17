@@ -67,20 +67,7 @@ struct MenuBarView: View {
 
             Button {
                 openSettings()
-                // Bring Settings window to front after menu bar panel dismisses
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    NSApplication.shared.setActivationPolicy(.regular)
-                    NSApplication.shared.activate(ignoringOtherApps: true)
-                    // Find and focus the Settings window specifically
-                    for window in NSApplication.shared.windows {
-                        if window.title == "Settings" || window.identifier?.rawValue.contains("settings") == true {
-                            window.makeKeyAndOrderFront(nil)
-                            return
-                        }
-                    }
-                    // Fallback: bring any visible window to front
-                    NSApplication.shared.windows.first { $0.isVisible && $0.canBecomeKey }?.makeKeyAndOrderFront(nil)
-                }
+                WindowManager.shared.activateSettings()
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "gear")

@@ -32,20 +32,33 @@ struct SettingsWindow: View {
         }
         .frame(minWidth: 600, minHeight: 400)
         .frame(idealWidth: 700, idealHeight: 500)
-        .onAppear {
-            NSApplication.shared.setActivationPolicy(.regular)
-            // Delay to let the window fully initialize before activating
-            DispatchQueue.main.async {
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                for window in NSApplication.shared.windows where window.isVisible && window.canBecomeKey {
-                    window.styleMask.insert(.resizable)
-                    window.makeKeyAndOrderFront(nil)
-                    break
-                }
-            }
-        }
+        .background(WindowAccessor { window in
+            // Register window with WindowManager for reliable tracking and activation
+            window.styleMask.insert(.resizable)
+            WindowManager.shared.registerSettingsWindow(window)
+        })
         .onDisappear {
             NSApplication.shared.setActivationPolicy(.accessory)
+            WindowManager.shared.unregisterSettingsWindow()
         }
     }
+}
+
+// MARK: - WindowAccessor
+
+/// Helper view to access the underlying NSWindow from SwiftUI.
+private struct WindowAccessor: NSViewRepresentable {
+    let onWindow: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            if let window = view.window {
+                onWindow(window)
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }
