@@ -80,48 +80,7 @@ struct TunnelTab: View {
         @Bindable var state = appState
 
         return Section {
-            // Service picker
-            if appState.services.isEmpty {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text("No services available")
-                        .foregroundStyle(.secondary)
-                }
-                Text("Add a service in the Services tab first.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Picker("Service", selection: Binding(
-                    get: {
-                        // If no service selected, use first available
-                        if let selected = state.tunnelConfig.selectedServiceId,
-                           appState.services.contains(where: { $0.id == selected }) {
-                            return selected
-                        }
-                        return appState.services.first?.id ?? UUID()
-                    },
-                    set: { newValue in
-                        state.tunnelConfig.selectedServiceId = newValue
-                    }
-                )) {
-                    ForEach(appState.services) { service in
-                        Label {
-                            HStack {
-                                Text(service.name)
-                                if let latency = service.latency {
-                                    Text("\(latency) ms")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        } icon: {
-                            Image(systemName: service.protocol.systemImage)
-                        }
-                        .tag(service.id)
-                    }
-                }
-            }
+            ServicePickerView(services: appState.services, tunnelConfig: $state.tunnelConfig)
 
             // Chain toggle
             Toggle("Enable chaining (multi-hop)", isOn: $state.tunnelConfig.chainEnabled)
@@ -271,6 +230,61 @@ private struct ChainServiceRow: View {
 
             Spacer()
         }
+    }
+}
+
+/// Service picker with latency display and fallback selection logic
+private struct ServicePickerView: View {
+    let services: [Service]
+    @Binding var tunnelConfig: TunnelConfig
+
+    var body: some View {
+        if services.isEmpty {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("No services available")
+                    .foregroundStyle(.secondary)
+            }
+            Text("Add a service in the Services tab first.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            Picker("Service", selection: serviceBinding()) {
+                ForEach(services) { service in
+                    Label {
+                        HStack {
+                            Text(service.name)
+                            if let latency = service.latency {
+                                Text("\(latency) ms")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    } icon: {
+                        Image(systemName: service.protocol.systemImage)
+                    }
+                    .tag(service.id)
+                }
+            }
+        }
+    }
+
+    /// Creates a binding with fallback logic for missing services
+    private func serviceBinding() -> Binding<UUID> {
+        Binding(
+            get: {
+                // If no service selected, use first available
+                if let selected = tunnelConfig.selectedServiceId,
+                   services.contains(where: { $0.id == selected }) {
+                    return selected
+                }
+                return services.first?.id ?? UUID()
+            },
+            set: { newValue in
+                tunnelConfig.selectedServiceId = newValue
+            }
+        )
     }
 }
 
