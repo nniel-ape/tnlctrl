@@ -238,34 +238,7 @@ struct TunnelTab: View {
     // MARK: - Validation Section
 
     private var validationSection: some View {
-        Section {
-            if validationResult.isValid, !validationResult.hasWarnings {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("Configuration valid")
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                ForEach(validationResult.issues) { issue in
-                    HStack(alignment: .top) {
-                        Image(systemName: issue.icon)
-                            .foregroundStyle(issue.severity == .error ? .red : (issue.severity == .warning ? .orange : .blue))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(issue.message)
-                                .font(.callout)
-                            if let suggestion = issue.suggestion {
-                                Text(suggestion)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            }
-        } header: {
-            Label("Status", systemImage: validationResult.isValid ? "checkmark.shield" : "exclamationmark.shield")
-        }
+        ValidationDisplayView(result: validationResult)
     }
 }
 
@@ -297,6 +270,42 @@ private struct ChainServiceRow: View {
                 .lineLimit(1)
 
             Spacer()
+        }
+    }
+}
+
+/// Displays tunnel configuration validation results with color-coded severity indicators
+private struct ValidationDisplayView: View {
+    let result: TunnelConfigValidator.ValidationResult
+
+    var body: some View {
+        Section {
+            if result.isValid, !result.hasWarnings {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Configuration valid")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                ForEach(result.issues) { issue in
+                    HStack(alignment: .top) {
+                        Image(systemName: issue.icon)
+                            .foregroundStyle(issue.severity == .error ? .red : (issue.severity == .warning ? .orange : .blue))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(issue.message)
+                                .font(.callout)
+                            if let suggestion = issue.suggestion {
+                                Text(suggestion)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+        } header: {
+            Label("Status", systemImage: result.isValid ? "checkmark.shield" : "exclamationmark.shield")
         }
     }
 }
