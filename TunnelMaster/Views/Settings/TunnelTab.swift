@@ -193,9 +193,6 @@ struct TunnelTab: View {
         @Bindable var state = appState
 
         return Section {
-            // Presets
-            presetsRow
-
             // Explanation
             Text("Rules are evaluated top-to-bottom, first match wins.")
                 .font(.caption)
@@ -290,47 +287,16 @@ struct TunnelTab: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {
-            Label("Routing Rules", systemImage: "arrow.triangle.branch")
-        }
-    }
-
-    private var presetsRow: some View {
-        @Bindable var state = appState
-
-        return VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Quick Presets")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Label("Routing Rules", systemImage: "arrow.triangle.branch")
                 Spacer()
                 Button {
                     showingPresetManager = true
                 } label: {
-                    Label("Manage", systemImage: "slider.horizontal.3")
+                    Label("Manage Presets", systemImage: "slider.horizontal.3")
                         .font(.caption)
                 }
                 .buttonStyle(.link)
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                GlassEffectContainer(spacing: 8) {
-                    HStack(spacing: 8) {
-                        ForEach(appState.tunnelConfig.allPresets) { preset in
-                            PresetChip(preset: preset) {
-                                // Add preset rules, avoiding duplicates
-                                for rule in preset.rules {
-                                    let exists = state.tunnelConfig.rules.contains {
-                                        $0.type == rule.type && $0.value.lowercased() == rule.value.lowercased()
-                                    }
-                                    if !exists {
-                                        state.tunnelConfig.rules.append(rule)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
             }
         }
     }
@@ -448,47 +414,6 @@ private struct ChainServiceRow: View {
                 .lineLimit(1)
 
             Spacer()
-        }
-    }
-}
-
-private struct PresetChip: View {
-    let preset: RulePreset
-    let onApply: () -> Void
-
-    var body: some View {
-        Button {
-            onApply()
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: preset.icon)
-                    .font(.caption)
-                Text(preset.name)
-                    .font(.caption)
-                Text("(\(preset.rules.count))")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .foregroundStyle(.primary)
-            .glassEffect(.regular.tint(chipColor.opacity(0.3)).interactive(), in: .capsule)
-        }
-        .buttonStyle(.plain)
-        .help(preset.description)
-    }
-
-    private var chipColor: Color {
-        switch preset.color {
-        case .blue: .blue
-        case .purple: .purple
-        case .pink: .pink
-        case .red: .red
-        case .orange: .orange
-        case .yellow: .yellow
-        case .green: .green
-        case .teal: .teal
-        case .gray: .gray
         }
     }
 }
