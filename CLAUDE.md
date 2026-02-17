@@ -10,7 +10,7 @@ TunnelMaster is a macOS menu bar application for unified VPN/proxy management. I
 2. **Privileged Helper** (TunnelMasterHelper) — Root daemon via SMAppService for sing-box process management and network tunneling
 3. **External Dependencies** — Docker Engine, sing-box binary, geo databases (geoip.db, geosite.db)
 
-## Build Commands
+## Build & Test Commands
 
 ```fish
 # Build main app (Debug)
@@ -25,11 +25,28 @@ xcodebuild -scheme TunnelMaster -configuration Release build
 # Clean build
 xcodebuild clean -scheme TunnelMaster
 
+# Run all tests
+xcodebuild test -scheme TunnelMaster -destination 'platform=macOS'
+
+# Run a single test class
+xcodebuild test -scheme TunnelMaster -destination 'platform=macOS' -only-testing:TunnelMasterTests/SingBoxConfigBuilderTests
+
+# Run a single test method
+xcodebuild test -scheme TunnelMaster -destination 'platform=macOS' -only-testing:TunnelMasterTests/SingBoxConfigBuilderTests/testBuildVLESSOutbound
+
 # Verify sing-box config generation
 sing-box check -c /path/to/config.json
 ```
 
-**Note:** There are no unit tests yet. Use `go test` pattern is not applicable — this is a Swift/Xcode project.
+### Test Structure
+
+Tests live in `TunnelMasterTests/` with:
+- `Parsers/` — Tests for all config importers (SingBox, Clash, V2Ray, URI)
+- `Builder/` — `SingBoxConfigBuilderTests` — comprehensive protocol/transport/routing tests
+- `Mocks/MockKeychainManager.swift` — Test double for KeychainManager
+- `Fixtures/ConfigFixtures.swift` — Factory methods for test Service/TunnelConfig objects
+
+Tests use `@MainActor` and `async` setUp/tearDown. `SingBoxConfigBuilder` tests use `MockKeychainManager` with `preloadCredential()` to inject credentials without touching the real Keychain.
 
 ## Architecture
 
@@ -55,6 +72,9 @@ XPCClient.swift → XPCProtocol.swift ← TunnelMasterHelper/main.swift
 | SingBoxManager | `TunnelMasterHelper/SingBoxManager.swift` | Actor managing sing-box process (start/stop/SIGHUP reload) |
 | SingBoxConfigBuilder | `TunnelMaster/Services/Tunnel/SingBoxConfigBuilder.swift` | Converts Service models → sing-box JSON |
 | ConfigImporter/* | `TunnelMaster/Services/ConfigImporter/` | Parsers for sing-box, Clash, V2Ray, URI schemes |
+| ServiceStore | `TunnelMaster/Services/ServiceStore.swift` | JSON persistence to ~/Library/Application Support/TunnelMaster/ |
+| LatencyTester | `TunnelMaster/Services/Tunnel/LatencyTester.swift` | TCP connect latency using Network framework |
+| Deployer | `TunnelMaster/Wizard/Deployer.swift` | Deploys proxy containers to local Docker or remote servers via SSH |
 
 ### Data Flow for Tunnel Start
 
@@ -81,9 +101,33 @@ Service name: `nniel.TunnelMaster.helper`
 
 ### Concurrency Patterns
 
-- **Actors:** `XPCClient`, `SingBoxManager`, `ServiceStore`, `KeychainManager` — thread-safe singletons
-- **@Observable:** `AppState`, `TunnelManager`, `HelperInstaller` — SwiftUI state management
+- **@MainActor @Observable:** `AppState`, `TunnelManager`, `HelperInstaller`, `LatencyTester`, `ServiceStore` — SwiftUI state and UI-bound singletons
+- **Actors:** `XPCClient`, `SingBoxManager`, `KeychainManager` — thread-safe background singletons
 - **Continuations:** XPC callbacks wrapped with `withCheckedThrowingContinuation` for async/await
+- **Singletons pattern:** Most services use `static let shared` — accessed throughout via `.shared`
+
+### Logging
+
+Uses `OSLog` with subsystem `nniel.TunnelMaster`:
+```swift
+private let logger = Logger(subsystem: "nniel.TunnelMaster", category: "ComponentName")
+```
+
+### Data Persistence
+
+`ServiceStore` saves/loads all app data as JSON files in `~/Library/Application Support/TunnelMaster/`:
+- `services.json` — Array of Service
+- `servers.json` — Array of Server
+- `tunnel-config.json` — TunnelConfig (mode, rules, chain, presets)
+- `settings.json` — AppSettings
+
+### Codable Migration Pattern
+
+All models use a defensive decoding pattern for backward compatibility. New fields use `decodeIfPresent` with sensible defaults so existing user data doesn't break:
+```swift
+self.newField = try container.decodeIfPresent(Type.self, forKey: .newField) ?? defaultValue
+```
+Follow this pattern when adding new fields to any persisted model.
 
 ### Credential Storage
 
@@ -94,54 +138,33 @@ Services store only a `credentialRef` (UUID reference). `SingBoxConfigBuilder` r
 
 ### Server vs Service
 
-- **Server** — A physical or virtual machine that can run Docker containers (VPS, local Docker host). Named by its address/hostname by default. One server can host multiple services.
-- **Service** — A proxy or VPN configuration (VLESS, VMess, Hysteria2, WireGuard, etc.). Each service runs in a Docker container on a server. Has a user-friendly name like "Work VPN" or "US Proxy".
+- **Server** — A physical or virtual machine (VPS, local Docker host). One server can host multiple services. Has a `deploymentTarget` of `.local` or `.remote`.
+- **Service** — A proxy or VPN configuration (VLESS, VMess, Hysteria2, WireGuard, etc.). Has a `source` of `.imported` (from config file/URI) or `.created` (deployed via wizard).
 
 ### Relationships
 
 ```
 Server (physical machine)
-├── host: "192.168.1.100" or "my-vps.example.com"
-├── name: defaults to host address
-├── containerIds: ["tunnelmaster-1234", "tunnelmaster-5678"]
+├── host, sshPort, sshUsername, sshKeyPath
+├── deploymentTarget: .local | .remote
+├── containerIds: ["tunnelmaster-1234"]
 └── serviceIds: [uuid1, uuid2]
 
 Service (proxy/VPN config)
-├── name: "Work VPN", "US VLESS", etc.
-├── protocol: .vless, .hysteria2, .wireguard, etc.
-├── server: host address
-├── port: 443
-└── serverId: -> Server.id (if deployed via wizard)
+├── name, protocol, server, port
+├── settings: [String: AnyCodableValue]  // Protocol-specific
+├── credentialRef: String?  // → Keychain lookup
+├── source: .imported | .created
+└── serverId: UUID?  // → Server.id
 ```
 
-## Code Organization
-
-```
-TunnelMaster/
-├── App/AppState.swift              # Global state, tunnel control
-├── Models/                         # Service, RoutingRule, TunnelConfig, ProxyProtocol
-├── Views/
-│   ├── MenuBar/MenuBarView.swift   # Dropdown: status, services, actions
-│   └── Settings/                   # SettingsWindow, ServicesTab, TunnelTab, GeneralTab
-├── Services/
-│   ├── ConfigImporter/             # SingBoxParser, ClashParser, V2RayParser, URIParser
-│   ├── Tunnel/                     # TunnelManager, SingBoxConfigBuilder
-│   ├── XPC/                        # XPCClient, XPCProtocol, HelperInstaller
-│   ├── Docker/DockerManager.swift  # Container lifecycle
-│   └── SSH/SSHClient.swift         # Remote command execution
-└── Wizard/                         # Server deployment wizard
-
-TunnelMasterHelper/
-├── main.swift                      # XPC listener entry point
-├── SingBoxManager.swift            # sing-box process lifecycle
-└── nniel.TunnelMaster.helper.plist # launchd config
-```
+`AnyCodableValue` is a type-erased Codable enum (.string, .int, .bool, .double, .array, .dictionary, .null) used for protocol-specific settings.
 
 ## Supported Protocols
 
 VLESS, VMess, Trojan, Shadowsocks, SOCKS5, WireGuard, Hysteria2
 
-Each protocol has specific settings in `Service.settings: [String: AnyCodableValue]` and corresponding handling in `SingBoxConfigBuilder`.
+Each protocol has specific settings in `Service.settings: [String: AnyCodableValue]` and corresponding handling in `SingBoxConfigBuilder`. Protocol templates for deployment live in `Wizard/ProtocolTemplates/`.
 
 ## sing-box Config Generation
 
@@ -164,6 +187,7 @@ Uses SMAppService (macOS 13+). The helper binary is embedded in the main app bun
 - **Yams** — YAML parsing for Clash configs
 - **Security framework** — Keychain access (no external package)
 - **ServiceManagement** — SMAppService for helper installation
+- **Network framework** — TCP connect latency testing
 
 ## sing-box Binary
 
