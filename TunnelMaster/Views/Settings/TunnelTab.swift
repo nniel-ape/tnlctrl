@@ -35,6 +35,7 @@ struct TunnelTab: View {
                     }
                 }
                 .pickerStyle(.radioGroup)
+                .help("Choose between routing all traffic or only matching rules through the proxy")
 
                 Text(appState.tunnelConfig.mode.description)
                     .font(.caption)
@@ -46,9 +47,11 @@ struct TunnelTab: View {
             // MARK: Outbound Service
             Section {
                 ServicePickerView(services: appState.services, tunnelConfig: $state.tunnelConfig)
+                    .help("Select the primary proxy service to route traffic through")
 
                 Toggle("Enable chaining (multi-hop)", isOn: $state.tunnelConfig.chainEnabled)
                     .disabled(appState.services.count < 2)
+                    .help("Route traffic through multiple proxies in sequence for enhanced privacy")
 
                 if appState.tunnelConfig.chainEnabled {
                     ChainEditorView(services: appState.services, tunnelConfig: $state.tunnelConfig)
@@ -74,6 +77,7 @@ struct TunnelTab: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .help("Choose how to handle traffic that doesn't match any routing rule")
 
                     Text("Traffic not matching any rule will go to: \(appState.tunnelConfig.finalOutbound.displayName)")
                         .font(.caption)
@@ -89,6 +93,7 @@ struct TunnelTab: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.link)
+                        .help("Create, edit, and apply preset rule collections")
                     }
                 }
             }
@@ -161,6 +166,7 @@ private struct ChainEditorView: View {
                 } label: {
                     Label("Add to Chain", systemImage: "plus.circle")
                 }
+                .help("Add a service to the chain for multi-hop routing")
             }
 
             // Flow description
