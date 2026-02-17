@@ -8,10 +8,20 @@ import SwiftUI
 struct TunnelTab: View {
     @Environment(AppState.self) private var appState
 
-    @State private var showingRuleSheet = false
-    @State private var editingRule: RoutingRule?
-    @State private var showingPresetManager = false
-    @State private var selectedRuleId: UUID?
+    // MARK: - Sheet Presentation
+
+    enum SheetDestination: Identifiable {
+        case presetManager
+
+        var id: String {
+            switch self {
+            case .presetManager: "presetManager"
+            }
+        }
+    }
+
+    @State private var activeSheet: SheetDestination?
+    @State private var validationResult: TunnelConfigValidator.ValidationResult = .valid
 
     var body: some View {
         @Bindable var state = appState
@@ -25,25 +35,21 @@ struct TunnelTab: View {
             validationSection
         }
         .formStyle(.grouped)
-        .onChange(of: appState.tunnelConfig) {
+        .onChange(of: appState.tunnelConfig) { _, newValue in
             appState.saveTunnelConfig()
+            validationResult = TunnelConfigValidator.validate(config: newValue, services: appState.services)
         }
-        .sheet(isPresented: $showingRuleSheet) {
-            RuleBuilderSheet(rule: editingRule) { rule in
-                if let existing = editingRule {
-                    if let index = appState.tunnelConfig.rules.firstIndex(where: { $0.id == existing.id }) {
-                        appState.tunnelConfig.rules[index] = rule
-                    } else {
-                        // Rule was deleted while editing — save as new rule
-                        appState.tunnelConfig.rules.append(rule)
-                    }
-                } else {
-                    appState.tunnelConfig.rules.append(rule)
-                }
+        .onChange(of: appState.services) { _, _ in
+            validationResult = TunnelConfigValidator.validate(config: appState.tunnelConfig, services: appState.services)
+        }
+        .task {
+            validationResult = TunnelConfigValidator.validate(config: appState.tunnelConfig, services: appState.services)
+        }
+        .sheet(item: $activeSheet) { destination in
+            switch destination {
+            case .presetManager:
+                PresetManagerSheet()
             }
-        }
-        .sheet(isPresented: $showingPresetManager) {
-            PresetManagerSheet()
         }
     }
 
@@ -198,81 +204,9 @@ struct TunnelTab: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            // Rules list
-            if appState.tunnelConfig.rules.isEmpty {
-                HStack {
-                    Image(systemName: "list.bullet.rectangle")
-                        .foregroundStyle(.secondary)
-                    Text("No rules configured")
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                // Rules summary
-                let enabledCount = appState.tunnelConfig.rules.filter(\.isEnabled).count
-                let totalCount = appState.tunnelConfig.rules.count
-                if enabledCount < totalCount {
-                    Text("\(enabledCount) of \(totalCount) rules enabled")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                List(selection: $selectedRuleId) {
-                    ForEach(Array(state.tunnelConfig.rules.enumerated()), id: \.element.id) { _, rule in
-                        RuleRow(
-                            rule: rule,
-                            isEnabled: Binding(
-                                get: { state.tunnelConfig.rules.first(where: { $0.id == rule.id })?.isEnabled ?? true },
-                                set: { newValue in
-                                    if let idx = state.tunnelConfig.rules.firstIndex(where: { $0.id == rule.id }) {
-                                        state.tunnelConfig.rules[idx].isEnabled = newValue
-                                    }
-                                }
-                            )
-                        )
-                        .tag(rule.id)
-                    }
-                    .onDelete { offsets in
-                        state.tunnelConfig.rules.remove(atOffsets: offsets)
-                    }
-                    .onMove { from, to in
-                        state.tunnelConfig.rules.move(fromOffsets: from, toOffset: to)
-                    }
-                }
-                .listStyle(.inset)
-                .alternatingRowBackgrounds()
-                .contextMenu(
-                    forSelectionType: UUID.self,
-                    menu: { ids in
-                        if let id = ids.first,
-                           let index = appState.tunnelConfig.rules.firstIndex(where: { $0.id == id }) {
-                            ruleContextMenu(for: appState.tunnelConfig.rules[index], at: index)
-                        }
-                    },
-                    primaryAction: { ids in
-                        // Double-click opens edit sheet
-                        if let id = ids.first,
-                           let rule = appState.tunnelConfig.rules.first(where: { $0.id == id }) {
-                            editingRule = rule
-                            showingRuleSheet = true
-                        }
-                    }
-                )
-                .frame(minHeight: 100, maxHeight: 250)
-                .onDeleteCommand {
-                    if let selectedId = selectedRuleId {
-                        appState.tunnelConfig.rules.removeAll { $0.id == selectedId }
-                        selectedRuleId = nil
-                    }
-                }
-            }
-
-            // Add rule button
-            Button {
-                editingRule = nil
-                showingRuleSheet = true
-            } label: {
-                Label("Add Rule", systemImage: "plus.circle")
-            }
+            // Enhanced rule list with groups
+            RuleListView()
+                .frame(minHeight: 200, maxHeight: 400)
 
             // Final outbound picker
             Picker("Unmatched traffic", selection: $state.tunnelConfig.finalOutbound) {
@@ -291,7 +225,7 @@ struct TunnelTab: View {
                 Label("Routing Rules", systemImage: "arrow.triangle.branch")
                 Spacer()
                 Button {
-                    showingPresetManager = true
+                    activeSheet = .presetManager
                 } label: {
                     Label("Manage Presets", systemImage: "slider.horizontal.3")
                         .font(.caption)
@@ -301,62 +235,11 @@ struct TunnelTab: View {
         }
     }
 
-    // MARK: - Rule Context Menu
-
-    @ViewBuilder
-    private func ruleContextMenu(
-        for rule: RoutingRule,
-        at index: Int
-    ) -> some View {
-        Button {
-            appState.tunnelConfig.rules[index].isEnabled.toggle()
-        } label: {
-            Label(
-                rule.isEnabled ? "Disable" : "Enable",
-                systemImage: rule.isEnabled ? "eye.slash" : "eye"
-            )
-        }
-
-        Button {
-            editingRule = rule
-            showingRuleSheet = true
-        } label: {
-            Label("Edit", systemImage: "pencil")
-        }
-
-        Button {
-            let newRule = RoutingRule(
-                type: rule.type,
-                value: rule.value,
-                outbound: rule.outbound,
-                isEnabled: rule.isEnabled,
-                note: rule.note
-            )
-            appState.tunnelConfig.rules.append(newRule)
-        } label: {
-            Label("Duplicate", systemImage: "doc.on.doc")
-        }
-
-        Divider()
-
-        Button(role: .destructive) {
-            appState.tunnelConfig.rules.removeAll { $0.id == rule.id }
-            selectedRuleId = nil
-        } label: {
-            Label("Delete", systemImage: "trash")
-        }
-    }
-
     // MARK: - Validation Section
 
     private var validationSection: some View {
-        let result = TunnelConfigValidator.validate(
-            config: appState.tunnelConfig,
-            services: appState.services
-        )
-
-        return Section {
-            if result.isValid, !result.hasWarnings {
+        Section {
+            if validationResult.isValid, !validationResult.hasWarnings {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
@@ -364,7 +247,7 @@ struct TunnelTab: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                ForEach(result.issues) { issue in
+                ForEach(validationResult.issues) { issue in
                     HStack(alignment: .top) {
                         Image(systemName: issue.icon)
                             .foregroundStyle(issue.severity == .error ? .red : (issue.severity == .warning ? .orange : .blue))
@@ -381,7 +264,7 @@ struct TunnelTab: View {
                 }
             }
         } header: {
-            Label("Status", systemImage: result.isValid ? "checkmark.shield" : "exclamationmark.shield")
+            Label("Status", systemImage: validationResult.isValid ? "checkmark.shield" : "exclamationmark.shield")
         }
     }
 }
@@ -414,60 +297,6 @@ private struct ChainServiceRow: View {
                 .lineLimit(1)
 
             Spacer()
-        }
-    }
-}
-
-private struct RuleRow: View {
-    let rule: RoutingRule
-    @Binding var isEnabled: Bool
-
-    var body: some View {
-        HStack(spacing: 8) {
-            // Checkbox (native macOS for list items)
-            Toggle("", isOn: $isEnabled)
-                .toggleStyle(.checkbox)
-                .labelsHidden()
-
-            // Rule type icon
-            Image(systemName: rule.type.systemImage)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .frame(width: 14)
-
-            // Value & note
-            VStack(alignment: .leading, spacing: 1) {
-                Text(rule.value)
-                    .lineLimit(1)
-                if let note = rule.note, !note.isEmpty {
-                    Text(note)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-            }
-            .foregroundStyle(isEnabled ? .primary : .tertiary)
-
-            Spacer()
-
-            // Rule type (text only, no badge)
-            Text(rule.type.displayName)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-
-            // Outbound indicator
-            Text(rule.outbound.displayName)
-                .font(.caption)
-                .foregroundStyle(isEnabled ? outboundColor : Color.secondary)
-        }
-        .padding(.vertical, 2)
-    }
-
-    private var outboundColor: Color {
-        switch rule.outbound {
-        case .direct: .green
-        case .proxy: .blue
-        case .block: .red
         }
     }
 }
