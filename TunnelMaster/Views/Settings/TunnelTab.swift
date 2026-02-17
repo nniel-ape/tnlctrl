@@ -27,12 +27,74 @@ struct TunnelTab: View {
         @Bindable var state = appState
 
         Form {
-            tunnelModeSection
-            outboundServiceSection
-            if appState.tunnelConfig.mode == .split {
-                routingRulesSection
+            // MARK: Tunnel Mode
+            Section {
+                Picker("Mode", selection: $state.tunnelConfig.mode) {
+                    ForEach(TunnelMode.allCases) { mode in
+                        Label(mode.displayName, systemImage: mode.icon).tag(mode)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+
+                Text(appState.tunnelConfig.mode.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Label("Tunnel Mode", systemImage: "network")
             }
-            validationSection
+
+            // MARK: Outbound Service
+            Section {
+                ServicePickerView(services: appState.services, tunnelConfig: $state.tunnelConfig)
+
+                Toggle("Enable chaining (multi-hop)", isOn: $state.tunnelConfig.chainEnabled)
+                    .disabled(appState.services.count < 2)
+
+                if appState.tunnelConfig.chainEnabled {
+                    ChainEditorView(services: appState.services, tunnelConfig: $state.tunnelConfig)
+                }
+            } header: {
+                Label("Outbound Service", systemImage: "arrow.up.forward.app")
+            }
+
+            // MARK: Routing Rules
+            if appState.tunnelConfig.mode == .split {
+                Section {
+                    Text("Rules are evaluated top-to-bottom, first match wins.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    RuleListView()
+                        .frame(minHeight: 200, maxHeight: 400)
+
+                    Picker("Unmatched traffic", selection: $state.tunnelConfig.finalOutbound) {
+                        ForEach(RuleOutbound.allCases) { outbound in
+                            Label(outbound.displayName, systemImage: outbound.systemImage)
+                                .tag(outbound)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text("Traffic not matching any rule will go to: \(appState.tunnelConfig.finalOutbound.displayName)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    HStack {
+                        Label("Routing Rules", systemImage: "arrow.triangle.branch")
+                        Spacer()
+                        Button {
+                            activeSheet = .presetManager
+                        } label: {
+                            Label("Manage Presets", systemImage: "slider.horizontal.3")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.link)
+                    }
+                }
+            }
+
+            // MARK: Validation
+            ValidationDisplayView(result: validationResult)
         }
         .formStyle(.grouped)
         .onChange(of: appState.tunnelConfig) { _, newValue in
@@ -51,96 +113,6 @@ struct TunnelTab: View {
                 PresetManagerSheet()
             }
         }
-    }
-
-    // MARK: - Tunnel Mode Section
-
-    private var tunnelModeSection: some View {
-        @Bindable var state = appState
-
-        return Section {
-            Picker("Mode", selection: $state.tunnelConfig.mode) {
-                ForEach(TunnelMode.allCases) { mode in
-                    Label(mode.displayName, systemImage: mode.icon).tag(mode)
-                }
-            }
-            .pickerStyle(.radioGroup)
-
-            Text(appState.tunnelConfig.mode.description)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        } header: {
-            Label("Tunnel Mode", systemImage: "network")
-        }
-    }
-
-    // MARK: - Outbound Service Section
-
-    private var outboundServiceSection: some View {
-        @Bindable var state = appState
-
-        return Section {
-            ServicePickerView(services: appState.services, tunnelConfig: $state.tunnelConfig)
-
-            // Chain toggle
-            Toggle("Enable chaining (multi-hop)", isOn: $state.tunnelConfig.chainEnabled)
-                .disabled(appState.services.count < 2)
-
-            // Chain editor
-            if appState.tunnelConfig.chainEnabled {
-                ChainEditorView(services: appState.services, tunnelConfig: $state.tunnelConfig)
-            }
-        } header: {
-            Label("Outbound Service", systemImage: "arrow.up.forward.app")
-        }
-    }
-
-    // MARK: - Routing Rules Section
-
-    private var routingRulesSection: some View {
-        @Bindable var state = appState
-
-        return Section {
-            // Explanation
-            Text("Rules are evaluated top-to-bottom, first match wins.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            // Enhanced rule list with groups
-            RuleListView()
-                .frame(minHeight: 200, maxHeight: 400)
-
-            // Final outbound picker
-            Picker("Unmatched traffic", selection: $state.tunnelConfig.finalOutbound) {
-                ForEach(RuleOutbound.allCases) { outbound in
-                    Label(outbound.displayName, systemImage: outbound.systemImage)
-                        .tag(outbound)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            Text("Traffic not matching any rule will go to: \(appState.tunnelConfig.finalOutbound.displayName)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        } header: {
-            HStack {
-                Label("Routing Rules", systemImage: "arrow.triangle.branch")
-                Spacer()
-                Button {
-                    activeSheet = .presetManager
-                } label: {
-                    Label("Manage Presets", systemImage: "slider.horizontal.3")
-                        .font(.caption)
-                }
-                .buttonStyle(.link)
-            }
-        }
-    }
-
-    // MARK: - Validation Section
-
-    private var validationSection: some View {
-        ValidationDisplayView(result: validationResult)
     }
 }
 
