@@ -815,20 +815,20 @@ enum ConfigFixtures {
     static func makeDefaultTunnelConfig() -> TunnelConfig {
         TunnelConfig(
             mode: .full,
-            rules: [],
-            chain: []
+            chain: [],
+            rules: []
         )
     }
 
     static func makeSplitTunnelConfig() -> TunnelConfig {
         TunnelConfig(
             mode: .split,
+            chain: [],
             rules: [
                 RoutingRule(type: .domain, value: "example.com", outbound: .proxy),
                 RoutingRule(type: .geoip, value: "CN", outbound: .direct),
                 RoutingRule(type: .geosite, value: "category-ads", outbound: .block)
-            ],
-            chain: []
+            ]
         )
     }
 
@@ -836,6 +836,7 @@ enum ConfigFixtures {
     static func makeFullRulesTunnelConfig() -> TunnelConfig {
         TunnelConfig(
             mode: .split,
+            chain: [],
             rules: [
                 // Domain rules
                 RoutingRule(type: .domain, value: "exact.example.com", outbound: .proxy),
@@ -856,8 +857,7 @@ enum ConfigFixtures {
                 RoutingRule(type: .processName, value: "Safari", outbound: .direct),
                 RoutingRule(type: .processName, value: "curl", outbound: .proxy),
                 RoutingRule(type: .processPath, value: "/usr/bin/ssh", outbound: .direct)
-            ],
-            chain: []
+            ]
         )
     }
 }

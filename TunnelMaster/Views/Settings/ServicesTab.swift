@@ -9,10 +9,7 @@ struct ServicesTab: View {
     @Environment(AppState.self) private var appState
     @State private var selectedServiceId: UUID?
     @State private var editingService: Service?
-    @State private var showingImportSheet = false
     @State private var showingAddServerSheet = false
-    @State private var showingExportSheet = false
-    @State private var exportFormat: ExportFormat = .singbox
     @State private var serverForNewService: Server?
     @State private var pingAllTask: Task<Void, Never>?
     @State private var servicesToDelete: [Service] = []
@@ -27,16 +24,9 @@ struct ServicesTab: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sheet(isPresented: $showingImportSheet) {
-            ImportSheet()
-                .environment(appState)
-        }
         .sheet(isPresented: $showingAddServerSheet) {
             AddServerSheet()
                 .environment(appState)
-        }
-        .sheet(isPresented: $showingExportSheet) {
-            ExportSheet(services: appState.services, format: $exportFormat)
         }
         .sheet(item: $editingService) { service in
             ServiceEditSheet(service: service)
@@ -84,12 +74,9 @@ struct ServicesTab: View {
                 .foregroundStyle(.secondary)
             Text("No Services")
                 .font(.title2)
-            Text("Import a config or deploy a service to a server.")
+            Text("Deploy a service to a server.")
                 .foregroundStyle(.secondary)
             HStack(spacing: 12) {
-                Button("Import Config...") {
-                    showingImportSheet = true
-                }
                 if appState.servers.isEmpty {
                     Button("Add Server...") {
                         showingAddServerSheet = true
@@ -142,12 +129,6 @@ struct ServicesTab: View {
                 }
             }
 
-            Button("Export...") {
-                showingExportSheet = true
-            }
-            Button("Import...") {
-                showingImportSheet = true
-            }
             Menu {
                 Button("Add Server...") {
                     showingAddServerSheet = true

@@ -6,16 +6,13 @@
 //
 
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct PresetManagerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
 
     @State private var showingCreateSheet = false
-    @State private var showingImportSheet = false
     @State private var editingPreset: RulePreset?
-    @State private var exportingPreset: RulePreset?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,30 +34,6 @@ struct PresetManagerSheet: View {
                     appState.tunnelConfig.customPresets[index] = updated
                 }
             }
-        }
-        .fileExporter(
-            isPresented: Binding(
-                get: { exportingPreset != nil },
-                set: { if !$0 { exportingPreset = nil } }
-            ),
-            document: exportingPreset.map { PresetDocument(preset: $0) },
-            contentType: .json,
-            defaultFilename: exportingPreset?.name.replacingOccurrences(of: " ", with: "_") ?? "preset"
-        ) { result in
-            switch result {
-            case let .success(url):
-                print("Exported preset to: \(url)")
-            case let .failure(error):
-                print("Export failed: \(error)")
-            }
-            exportingPreset = nil
-        }
-        .fileImporter(
-            isPresented: $showingImportSheet,
-            allowedContentTypes: [.json],
-            allowsMultipleSelection: false
-        ) { result in
-            handleImport(result)
         }
     }
 
@@ -163,12 +136,6 @@ struct PresetManagerSheet: View {
                         Label("Apply Rules", systemImage: "plus.circle")
                     }
 
-                    Button {
-                        exportingPreset = preset
-                    } label: {
-                        Label("Export", systemImage: "square.and.arrow.up")
-                    }
-
                     if !isBuiltIn {
                         Divider()
 
@@ -210,12 +177,6 @@ struct PresetManagerSheet: View {
 
     private var footer: some View {
         HStack {
-            Button {
-                showingImportSheet = true
-            } label: {
-                Label("Import", systemImage: "square.and.arrow.down")
-            }
-
             Spacer()
 
             Button {
@@ -257,21 +218,6 @@ struct PresetManagerSheet: View {
         appState.tunnelConfig.customPresets.removeAll { $0.id == preset.id }
     }
 
-    private func handleImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case let .success(urls):
-            guard let url = urls.first else { return }
-            do {
-                let preset = try RulePresetExporter.importPreset(from: url)
-                appState.tunnelConfig.customPresets.append(preset)
-            } catch {
-                print("Import failed: \(error)")
-            }
-        case let .failure(error):
-            print("Import failed: \(error)")
-        }
-    }
-
     private func colorForPreset(_ preset: RulePreset) -> Color {
         switch preset.color {
         case .blue: .blue
@@ -284,31 +230,5 @@ struct PresetManagerSheet: View {
         case .teal: .teal
         case .gray: .gray
         }
-    }
-}
-
-// MARK: - Preset Document for Export
-
-struct PresetDocument: FileDocument {
-    static var readableContentTypes: [UTType] {
-        [.json]
-    }
-
-    let preset: RulePreset
-
-    init(preset: RulePreset) {
-        self.preset = preset
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        guard let data = configuration.file.regularFileContents else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-        self.preset = try RulePresetExporter.importPreset(from: data)
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let data = try RulePresetExporter.export(preset)
-        return FileWrapper(regularFileWithContents: data)
     }
 }

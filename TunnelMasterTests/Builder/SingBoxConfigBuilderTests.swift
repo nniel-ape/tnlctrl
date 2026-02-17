@@ -704,7 +704,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
     func testBuildFullTunnelMode() async throws {
         await mockKeychain.preloadCredential("test-uuid", ref: "test-cred-ref")
         let service = ConfigFixtures.makeVLESSService(credentialRef: "test-cred-ref")
-        let config = TunnelConfig(mode: .full, rules: [], chain: [])
+        let config = TunnelConfig(mode: .full, chain: [], rules: [])
         let builder = makeBuilder(services: [service], config: config)
 
         let json = try await builder.build()
@@ -742,7 +742,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
             RoutingRule(type: .geosite, value: "category-ads", outbound: .block),
             RoutingRule(type: .processName, value: "Safari", outbound: .direct)
         ]
-        let config = TunnelConfig(mode: .split, rules: routingRules, chain: [])
+        let config = TunnelConfig(mode: .split, chain: [], rules: routingRules)
         let builder = makeBuilder(services: [service], config: config)
 
         let json = try await builder.build()
@@ -833,7 +833,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
             settings: ["tls": .bool(true)]
         )
 
-        let config = TunnelConfig(mode: .full, rules: [], chain: [service1.id, service2.id])
+        let config = TunnelConfig(mode: .full, chain: [service1.id, service2.id], rules: [])
         let builder = makeBuilder(services: [service1, service2], config: config)
 
         let json = try await builder.build()
@@ -871,7 +871,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
             settings: ["sni": .string("exit.example.com"), "tls": .bool(true)]
         )
 
-        let config = TunnelConfig(mode: .full, rules: [], chain: [service1.id, service2.id])
+        let config = TunnelConfig(mode: .full, chain: [service1.id, service2.id], rules: [])
         let builder = makeBuilder(services: [service1, service2], config: config)
 
         let json = try await builder.build()
@@ -993,7 +993,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         let service = ConfigFixtures.makeVLESSService(credentialRef: "cred")
 
         // Create chain with non-existent service ID
-        let config = TunnelConfig(mode: .full, rules: [], chain: [UUID()])
+        let config = TunnelConfig(mode: .full, chain: [UUID()], rules: [])
         let builder = makeBuilder(services: [service], config: config)
 
         do {

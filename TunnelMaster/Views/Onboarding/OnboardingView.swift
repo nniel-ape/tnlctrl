@@ -11,7 +11,6 @@ struct OnboardingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
     @State private var currentPage = 0
-    @State private var showingImportSheet = false
     @State private var showingAddServerSheet = false
 
     private let totalPages = 4
@@ -23,7 +22,7 @@ struct OnboardingView: View {
                 switch currentPage {
                 case 0: welcomePage
                 case 1: helperPage
-                case 2: importPage
+                case 2: addServerPage
                 case 3: completePage
                 default: EmptyView()
                 }
@@ -67,10 +66,6 @@ struct OnboardingView: View {
             .padding()
         }
         .frame(width: 500, height: 400)
-        .sheet(isPresented: $showingImportSheet) {
-            ImportSheet()
-                .environment(appState)
-        }
         .sheet(isPresented: $showingAddServerSheet) {
             AddServerSheet()
                 .environment(appState)
@@ -141,45 +136,32 @@ struct OnboardingView: View {
         }
     }
 
-    private var importPage: some View {
+    private var addServerPage: some View {
         VStack(spacing: 20) {
             Spacer()
 
-            Image(systemName: "square.and.arrow.down")
+            Image(systemName: "server.rack")
                 .font(.system(size: 64))
                 .foregroundStyle(.tint)
 
-            Text("Add Your First Service")
+            Text("Add Your First Server")
                 .font(.title)
                 .fontWeight(.semibold)
 
-            Text("Import an existing config or add a server to deploy services.")
+            Text("Add a server to deploy proxy services.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 40)
 
-            HStack(spacing: 16) {
-                Button("Import Config...") {
-                    showingImportSheet = true
-                }
-
-                Button("Add Server...") {
-                    showingAddServerSheet = true
-                }
-                .buttonStyle(.borderedProminent)
+            Button("Add Server...") {
+                showingAddServerSheet = true
             }
+            .buttonStyle(.borderedProminent)
 
-            if !appState.services.isEmpty || !appState.servers.isEmpty {
-                HStack(spacing: 12) {
-                    if !appState.servers.isEmpty {
-                        Label("\(appState.servers.count) server(s)", systemImage: "server.rack")
-                    }
-                    if !appState.services.isEmpty {
-                        Label("\(appState.services.count) service(s)", systemImage: "network")
-                    }
-                }
-                .foregroundStyle(.green)
-                .padding(.top, 8)
+            if !appState.servers.isEmpty {
+                Label("\(appState.servers.count) server(s)", systemImage: "server.rack")
+                    .foregroundStyle(.green)
+                    .padding(.top, 8)
             }
 
             Spacer()
