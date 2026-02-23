@@ -14,6 +14,9 @@ struct TunnelConfig: Codable, Hashable, Sendable {
     var finalOutbound: RuleOutbound
     var customPresets: [RulePreset]
 
+    /// NEW FIELD: Rule organization
+    var groups: [RuleGroup] // Rule groups for organization
+
     init(
         mode: TunnelMode = .full,
         selectedServiceId: UUID? = nil,
@@ -21,7 +24,8 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         chain: [UUID] = [],
         rules: [RoutingRule] = [],
         finalOutbound: RuleOutbound = .direct,
-        customPresets: [RulePreset] = []
+        customPresets: [RulePreset] = [],
+        groups: [RuleGroup] = []
     ) {
         self.mode = mode
         self.selectedServiceId = selectedServiceId
@@ -30,6 +34,7 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         self.rules = rules
         self.finalOutbound = finalOutbound
         self.customPresets = customPresets
+        self.groups = groups
     }
 
     nonisolated static let `default` = TunnelConfig()
@@ -37,6 +42,23 @@ struct TunnelConfig: Codable, Hashable, Sendable {
     /// All presets (built-in + custom)
     var allPresets: [RulePreset] {
         RulePreset.builtInPresets + customPresets
+    }
+
+    // MARK: - Helper Methods
+
+    /// Get rules that are not in any group
+    var ungroupedRules: [RoutingRule] {
+        rules.filter { $0.groupId == nil }
+    }
+
+    /// Get rules belonging to a specific group
+    func rules(in groupId: UUID) -> [RoutingRule] {
+        rules.filter { $0.groupId == groupId }
+    }
+
+    /// Get sorted groups by position
+    var sortedGroups: [RuleGroup] {
+        groups.sorted { $0.position < $1.position }
     }
 
     // MARK: - Codable with migration support
@@ -49,6 +71,7 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         case rules
         case finalOutbound
         case customPresets
+        case groups
     }
 
     init(from decoder: Decoder) throws {
@@ -64,6 +87,9 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         self.finalOutbound = try container.decodeIfPresent(RuleOutbound.self, forKey: .finalOutbound)
             ?? (mode == .split ? .direct : .proxy)
         self.customPresets = try container.decodeIfPresent([RulePreset].self, forKey: .customPresets) ?? []
+
+        // New field: groups (defaults to empty array for migration)
+        self.groups = try container.decodeIfPresent([RuleGroup].self, forKey: .groups) ?? []
     }
 }
 
@@ -93,6 +119,52 @@ enum TunnelMode: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .full: "globe"
         case .split: "arrow.triangle.branch"
+        }
+    }
+}
+
+// MARK: - Bulk Operation Helpers
+
+extension TunnelConfig {
+    /// Apply a mutation to rules matching predicate
+    mutating func updateRules(
+        where predicate: (RoutingRule) -> Bool,
+        mutation: (inout RoutingRule) -> Void
+    ) {
+        for i in 0 ..< rules.count {
+            if predicate(rules[i]) {
+                mutation(&rules[i])
+                rules[i].lastModified = Date()
+            }
+        }
+    }
+
+    /// Enable rules by ID set
+    mutating func enableRules(_ ids: Set<UUID>) {
+        updateRules(where: { ids.contains($0.id) }) { $0.isEnabled = true }
+    }
+
+    /// Disable rules by ID set
+    mutating func disableRules(_ ids: Set<UUID>) {
+        updateRules(where: { ids.contains($0.id) }) { $0.isEnabled = false }
+    }
+
+    /// Change outbound for rules by ID set
+    mutating func setOutbound(_ outbound: RuleOutbound, for ids: Set<UUID>) {
+        updateRules(where: { ids.contains($0.id) }) { $0.outbound = outbound }
+    }
+
+    /// Move rules to group by ID set
+    mutating func moveRulesToGroup(_ groupId: UUID?, ids: Set<UUID>) {
+        updateRules(where: { ids.contains($0.id) }) { $0.groupId = groupId }
+    }
+
+    /// Add tag to rules by ID set
+    mutating func addTag(_ tag: String, to ids: Set<UUID>) {
+        updateRules(where: { ids.contains($0.id) }) { rule in
+            if !rule.tags.contains(tag) {
+                rule.tags.append(tag)
+            }
         }
     }
 }

@@ -120,13 +120,13 @@ enum TunnelConfigValidator {
                     suggestion: "Add rules to control which traffic goes through the proxy"
                 ))
             } else {
-                // Check for duplicate rules
-                let duplicateRules = findDuplicateRules(in: config.rules)
-                for rule in duplicateRules {
+                // Check for conflicts using the conflict detector
+                let conflicts = RuleConflictDetector.detectConflicts(in: config.rules)
+                for conflict in conflicts {
                     issues.append(ValidationIssue(
-                        severity: .warning,
-                        message: "Duplicate rule: \(rule.type.displayName) \"\(rule.value)\"",
-                        suggestion: "Remove duplicate rules"
+                        severity: conflict.severity.validationSeverity,
+                        message: conflict.explanation,
+                        suggestion: conflict.suggestion
                     ))
                 }
             }

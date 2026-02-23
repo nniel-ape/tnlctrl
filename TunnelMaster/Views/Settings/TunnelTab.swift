@@ -28,6 +28,7 @@ struct TunnelTab: View {
 
         Form {
             // MARK: Tunnel Mode
+
             Section {
                 Picker("Mode", selection: $state.tunnelConfig.mode) {
                     ForEach(TunnelMode.allCases) { mode in
@@ -45,6 +46,7 @@ struct TunnelTab: View {
             }
 
             // MARK: Outbound Service
+
             Section {
                 ServicePickerView(services: appState.services, tunnelConfig: $state.tunnelConfig)
                     .help("Select the primary proxy service to route traffic through")
@@ -61,6 +63,7 @@ struct TunnelTab: View {
             }
 
             // MARK: Routing Rules
+
             if appState.tunnelConfig.mode == .split {
                 Section {
                     Text("Rules are evaluated top-to-bottom, first match wins.")
@@ -99,6 +102,7 @@ struct TunnelTab: View {
             }
 
             // MARK: Validation
+
             ValidationDisplayView(result: validationResult)
         }
         .formStyle(.grouped)

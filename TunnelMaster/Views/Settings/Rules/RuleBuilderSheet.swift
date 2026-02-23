@@ -9,6 +9,7 @@ import SwiftUI
 
 struct RuleBuilderSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
 
     @State private var step: BuilderStep = .category
     @State private var selectedCategory: RuleCategory?
@@ -17,11 +18,15 @@ struct RuleBuilderSheet: View {
     @State private var outbound: RuleOutbound = .proxy
     @State private var note = ""
 
+    // NEW: Organization fields
+    @State private var selectedGroupId: UUID?
+    @State private var tags: [String] = []
+    @State private var newTag = ""
+
     /// Sub-sheet
     @State private var activeSheet: PickerSheet?
 
     private let existingRule: RoutingRule?
-    private let onSave: (RoutingRule) -> Void
 
     enum PickerSheet: Identifiable {
         case app
@@ -40,16 +45,17 @@ struct RuleBuilderSheet: View {
         case action
     }
 
-    init(rule: RoutingRule? = nil, onSave: @escaping (RoutingRule) -> Void) {
-        self.existingRule = rule
-        self.onSave = onSave
+    init(existingRule: RoutingRule? = nil) {
+        self.existingRule = existingRule
 
-        if let rule {
+        if let rule = existingRule {
             _selectedCategory = State(initialValue: rule.type.category)
             _selectedRuleType = State(initialValue: rule.type)
             _ruleValue = State(initialValue: rule.value)
             _outbound = State(initialValue: rule.outbound)
             _note = State(initialValue: rule.note ?? "")
+            _selectedGroupId = State(initialValue: rule.groupId)
+            _tags = State(initialValue: rule.tags)
             _step = State(initialValue: .value)
         }
     }
@@ -342,54 +348,160 @@ struct RuleBuilderSheet: View {
     // MARK: - Action Selection
 
     private var actionSelection: some View {
-        VStack(spacing: 20) {
-            // Summary
-            VStack(spacing: 8) {
-                HStack {
-                    Image(systemName: selectedRuleType.systemImage)
-                        .foregroundStyle(colorForCategory(selectedCategory ?? .domain))
-                    Text(selectedRuleType.displayName)
+        ScrollView {
+            VStack(spacing: 20) {
+                // Summary
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: selectedRuleType.systemImage)
+                            .foregroundStyle(colorForCategory(selectedCategory ?? .domain))
+                        Text(selectedRuleType.displayName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text(ruleValue)
+                        .font(.headline)
+                        .fontDesign(.monospaced)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.quaternary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .padding(.top)
+
+                // Action picker
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Route To")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
 
-                Text(ruleValue)
-                    .font(.headline)
-                    .fontDesign(.monospaced)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.quaternary)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .padding(.top)
-
-            // Action picker
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Route To")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 12) {
-                    ForEach(RuleOutbound.allCases) { action in
-                        actionButton(action)
+                    HStack(spacing: 12) {
+                        ForEach(RuleOutbound.allCases) { action in
+                            actionButton(action)
+                        }
                     }
                 }
+                .padding(.horizontal)
+
+                // Organization
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Organization")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    // Group picker
+                    Picker("Group", selection: $selectedGroupId) {
+                        Text("Ungrouped").tag(UUID?.none)
+                        if !appState.tunnelConfig.groups.isEmpty {
+                            Divider()
+                            ForEach(appState.tunnelConfig.sortedGroups) { group in
+                                Label {
+                                    Text(group.name)
+                                } icon: {
+                                    Image(systemName: group.icon)
+                                }
+                                .tag(UUID?.some(group.id))
+                            }
+                        }
+                    }
+
+                    // Tag input
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            TextField("Add tag", text: $newTag)
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit {
+                                    addTag()
+                                }
+
+                            Button("Add") {
+                                addTag()
+                            }
+                            .disabled(newTag.isEmpty)
+                        }
+
+                        // Tag chips
+                        if !tags.isEmpty {
+                            FlowLayout(spacing: 6) {
+                                ForEach(tags, id: \.self) { tag in
+                                    TagChip(tag: tag, onRemove: {
+                                        tags.removeAll { $0 == tag }
+                                    })
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal)
+
+                // Note field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Note (optional)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    TextField("Add a note to remember why...", text: $note)
+                        .textFieldStyle(.roundedBorder)
+                }
+                .padding(.horizontal)
+
+                // Conflict warning
+                if let conflict = potentialConflict {
+                    conflictWarning(conflict)
+                        .padding(.horizontal)
+                }
+
+                Spacer()
             }
-            .padding(.horizontal)
-
-            // Note field
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Note (optional)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                TextField("Add a note to remember why...", text: $note)
-                    .textFieldStyle(.roundedBorder)
-            }
-            .padding(.horizontal)
-
-            Spacer()
         }
+    }
+
+    // MARK: - Tag Management
+
+    private func addTag() {
+        let trimmed = newTag.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty, !tags.contains(trimmed) {
+            tags.append(trimmed)
+            newTag = ""
+        }
+    }
+
+    // MARK: - Conflict Detection
+
+    private var potentialConflict: RuleConflictDetector.Conflict? {
+        guard step == .action, !ruleValue.isEmpty else { return nil }
+
+        let tempRule = RoutingRule(
+            type: selectedRuleType,
+            value: ruleValue,
+            outbound: outbound,
+            isEnabled: true
+        )
+
+        // Exclude the rule being edited
+        let rulesToCheck = appState.tunnelConfig.rules.filter {
+            $0.id != existingRule?.id
+        }
+
+        return RuleConflictDetector.detectConflictForNewRule(tempRule, in: rulesToCheck)
+    }
+
+    private func conflictWarning(_ conflict: RuleConflictDetector.Conflict) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: conflict.severity == .error ? "xmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .foregroundStyle(conflict.severity == .error ? .red : .orange)
+                Text(conflict.explanation)
+                    .font(.caption)
+            }
+            Text(conflict.suggestion)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .background(conflict.severity == .error ? Color.red.opacity(0.1) : Color.orange.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private func actionButton(_ action: RuleOutbound) -> some View {
@@ -477,9 +589,27 @@ struct RuleBuilderSheet: View {
             value: ruleValue.trimmingCharacters(in: .whitespaces),
             outbound: outbound,
             isEnabled: existingRule?.isEnabled ?? true,
-            note: note.isEmpty ? nil : note
+            note: note.isEmpty ? nil : note,
+            groupId: selectedGroupId,
+            tags: tags,
+            createdAt: existingRule?.createdAt ?? Date(),
+            lastModified: Date()
         )
-        onSave(rule)
+
+        // Sheet now owns the save action
+        if let existing = existingRule {
+            // Edit existing rule
+            if let index = appState.tunnelConfig.rules.firstIndex(where: { $0.id == existing.id }) {
+                appState.tunnelConfig.rules[index] = rule
+            } else {
+                // Rule was deleted while sheet was open - treat as create
+                appState.tunnelConfig.rules.append(rule)
+            }
+        } else {
+            // Create new rule
+            appState.tunnelConfig.rules.append(rule)
+        }
+
         dismiss()
     }
 }

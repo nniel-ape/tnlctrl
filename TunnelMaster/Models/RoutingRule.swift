@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
@@ -13,13 +14,23 @@ struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
     var isEnabled: Bool
     var note: String?
 
+    // NEW FIELDS (for organization and tracking)
+    var groupId: UUID? // Optional group membership
+    var tags: [String] // User-defined tags
+    var createdAt: Date // For sorting
+    var lastModified: Date // Track changes
+
     init(
         id: UUID = UUID(),
         type: RuleType,
         value: String,
         outbound: RuleOutbound,
         isEnabled: Bool = true,
-        note: String? = nil
+        note: String? = nil,
+        groupId: UUID? = nil,
+        tags: [String] = [],
+        createdAt: Date = Date(),
+        lastModified: Date = Date()
     ) {
         self.id = id
         self.type = type
@@ -27,6 +38,10 @@ struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
         self.outbound = outbound
         self.isEnabled = isEnabled
         self.note = note
+        self.groupId = groupId
+        self.tags = tags
+        self.createdAt = createdAt
+        self.lastModified = lastModified
     }
 
     // MARK: - Codable with migration support
@@ -38,10 +53,16 @@ struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
         case outbound
         case isEnabled
         case note
+        case groupId
+        case tags
+        case createdAt
+        case lastModified
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Existing fields (required)
         self.id = try container.decode(UUID.self, forKey: .id)
         self.type = try container.decode(RuleType.self, forKey: .type)
         self.value = try container.decode(String.self, forKey: .value)
@@ -49,6 +70,12 @@ struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
         // Migration: default to enabled for existing rules
         self.isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         self.note = try container.decodeIfPresent(String.self, forKey: .note)
+
+        // New fields (optional with defaults for migration)
+        self.groupId = try container.decodeIfPresent(UUID.self, forKey: .groupId)
+        self.tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
+        self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        self.lastModified = try container.decodeIfPresent(Date.self, forKey: .lastModified) ?? Date()
     }
 }
 
@@ -208,6 +235,14 @@ enum RuleOutbound: String, Codable, CaseIterable, Identifiable, Sendable {
         case .direct: "arrow.right"
         case .proxy: "arrow.triangle.turn.up.right.diamond"
         case .block: "xmark.octagon"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .direct: .green
+        case .proxy: .blue
+        case .block: .red
         }
     }
 }

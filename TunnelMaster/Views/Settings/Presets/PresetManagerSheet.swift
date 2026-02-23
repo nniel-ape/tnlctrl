@@ -13,6 +13,7 @@ struct PresetManagerSheet: View {
 
     @State private var showingCreateSheet = false
     @State private var editingPreset: RulePreset?
+    @State private var applyingPreset: (RulePreset, PresetApplyConfirmationSheet.ApplyStrategy)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,6 +36,19 @@ struct PresetManagerSheet: View {
                 }
             }
         }
+        .sheet(item: Binding(
+            get: { applyingPreset.map { ApplyPresetItem(preset: $0.0, strategy: $0.1) } },
+            set: { applyingPreset = $0.map { ($0.preset, $0.strategy) } }
+        )) { item in
+            PresetApplyConfirmationSheet(preset: item.preset, strategy: item.strategy)
+        }
+    }
+
+    /// Helper struct for sheet item binding
+    private struct ApplyPresetItem: Identifiable {
+        let id = UUID()
+        let preset: RulePreset
+        let strategy: PresetApplyConfirmationSheet.ApplyStrategy
     }
 
     // MARK: - Header
@@ -118,9 +132,25 @@ struct PresetManagerSheet: View {
 
             // Actions
             HStack(spacing: 12) {
-                // Apply button
-                Button {
-                    applyPreset(preset)
+                // Apply menu with strategies
+                Menu {
+                    Button {
+                        applyingPreset = (preset, .append)
+                    } label: {
+                        Label("Append (add new rules)", systemImage: "plus.circle")
+                    }
+
+                    Button {
+                        applyingPreset = (preset, .merge)
+                    } label: {
+                        Label("Merge (update existing)", systemImage: "arrow.merge")
+                    }
+
+                    Button {
+                        applyingPreset = (preset, .replace)
+                    } label: {
+                        Label("Replace All (clear & apply)", systemImage: "arrow.triangle.2.circlepath")
+                    }
                 } label: {
                     Label("Apply", systemImage: "plus.circle")
                         .font(.caption)
@@ -129,16 +159,8 @@ struct PresetManagerSheet: View {
                 .controlSize(.small)
 
                 // More menu
-                Menu {
-                    Button {
-                        applyPreset(preset)
-                    } label: {
-                        Label("Apply Rules", systemImage: "plus.circle")
-                    }
-
-                    if !isBuiltIn {
-                        Divider()
-
+                if !isBuiltIn {
+                    Menu {
                         Button {
                             editingPreset = preset
                         } label: {
@@ -158,13 +180,13 @@ struct PresetManagerSheet: View {
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.body)
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.body)
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
                 }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
             }
             .fixedSize()
         }
@@ -190,17 +212,6 @@ struct PresetManagerSheet: View {
     }
 
     // MARK: - Actions
-
-    private func applyPreset(_ preset: RulePreset) {
-        for rule in preset.rules {
-            let exists = appState.tunnelConfig.rules.contains {
-                $0.type == rule.type && $0.value.lowercased() == rule.value.lowercased()
-            }
-            if !exists {
-                appState.tunnelConfig.rules.append(rule)
-            }
-        }
-    }
 
     private func duplicatePreset(_ preset: RulePreset) {
         let newPreset = RulePreset(
