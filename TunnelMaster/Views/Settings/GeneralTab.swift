@@ -6,7 +6,9 @@
 import SwiftUI
 
 private enum URLs {
+    // swiftlint:disable:next force_unwrapping
     static let github = URL(string: "https://github.com")!
+    // swiftlint:disable:next force_unwrapping
     static let loginItemsSettings = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")!
 }
 

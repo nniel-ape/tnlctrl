@@ -73,7 +73,8 @@ enum RuleConflictDetector {
                         rule1: r1,
                         rule2: r2,
                         severity: .warning,
-                        explanation: "Conflicting outbounds: '\(r1.value)' routes to both \(r1.outbound.displayName) and \(r2.outbound.displayName)",
+                        explanation: "Conflicting outbounds: '\(r1.value)' routes to both "
+                            + "\(r1.outbound.displayName) and \(r2.outbound.displayName)",
                         suggestion: "First matching rule wins. Consider merging or disabling one."
                     ))
                 }
@@ -136,7 +137,8 @@ enum RuleConflictDetector {
                     rule1: existingRule,
                     rule2: newRule,
                     severity: .warning,
-                    explanation: "Conflicting outbounds: '\(newRule.value)' would route to both \(existingRule.outbound.displayName) and \(newRule.outbound.displayName)",
+                    explanation: "Conflicting outbounds: '\(newRule.value)' would route to both "
+                        + "\(existingRule.outbound.displayName) and \(newRule.outbound.displayName)",
                     suggestion: "First matching rule wins"
                 )
             }

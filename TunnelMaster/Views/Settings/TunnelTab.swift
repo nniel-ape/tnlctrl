@@ -66,25 +66,26 @@ struct TunnelTab: View {
 
             if appState.tunnelConfig.mode == .split {
                 Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Picker("Unmatched traffic", selection: $state.tunnelConfig.finalOutbound) {
+                            ForEach(RuleOutbound.allCases) { outbound in
+                                Label(outbound.displayName, systemImage: outbound.systemImage)
+                                    .tag(outbound)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text("Traffic not matching any rule will go to: \(appState.tunnelConfig.finalOutbound.displayName)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     Text("Rules are evaluated top-to-bottom, first match wins.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
                     RuleListView()
-                        .frame(minHeight: 200, maxHeight: 400)
-
-                    Picker("Unmatched traffic", selection: $state.tunnelConfig.finalOutbound) {
-                        ForEach(RuleOutbound.allCases) { outbound in
-                            Label(outbound.displayName, systemImage: outbound.systemImage)
-                                .tag(outbound)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .help("Choose how to handle traffic that doesn't match any routing rule")
-
-                    Text("Traffic not matching any rule will go to: \(appState.tunnelConfig.finalOutbound.displayName)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .frame(minHeight: 300)
                 } header: {
                     HStack {
                         Label("Routing Rules", systemImage: "arrow.triangle.branch")

@@ -16,16 +16,21 @@ struct ShadowsocksTemplate: ProtocolTemplate {
     func generateServerConfig(settings: DeploymentSettings) -> String {
         let config: [String: Any] = [
             "log": ["level": "info"],
-            "inbounds": [[
-                "type": "shadowsocks",
-                "tag": "ss-in",
-                "listen": "::",
-                "listen_port": settings.port,
-                "method": settings.method,
-                "password": settings.password
-            ]],
+            "inbounds": [
+                [
+                    "type": "shadowsocks",
+                    "tag": "ss-in",
+                    "listen": "::",
+                    "listen_port": settings.port,
+                    "method": settings.method,
+                    "password": settings.password
+                ]
+            ],
             "outbounds": [
-                ["type": "direct", "tag": "direct"]
+                [
+                    "type": "direct",
+                    "tag": "direct"
+                ]
             ]
         ]
 

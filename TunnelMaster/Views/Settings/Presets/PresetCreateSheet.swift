@@ -80,14 +80,14 @@ struct PresetCreateSheet: View {
 
                 // Color picker
                 Picker("Color", selection: $color) {
-                    ForEach(PresetColor.allCases) { c in
+                    ForEach(PresetColor.allCases) { presetColor in
                         HStack {
                             Circle()
-                                .fill(colorFor(c))
+                                .fill(colorFor(presetColor))
                                 .frame(width: 12, height: 12)
-                            Text(c.displayName)
+                            Text(presetColor.displayName)
                         }
-                        .tag(c)
+                        .tag(presetColor)
                     }
                 }
             }
@@ -222,8 +222,8 @@ struct PresetCreateSheet: View {
         colorFor(color)
     }
 
-    private func colorFor(_ c: PresetColor) -> Color {
-        switch c {
+    private func colorFor(_ presetColor: PresetColor) -> Color {
+        switch presetColor {
         case .blue: .blue
         case .purple: .purple
         case .pink: .pink

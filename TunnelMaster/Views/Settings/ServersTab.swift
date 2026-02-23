@@ -47,11 +47,13 @@ struct ServersTab: View {
             )
         ) {
             let toDelete = serversToDelete
-            let totalServices = toDelete.reduce(0) { acc, srv in acc + appState.services.filter { $0.serverId == srv.id }.count }
+            let totalServices = toDelete.reduce(0) { acc, srv in
+                acc + appState.services.filter { $0.serverId == srv.id }.count
+            }
+            let serverLabel = "Delete \(toDelete.count) Server\(toDelete.count == 1 ? "" : "s")"
+            let containerSuffix = " and \(totalServices) Container\(totalServices == 1 ? "" : "s")"
             Button(
-                totalServices > 0
-                    ? "Delete \(toDelete.count) Server\(toDelete.count == 1 ? "" : "s") and \(totalServices) Container\(totalServices == 1 ? "" : "s")"
-                    : "Delete \(toDelete.count) Server\(toDelete.count == 1 ? "" : "s")",
+                totalServices > 0 ? serverLabel + containerSuffix : serverLabel,
                 role: .destructive
             ) {
                 Task {
@@ -61,7 +63,9 @@ struct ServersTab: View {
                 }
             }
         } message: {
-            let totalServices = serversToDelete.reduce(0) { acc, srv in acc + appState.services.filter { $0.serverId == srv.id }.count }
+            let totalServices = serversToDelete.reduce(0) { acc, srv in
+                acc + appState.services.filter { $0.serverId == srv.id }.count
+            }
             if totalServices > 0 {
                 Text("This will stop and remove \(totalServices) Docker container\(totalServices == 1 ? "" : "s"). This cannot be undone.")
             } else {

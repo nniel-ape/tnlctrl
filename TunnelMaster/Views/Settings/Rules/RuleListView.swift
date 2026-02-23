@@ -28,56 +28,37 @@ struct RuleListView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            // Main content
-            VStack(spacing: 0) {
-                // Spacer for search bar
-                Color.clear
-                    .frame(height: 44)
+        VStack(spacing: 0) {
+            // Search bar
+            searchBar
+                .background(.bar)
+            Divider()
 
-                // Grouped rule list
-                if filteredRules.isEmpty {
-                    ContentUnavailableView(
-                        "No Rules",
-                        systemImage: "list.bullet.rectangle",
-                        description: Text(searchText.isEmpty ? "Add rules to control routing" : "No rules match '\(searchText)'")
-                    )
-                } else {
-                    rulesList
-                }
-
-                // Spacer for toolbar
-                if !selectedRuleIds.isEmpty {
-                    Color.clear
-                        .frame(height: 52)
-                }
-            }
-
-            // Search bar overlay
-            VStack(spacing: 0) {
-                searchBar
-                    .background(.bar)
-                Divider()
-                Spacer()
-            }
-
-            // Bulk actions toolbar overlay
-            if !selectedRuleIds.isEmpty {
-                VStack(spacing: 0) {
-                    Spacer()
-                    Divider()
-                    BulkActionsToolbar(
-                        selectedCount: selectedRuleIds.count,
-                        groups: appState.tunnelConfig.groups,
-                        onEnable: { enableSelected() },
-                        onDisable: { disableSelected() },
-                        onChangeOutbound: { outbound in changeOutboundForSelected(outbound) },
-                        onMoveToGroup: { groupId in moveSelectedToGroup(groupId) },
-                        onAddTag: { tag in addTagToSelected(tag) },
-                        onDelete: { deleteSelected() },
-                        onClearSelection: { selectedRuleIds.removeAll() }
-                    )
-                }
+            // Grouped rule list
+            if filteredRules.isEmpty {
+                ContentUnavailableView(
+                    "No Rules",
+                    systemImage: "list.bullet.rectangle",
+                    description: Text(searchText.isEmpty ? "Add rules to control routing" : "No rules match '\(searchText)'")
+                )
+            } else {
+                rulesList
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if !selectedRuleIds.isEmpty {
+                            Divider()
+                            BulkActionsToolbar(
+                                selectedCount: selectedRuleIds.count,
+                                groups: appState.tunnelConfig.groups,
+                                onEnable: { enableSelected() },
+                                onDisable: { disableSelected() },
+                                onChangeOutbound: { outbound in changeOutboundForSelected(outbound) },
+                                onMoveToGroup: { groupId in moveSelectedToGroup(groupId) },
+                                onAddTag: { tag in addTagToSelected(tag) },
+                                onDelete: { deleteSelected() },
+                                onClearSelection: { selectedRuleIds.removeAll() }
+                            )
+                        }
+                    }
             }
         }
         .sheet(item: $activeSheet) { destination in

@@ -16,19 +16,26 @@ struct VLESSTemplate: ProtocolTemplate {
     func generateServerConfig(settings: DeploymentSettings) -> String {
         var config: [String: Any] = [
             "log": ["level": "info"],
-            "inbounds": [[
-                "type": "vless",
-                "tag": "vless-in",
-                "listen": "::",
-                "listen_port": settings.port,
-                "users": [[
-                    "uuid": settings.uuid,
-                    "flow": settings.flow
-                ]],
-                "tls": buildTLSConfig(settings: settings)
-            ]],
+            "inbounds": [
+                [
+                    "type": "vless",
+                    "tag": "vless-in",
+                    "listen": "::",
+                    "listen_port": settings.port,
+                    "users": [
+                        [
+                            "uuid": settings.uuid,
+                            "flow": settings.flow
+                        ]
+                    ],
+                    "tls": buildTLSConfig(settings: settings)
+                ]
+            ],
             "outbounds": [
-                ["type": "direct", "tag": "direct"]
+                [
+                    "type": "direct",
+                    "tag": "direct"
+                ]
             ]
         ]
 

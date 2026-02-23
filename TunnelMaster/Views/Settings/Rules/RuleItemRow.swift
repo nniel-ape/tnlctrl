@@ -69,7 +69,7 @@ struct RuleItemRow: View {
             Spacer()
 
             // Note indicator
-            if rule.note != nil, !rule.note!.isEmpty {
+            if let note = rule.note, !note.isEmpty {
                 Image(systemName: "note.text")
                     .font(.caption)
                     .foregroundStyle(.secondary)

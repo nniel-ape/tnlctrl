@@ -19,11 +19,13 @@ struct VMESSTemplate: ProtocolTemplate {
             "tag": "vmess-in",
             "listen": "::",
             "listen_port": settings.port,
-            "users": [[
-                "name": "user",
-                "uuid": settings.uuid,
-                "alterId": 0
-            ]]
+            "users": [
+                [
+                    "name": "user",
+                    "uuid": settings.uuid,
+                    "alterId": 0
+                ]
+            ]
         ]
 
         // Add TLS if enabled
@@ -40,7 +42,10 @@ struct VMESSTemplate: ProtocolTemplate {
             "log": ["level": "info"],
             "inbounds": [inbound],
             "outbounds": [
-                ["type": "direct", "tag": "direct"]
+                [
+                    "type": "direct",
+                    "tag": "direct"
+                ]
             ]
         ]
 

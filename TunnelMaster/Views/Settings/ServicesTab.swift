@@ -158,7 +158,8 @@ struct ServicesTab: View {
             // Created Services Section (only show if not empty)
             if !appState.createdServices.isEmpty {
                 sectionHeader(
-                    title: "Created", count: appState.createdServices.count,
+                    title: "Created",
+                    count: appState.createdServices.count,
                     systemImage: "server.rack"
                 )
 
@@ -176,7 +177,8 @@ struct ServicesTab: View {
             // Imported Services Section (only show if not empty)
             if !appState.importedServices.isEmpty {
                 sectionHeader(
-                    title: "Imported", count: appState.importedServices.count,
+                    title: "Imported",
+                    count: appState.importedServices.count,
                     systemImage: "arrow.down.doc"
                 )
 

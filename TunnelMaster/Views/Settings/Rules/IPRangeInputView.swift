@@ -274,11 +274,11 @@ struct IPRangeInputView: View {
         let broadcastNum = networkNum | Int(~mask & 0xFFFF_FFFF)
 
         func numToIP(_ num: Int) -> String {
-            let a = (num >> 24) & 0xFF
-            let b = (num >> 16) & 0xFF
-            let c = (num >> 8) & 0xFF
-            let d = num & 0xFF
-            return "\(a).\(b).\(c).\(d)"
+            let octet1 = (num >> 24) & 0xFF
+            let octet2 = (num >> 16) & 0xFF
+            let octet3 = (num >> 8) & 0xFF
+            let octet4 = num & 0xFF
+            return "\(octet1).\(octet2).\(octet3).\(octet4)"
         }
 
         return (numToIP(networkNum), numToIP(broadcastNum))

@@ -16,23 +16,30 @@ struct TrojanTemplate: ProtocolTemplate {
     func generateServerConfig(settings: DeploymentSettings) -> String {
         let config: [String: Any] = [
             "log": ["level": "info"],
-            "inbounds": [[
-                "type": "trojan",
-                "tag": "trojan-in",
-                "listen": "::",
-                "listen_port": settings.port,
-                "users": [[
-                    "password": settings.password
-                ]],
-                "tls": [
-                    "enabled": true,
-                    "server_name": settings.sni,
-                    "certificate_path": "/etc/sing-box/cert.pem",
-                    "key_path": "/etc/sing-box/key.pem"
+            "inbounds": [
+                [
+                    "type": "trojan",
+                    "tag": "trojan-in",
+                    "listen": "::",
+                    "listen_port": settings.port,
+                    "users": [
+                        [
+                            "password": settings.password
+                        ]
+                    ],
+                    "tls": [
+                        "enabled": true,
+                        "server_name": settings.sni,
+                        "certificate_path": "/etc/sing-box/cert.pem",
+                        "key_path": "/etc/sing-box/key.pem"
+                    ]
                 ]
-            ]],
+            ],
             "outbounds": [
-                ["type": "direct", "tag": "direct"]
+                [
+                    "type": "direct",
+                    "tag": "direct"
+                ]
             ]
         ]
 

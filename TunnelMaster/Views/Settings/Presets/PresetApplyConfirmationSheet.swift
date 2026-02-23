@@ -263,10 +263,9 @@ struct PresetApplyConfirmationSheet: View {
         switch strategy {
         case .append:
             // Add only non-duplicate rules
-            for rule in preset.rules {
-                if !appState.tunnelConfig.rules.contains(where: { $0.type == rule.type && $0.value == rule.value }) {
-                    appState.tunnelConfig.rules.append(rule)
-                }
+            for rule in preset.rules
+                where !appState.tunnelConfig.rules.contains(where: { $0.type == rule.type && $0.value == rule.value }) {
+                appState.tunnelConfig.rules.append(rule)
             }
 
         case .replace:

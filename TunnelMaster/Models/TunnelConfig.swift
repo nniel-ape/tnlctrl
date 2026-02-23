@@ -131,40 +131,38 @@ extension TunnelConfig {
         where predicate: (RoutingRule) -> Bool,
         mutation: (inout RoutingRule) -> Void
     ) {
-        for i in 0 ..< rules.count {
-            if predicate(rules[i]) {
-                mutation(&rules[i])
-                rules[i].lastModified = Date()
-            }
+        for i in 0 ..< rules.count where predicate(rules[i]) {
+            mutation(&rules[i])
+            rules[i].lastModified = Date()
         }
     }
 
     /// Enable rules by ID set
     mutating func enableRules(_ ids: Set<UUID>) {
-        updateRules(where: { ids.contains($0.id) }) { $0.isEnabled = true }
+        updateRules(where: { ids.contains($0.id) }, mutation: { $0.isEnabled = true })
     }
 
     /// Disable rules by ID set
     mutating func disableRules(_ ids: Set<UUID>) {
-        updateRules(where: { ids.contains($0.id) }) { $0.isEnabled = false }
+        updateRules(where: { ids.contains($0.id) }, mutation: { $0.isEnabled = false })
     }
 
     /// Change outbound for rules by ID set
     mutating func setOutbound(_ outbound: RuleOutbound, for ids: Set<UUID>) {
-        updateRules(where: { ids.contains($0.id) }) { $0.outbound = outbound }
+        updateRules(where: { ids.contains($0.id) }, mutation: { $0.outbound = outbound })
     }
 
     /// Move rules to group by ID set
     mutating func moveRulesToGroup(_ groupId: UUID?, ids: Set<UUID>) {
-        updateRules(where: { ids.contains($0.id) }) { $0.groupId = groupId }
+        updateRules(where: { ids.contains($0.id) }, mutation: { $0.groupId = groupId })
     }
 
     /// Add tag to rules by ID set
     mutating func addTag(_ tag: String, to ids: Set<UUID>) {
-        updateRules(where: { ids.contains($0.id) }) { rule in
+        updateRules(where: { ids.contains($0.id) }, mutation: { rule in
             if !rule.tags.contains(tag) {
                 rule.tags.append(tag)
             }
-        }
+        })
     }
 }

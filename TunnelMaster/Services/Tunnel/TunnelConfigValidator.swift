@@ -89,14 +89,13 @@ enum TunnelConfigValidator {
                 ))
             } else {
                 // Check each service in chain exists
-                for (index, serviceId) in config.chain.enumerated() {
-                    if !services.contains(where: { $0.id == serviceId }) {
-                        issues.append(ValidationIssue(
-                            severity: .error,
-                            message: "Chain service #\(index + 1) no longer exists",
-                            suggestion: "Remove the missing service from the chain"
-                        ))
-                    }
+                for (index, serviceId) in config.chain.enumerated()
+                    where !services.contains(where: { $0.id == serviceId }) {
+                    issues.append(ValidationIssue(
+                        severity: .error,
+                        message: "Chain service #\(index + 1) no longer exists",
+                        suggestion: "Remove the missing service from the chain"
+                    ))
                 }
 
                 // Check for duplicates in chain
@@ -139,15 +138,7 @@ enum TunnelConfigValidator {
 
     private static func findDuplicates(in array: [UUID]) -> [UUID] {
         var seen = Set<UUID>()
-        var duplicates: [UUID] = []
-        for item in array {
-            if seen.contains(item) {
-                duplicates.append(item)
-            } else {
-                seen.insert(item)
-            }
-        }
-        return duplicates
+        return array.filter { !seen.insert($0).inserted }
     }
 
     private static func findDuplicateRules(in rules: [RoutingRule]) -> [RoutingRule] {

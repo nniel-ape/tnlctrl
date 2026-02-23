@@ -134,10 +134,8 @@ struct GroupManagerSheet: View {
 
     private func deleteGroup(_ group: RuleGroup) {
         // Move rules back to ungrouped
-        for i in 0 ..< appState.tunnelConfig.rules.count {
-            if appState.tunnelConfig.rules[i].groupId == group.id {
-                appState.tunnelConfig.rules[i].groupId = nil
-            }
+        for i in 0 ..< appState.tunnelConfig.rules.count where appState.tunnelConfig.rules[i].groupId == group.id {
+            appState.tunnelConfig.rules[i].groupId = nil
         }
         appState.tunnelConfig.groups.removeAll { $0.id == group.id }
         updateGroupPositions()
