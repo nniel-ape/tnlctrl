@@ -12,10 +12,8 @@ struct TunnelConfig: Codable, Hashable, Sendable {
     var chain: [UUID]
     var rules: [RoutingRule]
     var finalOutbound: RuleOutbound
-    var customPresets: [RulePreset]
-
-    /// NEW FIELD: Rule organization
-    var groups: [RuleGroup] // Rule groups for organization
+    /// Rule groups for organization
+    var groups: [RuleGroup]
 
     init(
         mode: TunnelMode = .full,
@@ -24,7 +22,6 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         chain: [UUID] = [],
         rules: [RoutingRule] = [],
         finalOutbound: RuleOutbound = .direct,
-        customPresets: [RulePreset] = [],
         groups: [RuleGroup] = []
     ) {
         self.mode = mode
@@ -33,16 +30,10 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         self.chain = chain
         self.rules = rules
         self.finalOutbound = finalOutbound
-        self.customPresets = customPresets
         self.groups = groups
     }
 
     nonisolated static let `default` = TunnelConfig()
-
-    /// All presets (built-in + custom)
-    var allPresets: [RulePreset] {
-        RulePreset.builtInPresets + customPresets
-    }
 
     // MARK: - Helper Methods
 
@@ -75,7 +66,6 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         case chain
         case rules
         case finalOutbound
-        case customPresets
         case groups
     }
 
@@ -91,9 +81,8 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         self.chainEnabled = try container.decodeIfPresent(Bool.self, forKey: .chainEnabled) ?? !chain.isEmpty
         self.finalOutbound = try container.decodeIfPresent(RuleOutbound.self, forKey: .finalOutbound)
             ?? (mode == .split ? .direct : .proxy)
-        self.customPresets = try container.decodeIfPresent([RulePreset].self, forKey: .customPresets) ?? []
 
-        // New field: groups (defaults to empty array for migration)
+        // Defaults to empty array for migration from older configs
         self.groups = try container.decodeIfPresent([RuleGroup].self, forKey: .groups) ?? []
     }
 }

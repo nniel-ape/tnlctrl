@@ -23,8 +23,7 @@ final class TunnelConfigMigrationTests: XCTestCase {
                     "isEnabled": true
                 }
             ],
-            "finalOutbound": "direct",
-            "customPresets": []
+            "finalOutbound": "direct"
         }
         """
 
@@ -78,7 +77,6 @@ final class TunnelConfigMigrationTests: XCTestCase {
                 }
             ],
             "finalOutbound": "direct",
-            "customPresets": [],
             "groups": [
                 {
                     "id": "\(UUID().uuidString)",

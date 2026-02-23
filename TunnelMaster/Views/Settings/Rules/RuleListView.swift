@@ -16,13 +16,11 @@ struct RuleListView: View {
 
     enum SheetDestination: Identifiable {
         case groupManager
-        case presetManager
         case ruleBuilder(category: RuleCategory?, existing: RoutingRule?)
 
         var id: String {
             switch self {
             case .groupManager: "groupManager"
-            case .presetManager: "presetManager"
             case let .ruleBuilder(cat, rule):
                 "ruleBuilder-\(cat?.rawValue ?? "nil")-\(rule?.id.uuidString ?? "new")"
             }
@@ -51,8 +49,6 @@ struct RuleListView: View {
             switch destination {
             case .groupManager:
                 GroupManagerSheet()
-            case .presetManager:
-                PresetManagerSheet()
             case let .ruleBuilder(category, existingRule):
                 RuleBuilderSheet(category: category, existingRule: existingRule)
             }
@@ -150,9 +146,6 @@ struct RuleListView: View {
                 }
             }
 
-            // Presets section
-            presetsSection
-
             // Category sections
             ForEach(RuleCategory.allCases) { category in
                 let categoryRules = filteredRules(for: category)
@@ -218,39 +211,6 @@ struct RuleListView: View {
         .listStyle(.inset(alternatesRowBackgrounds: true))
     }
 
-    // MARK: - Presets Section
-
-    @ViewBuilder private var presetsSection: some View {
-        let presets = appState.tunnelConfig.allPresets
-        if !presets.isEmpty {
-            Section {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160))], spacing: 8) {
-                    ForEach(presets) { preset in
-                        PresetCard(
-                            preset: preset,
-                            isApplied: isPresetApplied(preset),
-                            onToggle: { togglePreset(preset) }
-                        )
-                    }
-                }
-                .padding(.vertical, 4)
-
-                HStack {
-                    Spacer()
-                    Button {
-                        activeSheet = .presetManager
-                    } label: {
-                        Label("Manage Presets", systemImage: "slider.horizontal.3")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.link)
-                }
-            } header: {
-                Text("Quick Presets")
-            }
-        }
-    }
-
     // MARK: - Category Label
 
     private func categoryLabel(_ category: RuleCategory, count: Int) -> some View {
@@ -301,33 +261,6 @@ struct RuleListView: View {
         return rule.value.localizedCaseInsensitiveContains(searchText) ||
             rule.type.displayName.localizedCaseInsensitiveContains(searchText) ||
             (rule.note?.localizedCaseInsensitiveContains(searchText) ?? false)
-    }
-
-    // MARK: - Preset Logic
-
-    private func isPresetApplied(_ preset: RulePreset) -> Bool {
-        preset.rules.allSatisfy { presetRule in
-            appState.tunnelConfig.rules.contains {
-                $0.type == presetRule.type && $0.value == presetRule.value
-            }
-        }
-    }
-
-    private func togglePreset(_ preset: RulePreset) {
-        if isPresetApplied(preset) {
-            // Remove matching rules
-            for presetRule in preset.rules {
-                appState.tunnelConfig.rules.removeAll {
-                    $0.type == presetRule.type && $0.value == presetRule.value
-                }
-            }
-        } else {
-            // Add non-duplicate rules
-            for rule in preset.rules
-                where !appState.tunnelConfig.rules.contains(where: { $0.type == rule.type && $0.value == rule.value }) {
-                appState.tunnelConfig.rules.append(rule)
-            }
-        }
     }
 
     // MARK: - Actions
