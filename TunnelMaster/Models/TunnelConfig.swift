@@ -56,6 +56,11 @@ struct TunnelConfig: Codable, Hashable, Sendable {
         rules.filter { $0.groupId == groupId }
     }
 
+    /// Get rules for a specific category
+    func rules(for category: RuleCategory) -> [RoutingRule] {
+        rules.filter { $0.type.category == category }
+    }
+
     /// Get sorted groups by position
     var sortedGroups: [RuleGroup] {
         groups.sorted { $0.position < $1.position }

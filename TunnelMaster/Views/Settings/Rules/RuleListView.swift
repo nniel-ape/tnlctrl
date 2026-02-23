@@ -2,7 +2,7 @@
 //  RuleListView.swift
 //  TunnelMaster
 //
-//  Enhanced rule list with groups, search, filtering, and bulk operations.
+//  Category-based rule list with native macOS patterns.
 //
 
 import SwiftUI
@@ -12,173 +12,271 @@ struct RuleListView: View {
 
     @State private var selectedRuleIds: Set<UUID> = []
     @State private var searchText = ""
-    @State private var filterTag: String?
     @State private var activeSheet: SheetDestination?
 
     enum SheetDestination: Identifiable {
         case groupManager
-        case ruleBuilder(existing: RoutingRule?)
+        case presetManager
+        case ruleBuilder(category: RuleCategory?, existing: RoutingRule?)
 
         var id: String {
             switch self {
-            case .groupManager: return "groupManager"
-            case let .ruleBuilder(rule): return "ruleBuilder-\(rule?.id.uuidString ?? "new")"
+            case .groupManager: "groupManager"
+            case .presetManager: "presetManager"
+            case let .ruleBuilder(cat, rule):
+                "ruleBuilder-\(cat?.rawValue ?? "nil")-\(rule?.id.uuidString ?? "new")"
             }
         }
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Search bar
-            searchBar
-                .background(.bar)
-            Divider()
-
-            // Grouped rule list
-            if filteredRules.isEmpty {
+            if filteredRules.isEmpty, searchText.isEmpty {
                 ContentUnavailableView(
                     "No Rules",
                     systemImage: "list.bullet.rectangle",
-                    description: Text(searchText.isEmpty ? "Add rules to control routing" : "No rules match '\(searchText)'")
+                    description: Text("Add rules to control routing")
+                )
+            } else if filteredRules.isEmpty {
+                ContentUnavailableView(
+                    "No Results",
+                    systemImage: "magnifyingglass",
+                    description: Text("No rules match '\(searchText)'")
                 )
             } else {
                 rulesList
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        if !selectedRuleIds.isEmpty {
-                            Divider()
-                            BulkActionsToolbar(
-                                selectedCount: selectedRuleIds.count,
-                                groups: appState.tunnelConfig.groups,
-                                onEnable: { enableSelected() },
-                                onDisable: { disableSelected() },
-                                onChangeOutbound: { outbound in changeOutboundForSelected(outbound) },
-                                onMoveToGroup: { groupId in moveSelectedToGroup(groupId) },
-                                onAddTag: { tag in addTagToSelected(tag) },
-                                onDelete: { deleteSelected() },
-                                onClearSelection: { selectedRuleIds.removeAll() }
-                            )
-                        }
-                    }
             }
         }
         .sheet(item: $activeSheet) { destination in
             switch destination {
             case .groupManager:
                 GroupManagerSheet()
-            case let .ruleBuilder(existingRule):
-                RuleBuilderSheet(existingRule: existingRule)
+            case .presetManager:
+                PresetManagerSheet()
+            case let .ruleBuilder(category, existingRule):
+                RuleBuilderSheet(category: category, existingRule: existingRule)
             }
         }
-    }
-
-    // MARK: - Search Bar
-
-    private var searchBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("Search rules...", text: $searchText)
-                .textFieldStyle(.plain)
-
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-
-            Divider()
-                .frame(height: 16)
-
-            // Tag filter
-            Menu {
-                Button("All") { filterTag = nil }
-                if !allTags.isEmpty {
-                    Divider()
-                    ForEach(allTags, id: \.self) { tag in
-                        Button(tag) { filterTag = tag }
-                    }
-                }
-            } label: {
-                Label(filterTag ?? "All Tags", systemImage: "tag")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-
-            // Group manager button
-            Button {
-                activeSheet = .groupManager
-            } label: {
-                Image(systemName: "folder.badge.gearshape")
-            }
-            .buttonStyle(.borderless)
-            .help("Manage Groups")
-
-            // Add rule button
-            Button {
-                activeSheet = .ruleBuilder(existing: nil)
-            } label: {
-                Image(systemName: "plus.circle")
-            }
-            .buttonStyle(.borderless)
-            .help("Add Rule")
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
     }
 
     // MARK: - Rules List
 
     private var rulesList: some View {
         List(selection: $selectedRuleIds) {
-            // Groups
-            ForEach(appState.tunnelConfig.sortedGroups) { group in
-                let groupRules = filteredRules(in: group.id)
-                if !groupRules.isEmpty {
-                    Section {
-                        if group.isExpanded {
-                            ForEach(Array(groupRules.enumerated()), id: \.element.id) { _, rule in
-                                ruleRow(rule)
-                            }
-                            .onMove { from, to in
-                                moveRulesInGroup(group.id, from: from, to: to)
+            // Inline action bar
+            Section {
+                HStack(spacing: 6) {
+                    TextField("Search rules...", text: $searchText)
+                        .textFieldStyle(.roundedBorder)
+
+                    Button {
+                        activeSheet = .groupManager
+                    } label: {
+                        Image(systemName: "folder.badge.gearshape")
+                    }
+                    .help("Manage Groups")
+
+                    Menu {
+                        ForEach(RuleCategory.allCases) { category in
+                            Button {
+                                activeSheet = .ruleBuilder(category: category, existing: nil)
+                            } label: {
+                                Label(category.displayName, systemImage: category.systemImage)
                             }
                         }
-                    } header: {
-                        RuleGroupHeader(
-                            group: binding(for: group),
-                            ruleCount: groupRules.count
-                        )
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .help("Add Rule")
+
+                    if !selectedRuleIds.isEmpty {
+                        Menu {
+                            Button {
+                                appState.tunnelConfig.enableRules(selectedRuleIds)
+                            } label: {
+                                Label("Enable", systemImage: "eye")
+                            }
+                            Button {
+                                appState.tunnelConfig.disableRules(selectedRuleIds)
+                            } label: {
+                                Label("Disable", systemImage: "eye.slash")
+                            }
+
+                            Divider()
+
+                            Menu("Set Outbound") {
+                                ForEach(RuleOutbound.allCases) { outbound in
+                                    Button {
+                                        appState.tunnelConfig.setOutbound(outbound, for: selectedRuleIds)
+                                    } label: {
+                                        Label(outbound.displayName, systemImage: outbound.systemImage)
+                                    }
+                                }
+                            }
+
+                            Menu("Move to Group") {
+                                Button("Ungrouped") {
+                                    appState.tunnelConfig.moveRulesToGroup(nil, ids: selectedRuleIds)
+                                }
+                                if !appState.tunnelConfig.groups.isEmpty {
+                                    Divider()
+                                    ForEach(appState.tunnelConfig.sortedGroups) { group in
+                                        Button {
+                                            appState.tunnelConfig.moveRulesToGroup(group.id, ids: selectedRuleIds)
+                                        } label: {
+                                            Label(group.name, systemImage: group.icon)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Divider()
+
+                            Button("Delete", role: .destructive) {
+                                appState.tunnelConfig.rules.removeAll { selectedRuleIds.contains($0.id) }
+                                selectedRuleIds.removeAll()
+                            }
+                        } label: {
+                            Label("Actions (\(selectedRuleIds.count))", systemImage: "ellipsis.circle")
+                        }
+
+                        Button {
+                            selectedRuleIds.removeAll()
+                        } label: {
+                            Image(systemName: "xmark.circle")
+                        }
+                        .help("Deselect All")
                     }
                 }
             }
 
-            // Ungrouped rules
-            let ungrouped = filteredUngroupedRules
-            if !ungrouped.isEmpty {
-                Section("Ungrouped") {
-                    ForEach(Array(ungrouped.enumerated()), id: \.element.id) { _, rule in
-                        ruleRow(rule)
+            // Presets section
+            presetsSection
+
+            // Category sections
+            ForEach(RuleCategory.allCases) { category in
+                let categoryRules = filteredRules(for: category)
+                if !categoryRules.isEmpty {
+                    DisclosureGroup {
+                        ForEach(categoryRules, id: \.id) { rule in
+                            ruleRow(rule)
+                                .swipeActions(edge: .trailing) {
+                                    Button("Delete", role: .destructive) {
+                                        deleteRule(rule)
+                                    }
+                                }
+                                .swipeActions(edge: .leading) {
+                                    Button("Edit") {
+                                        activeSheet = .ruleBuilder(category: nil, existing: rule)
+                                    }
+                                    .tint(.blue)
+                                }
+                        }
+                    } label: {
+                        categoryLabel(category, count: categoryRules.count)
                     }
-                    .onMove { from, to in
-                        moveUngroupedRules(from: from, to: to)
+                }
+            }
+
+            // User groups section
+            ForEach(appState.tunnelConfig.sortedGroups) { group in
+                let groupRules = filteredRules(in: group.id)
+                if !groupRules.isEmpty {
+                    DisclosureGroup {
+                        ForEach(groupRules, id: \.id) { rule in
+                            ruleRow(rule)
+                                .swipeActions(edge: .trailing) {
+                                    Button("Delete", role: .destructive) {
+                                        deleteRule(rule)
+                                    }
+                                }
+                                .swipeActions(edge: .leading) {
+                                    Button("Edit") {
+                                        activeSheet = .ruleBuilder(category: nil, existing: rule)
+                                    }
+                                    .tint(.blue)
+                                }
+                        }
+                    } label: {
+                        Label {
+                            HStack {
+                                Text(group.name)
+                                Spacer()
+                                Text("\(groupRules.count)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                        } icon: {
+                            Image(systemName: group.icon)
+                                .foregroundStyle(group.color.swiftUIColor)
+                        }
                     }
                 }
             }
         }
-        .listStyle(.inset)
-        .alternatingRowBackgrounds()
+        .listStyle(.inset(alternatesRowBackgrounds: true))
     }
 
+    // MARK: - Presets Section
+
+    @ViewBuilder private var presetsSection: some View {
+        let presets = appState.tunnelConfig.allPresets
+        if !presets.isEmpty {
+            Section {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160))], spacing: 8) {
+                    ForEach(presets) { preset in
+                        PresetCard(
+                            preset: preset,
+                            isApplied: isPresetApplied(preset),
+                            onToggle: { togglePreset(preset) }
+                        )
+                    }
+                }
+                .padding(.vertical, 4)
+
+                HStack {
+                    Spacer()
+                    Button {
+                        activeSheet = .presetManager
+                    } label: {
+                        Label("Manage Presets", systemImage: "slider.horizontal.3")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.link)
+                }
+            } header: {
+                Text("Quick Presets")
+            }
+        }
+    }
+
+    // MARK: - Category Label
+
+    private func categoryLabel(_ category: RuleCategory, count: Int) -> some View {
+        Label {
+            HStack {
+                Text(category.displayName)
+                Spacer()
+                Text("\(count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        } icon: {
+            Image(systemName: category.systemImage)
+        }
+    }
+
+    // MARK: - Rule Row
+
     private func ruleRow(_ rule: RoutingRule) -> some View {
-        RuleItemRow(
-            rule: binding(for: rule),
+        NativeRuleRow(
+            rule: rule,
+            onToggleEnabled: { toggleRuleEnabled(rule.id) },
             onDelete: { deleteRule(rule) },
             onEdit: {
-                activeSheet = .ruleBuilder(existing: rule)
+                activeSheet = .ruleBuilder(category: nil, existing: rule)
             }
         )
         .tag(rule.id)
@@ -187,21 +285,15 @@ struct RuleListView: View {
     // MARK: - Filtering
 
     private var filteredRules: [RoutingRule] {
-        appState.tunnelConfig.rules
-            .filter { matchesSearch($0) }
-            .filter { matchesTagFilter($0) }
+        appState.tunnelConfig.rules.filter { matchesSearch($0) }
+    }
+
+    private func filteredRules(for category: RuleCategory) -> [RoutingRule] {
+        appState.tunnelConfig.rules(for: category).filter { matchesSearch($0) }
     }
 
     private func filteredRules(in groupId: UUID) -> [RoutingRule] {
-        appState.tunnelConfig.rules(in: groupId)
-            .filter { matchesSearch($0) }
-            .filter { matchesTagFilter($0) }
-    }
-
-    private var filteredUngroupedRules: [RoutingRule] {
-        appState.tunnelConfig.ungroupedRules
-            .filter { matchesSearch($0) }
-            .filter { matchesTagFilter($0) }
+        appState.tunnelConfig.rules(in: groupId).filter { matchesSearch($0) }
     }
 
     private func matchesSearch(_ rule: RoutingRule) -> Bool {
@@ -211,92 +303,43 @@ struct RuleListView: View {
             (rule.note?.localizedCaseInsensitiveContains(searchText) ?? false)
     }
 
-    private func matchesTagFilter(_ rule: RoutingRule) -> Bool {
-        guard let tag = filterTag else { return true }
-        return rule.tags.contains(tag)
+    // MARK: - Preset Logic
+
+    private func isPresetApplied(_ preset: RulePreset) -> Bool {
+        preset.rules.allSatisfy { presetRule in
+            appState.tunnelConfig.rules.contains {
+                $0.type == presetRule.type && $0.value == presetRule.value
+            }
+        }
     }
 
-    private var allTags: [String] {
-        let tags = appState.tunnelConfig.rules.flatMap(\.tags)
-        return Array(Set(tags)).sorted()
+    private func togglePreset(_ preset: RulePreset) {
+        if isPresetApplied(preset) {
+            // Remove matching rules
+            for presetRule in preset.rules {
+                appState.tunnelConfig.rules.removeAll {
+                    $0.type == presetRule.type && $0.value == presetRule.value
+                }
+            }
+        } else {
+            // Add non-duplicate rules
+            for rule in preset.rules
+                where !appState.tunnelConfig.rules.contains(where: { $0.type == rule.type && $0.value == rule.value }) {
+                appState.tunnelConfig.rules.append(rule)
+            }
+        }
     }
 
-    // MARK: - Bulk Operations
-
-    private func enableSelected() {
-        appState.tunnelConfig.enableRules(selectedRuleIds)
-    }
-
-    private func disableSelected() {
-        appState.tunnelConfig.disableRules(selectedRuleIds)
-    }
-
-    private func changeOutboundForSelected(_ outbound: RuleOutbound) {
-        appState.tunnelConfig.setOutbound(outbound, for: selectedRuleIds)
-    }
-
-    private func moveSelectedToGroup(_ groupId: UUID?) {
-        appState.tunnelConfig.moveRulesToGroup(groupId, ids: selectedRuleIds)
-    }
-
-    private func addTagToSelected(_ tag: String) {
-        appState.tunnelConfig.addTag(tag, to: selectedRuleIds)
-    }
-
-    private func deleteSelected() {
-        appState.tunnelConfig.rules.removeAll { selectedRuleIds.contains($0.id) }
-        selectedRuleIds.removeAll()
-    }
+    // MARK: - Actions
 
     private func deleteRule(_ rule: RoutingRule) {
         appState.tunnelConfig.rules.removeAll { $0.id == rule.id }
         selectedRuleIds.remove(rule.id)
     }
 
-    // MARK: - Reordering
-
-    private func moveRulesInGroup(_ groupId: UUID, from: IndexSet, to: Int) {
-        var groupRules = appState.tunnelConfig.rules(in: groupId)
-        groupRules.move(fromOffsets: from, toOffset: to)
-
-        // Update positions in the main array
-        var nonGroupRules = appState.tunnelConfig.rules.filter { $0.groupId != groupId }
-        // Find insertion point
-        if let firstGroupRuleIndex = appState.tunnelConfig.rules.firstIndex(where: { $0.groupId == groupId }) {
-            nonGroupRules.insert(contentsOf: groupRules, at: firstGroupRuleIndex)
+    private func toggleRuleEnabled(_ id: UUID) {
+        if let i = appState.tunnelConfig.rules.firstIndex(where: { $0.id == id }) {
+            appState.tunnelConfig.rules[i].isEnabled.toggle()
         }
-        appState.tunnelConfig.rules = nonGroupRules
-    }
-
-    private func moveUngroupedRules(from: IndexSet, to: Int) {
-        var ungroupedRules = appState.tunnelConfig.ungroupedRules
-        ungroupedRules.move(fromOffsets: from, toOffset: to)
-
-        // Update positions in the main array
-        var groupedRules = appState.tunnelConfig.rules.filter { $0.groupId != nil }
-        groupedRules.append(contentsOf: ungroupedRules)
-        appState.tunnelConfig.rules = groupedRules
-    }
-
-    // MARK: - Helpers
-
-    private func binding(for rule: RoutingRule) -> Binding<RoutingRule> {
-        guard let index = appState.tunnelConfig.rules.firstIndex(where: { $0.id == rule.id }) else {
-            fatalError("Rule not found in array")
-        }
-        return Binding(
-            get: { appState.tunnelConfig.rules[index] },
-            set: { appState.tunnelConfig.rules[index] = $0 }
-        )
-    }
-
-    private func binding(for group: RuleGroup) -> Binding<RuleGroup> {
-        guard let index = appState.tunnelConfig.groups.firstIndex(where: { $0.id == group.id }) else {
-            fatalError("Group not found in array")
-        }
-        return Binding(
-            get: { appState.tunnelConfig.groups[index] },
-            set: { appState.tunnelConfig.groups[index] = $0 }
-        )
     }
 }

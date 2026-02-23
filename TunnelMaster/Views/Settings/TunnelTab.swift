@@ -8,19 +8,6 @@ import SwiftUI
 struct TunnelTab: View {
     @Environment(AppState.self) private var appState
 
-    // MARK: - Sheet Presentation
-
-    enum SheetDestination: Identifiable {
-        case presetManager
-
-        var id: String {
-            switch self {
-            case .presetManager: "presetManager"
-            }
-        }
-    }
-
-    @State private var activeSheet: SheetDestination?
     @State private var validationResult: TunnelConfigValidator.ValidationResult = .valid
 
     var body: some View {
@@ -79,27 +66,12 @@ struct TunnelTab: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-
-                    Text("Rules are evaluated top-to-bottom, first match wins.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    RuleListView()
-                        .frame(minHeight: 300)
                 } header: {
-                    HStack {
-                        Label("Routing Rules", systemImage: "arrow.triangle.branch")
-                        Spacer()
-                        Button {
-                            activeSheet = .presetManager
-                        } label: {
-                            Label("Manage Presets", systemImage: "slider.horizontal.3")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.link)
-                        .help("Create, edit, and apply preset rule collections")
-                    }
+                    Label("Routing Rules", systemImage: "arrow.triangle.branch")
                 }
+
+                RuleListView()
+                    .frame(minHeight: 350)
             }
 
             // MARK: Validation
@@ -116,12 +88,6 @@ struct TunnelTab: View {
         }
         .task {
             validationResult = TunnelConfigValidator.validate(config: appState.tunnelConfig, services: appState.services)
-        }
-        .sheet(item: $activeSheet) { destination in
-            switch destination {
-            case .presetManager:
-                PresetManagerSheet()
-            }
         }
     }
 }
