@@ -150,13 +150,4 @@ extension TunnelConfig {
     mutating func moveRulesToGroup(_ groupId: UUID?, ids: Set<UUID>) {
         updateRules(where: { ids.contains($0.id) }, mutation: { $0.groupId = groupId })
     }
-
-    /// Add tag to rules by ID set
-    mutating func addTag(_ tag: String, to ids: Set<UUID>) {
-        updateRules(where: { ids.contains($0.id) }, mutation: { rule in
-            if !rule.tags.contains(tag) {
-                rule.tags.append(tag)
-            }
-        })
-    }
 }

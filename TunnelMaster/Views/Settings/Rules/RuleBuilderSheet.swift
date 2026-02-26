@@ -11,16 +11,15 @@ struct RuleBuilderSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
 
+    private let existingRule: RoutingRule?
+
     @State private var selectedCategory: RuleCategory
     @State private var selectedRuleType: RuleType
     @State private var ruleValue: String
     @State private var outbound: RuleOutbound
     @State private var note: String
     @State private var selectedGroupId: UUID?
-
     @State private var activeSheet: PickerSheet?
-
-    private let existingRule: RoutingRule?
 
     enum PickerSheet: Identifiable {
         case app
@@ -254,7 +253,6 @@ struct RuleBuilderSheet: View {
             isEnabled: existingRule?.isEnabled ?? true,
             note: note.isEmpty ? nil : note,
             groupId: selectedGroupId,
-            tags: existingRule?.tags ?? [],
             createdAt: existingRule?.createdAt ?? Date(),
             lastModified: Date()
         )

@@ -33,11 +33,10 @@ final class TunnelConfigMigrationTests: XCTestCase {
         XCTAssertEqual(config.groups.count, 0) // Should default to empty array
         XCTAssertEqual(config.rules.count, 1)
         XCTAssertNil(config.rules[0].groupId) // Should default to nil
-        XCTAssertEqual(config.rules[0].tags, []) // Should default to empty
     }
 
     func testMigrateRuleWithoutOrganizationFields() throws {
-        // Simulate old rule JSON without groupId, tags, timestamps
+        // Simulate old rule JSON without groupId, timestamps
         let oldRuleJSON = """
         {
             "id": "\(UUID().uuidString)",
@@ -53,7 +52,6 @@ final class TunnelConfigMigrationTests: XCTestCase {
         let rule = try JSONDecoder().decode(RoutingRule.self, from: data)
 
         XCTAssertNil(rule.groupId)
-        XCTAssertEqual(rule.tags, [])
         XCTAssertNotNil(rule.createdAt)
         XCTAssertNotNil(rule.lastModified)
     }
@@ -97,8 +95,37 @@ final class TunnelConfigMigrationTests: XCTestCase {
         XCTAssertEqual(config.groups.count, 1)
         XCTAssertEqual(config.groups[0].name, "Streaming")
         XCTAssertNotNil(config.rules[0].groupId)
-        XCTAssertEqual(config.rules[0].tags.count, 2)
-        XCTAssertTrue(config.rules[0].tags.contains("streaming"))
+        // tags field in JSON is read & discarded — verifies old data with tags still decodes
+    }
+
+    func testOldDataWithTagsStillDecodes() throws {
+        let ruleJSON = """
+        {
+            "id": "\(UUID().uuidString)",
+            "type": "domain_suffix",
+            "value": "netflix.com",
+            "outbound": "proxy",
+            "isEnabled": true,
+            "tags": ["streaming", "video", "entertainment"]
+        }
+        """
+
+        let data = try XCTUnwrap(ruleJSON.data(using: .utf8))
+        let rule = try JSONDecoder().decode(RoutingRule.self, from: data)
+
+        XCTAssertEqual(rule.value, "netflix.com")
+        XCTAssertEqual(rule.type, .domainSuffix)
+        // Tags field is silently discarded during decoding
+    }
+
+    func testTagsNotEncodedAfterRoundTrip() throws {
+        let rule = RoutingRule(type: .domain, value: "example.com", outbound: .proxy)
+
+        let encoded = try JSONEncoder().encode(rule)
+        let json = try XCTUnwrap(String(data: encoded, encoding: .utf8))
+
+        // The encoded JSON should not contain a "tags" key
+        XCTAssertFalse(json.contains("\"tags\""))
     }
 
     func testConfigHelperMethods() {

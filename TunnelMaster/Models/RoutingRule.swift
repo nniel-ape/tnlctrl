@@ -13,12 +13,9 @@ struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
     var outbound: RuleOutbound
     var isEnabled: Bool
     var note: String?
-
-    // NEW FIELDS (for organization and tracking)
-    var groupId: UUID? // Optional group membership
-    var tags: [String] // User-defined tags
-    var createdAt: Date // For sorting
-    var lastModified: Date // Track changes
+    var groupId: UUID?
+    var createdAt: Date
+    var lastModified: Date
 
     init(
         id: UUID = UUID(),
@@ -28,7 +25,6 @@ struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
         isEnabled: Bool = true,
         note: String? = nil,
         groupId: UUID? = nil,
-        tags: [String] = [],
         createdAt: Date = Date(),
         lastModified: Date = Date()
     ) {
@@ -39,7 +35,6 @@ struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
         self.isEnabled = isEnabled
         self.note = note
         self.groupId = groupId
-        self.tags = tags
         self.createdAt = createdAt
         self.lastModified = lastModified
     }
@@ -62,20 +57,32 @@ struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        // Existing fields (required)
         self.id = try container.decode(UUID.self, forKey: .id)
         self.type = try container.decode(RuleType.self, forKey: .type)
         self.value = try container.decode(String.self, forKey: .value)
         self.outbound = try container.decode(RuleOutbound.self, forKey: .outbound)
-        // Migration: default to enabled for existing rules
         self.isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         self.note = try container.decodeIfPresent(String.self, forKey: .note)
-
-        // New fields (optional with defaults for migration)
         self.groupId = try container.decodeIfPresent(UUID.self, forKey: .groupId)
-        self.tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
         self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         self.lastModified = try container.decodeIfPresent(Date.self, forKey: .lastModified) ?? Date()
+
+        // Migration: read & discard old tags field
+        _ = try container.decodeIfPresent([String].self, forKey: .tags)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(type, forKey: .type)
+        try container.encode(value, forKey: .value)
+        try container.encode(outbound, forKey: .outbound)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encodeIfPresent(note, forKey: .note)
+        try container.encodeIfPresent(groupId, forKey: .groupId)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(lastModified, forKey: .lastModified)
+        // tags intentionally not encoded — removed feature
     }
 }
 

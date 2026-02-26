@@ -10,10 +10,10 @@ import SwiftUI
 struct GeoIPBrowserView: View {
     @Environment(\.dismiss) private var dismiss
 
+    let onSelect: (String) -> Void
+
     @State private var searchText = ""
     @State private var selectedCountry: CountryCodeDatabase.Country?
-
-    let onSelect: (String) -> Void
 
     var body: some View {
         VStack(spacing: 0) {

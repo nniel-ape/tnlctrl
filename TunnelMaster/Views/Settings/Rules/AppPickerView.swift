@@ -11,10 +11,10 @@ struct AppPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var appsProvider = InstalledAppsProvider.shared
 
+    let onSelect: (String, RuleType) -> Void
+
     @State private var searchText = ""
     @State private var selectedApp: InstalledApp?
-
-    let onSelect: (String, RuleType) -> Void // Returns process name and rule type
 
     var body: some View {
         VStack(spacing: 0) {
@@ -128,12 +128,44 @@ struct AppPickerView: View {
     }
 
     private func appRow(_ app: InstalledApp) -> some View {
-        Button {
+        let isSelected = selectedApp?.id == app.id
+        return appRow(
+            name: app.name,
+            processName: app.processName,
+            icon: app.icon,
+            isSelected: isSelected
+        ) {
             selectedApp = app
-        } label: {
+        }
+    }
+
+    private func commonAppRow(name: String, processName: String) -> some View {
+        let isSelected = selectedApp?.processName == processName
+        return appRow(
+            name: name,
+            processName: processName,
+            icon: nil,
+            isSelected: isSelected
+        ) {
+            selectedApp = InstalledApp(
+                id: processName,
+                name: name,
+                path: "",
+                processName: processName
+            )
+        }
+    }
+
+    private func appRow(
+        name: String,
+        processName: String,
+        icon: NSImage?,
+        isSelected: Bool,
+        onTap: @escaping () -> Void
+    ) -> some View {
+        Button(action: onTap) {
             HStack(spacing: 12) {
-                // App icon
-                if let icon = app.icon {
+                if let icon {
                     Image(nsImage: icon)
                         .resizable()
                         .frame(width: 32, height: 32)
@@ -143,47 +175,6 @@ struct AppPickerView: View {
                         .frame(width: 32, height: 32)
                         .foregroundStyle(.secondary)
                 }
-
-                // App info
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(app.name)
-                        .lineLimit(1)
-                    Text(app.processName)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                // Selection indicator
-                if selectedApp?.id == app.id {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.blue)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .background(selectedApp?.id == app.id ? Color.blue.opacity(0.1) : Color.clear)
-    }
-
-    private func commonAppRow(name: String, processName: String) -> some View {
-        Button {
-            selectedApp = InstalledApp(
-                id: processName,
-                name: name,
-                path: "",
-                processName: processName
-            )
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "app")
-                    .font(.title)
-                    .frame(width: 32, height: 32)
-                    .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name)
@@ -196,7 +187,7 @@ struct AppPickerView: View {
 
                 Spacer()
 
-                if selectedApp?.processName == processName {
+                if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.blue)
                 }
@@ -206,7 +197,7 @@ struct AppPickerView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(selectedApp?.processName == processName ? Color.blue.opacity(0.1) : Color.clear)
+        .background(isSelected ? Color.blue.opacity(0.1) : Color.clear)
     }
 
     private var loadingView: some View {

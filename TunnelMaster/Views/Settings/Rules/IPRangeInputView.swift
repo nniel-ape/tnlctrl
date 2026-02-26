@@ -10,11 +10,11 @@ import SwiftUI
 struct IPRangeInputView: View {
     @Environment(\.dismiss) private var dismiss
 
+    let onSelect: (String) -> Void
+
     @State private var ipAddress = ""
     @State private var cidrPrefix = 24
     @State private var selectedPreset: IPRangePresets.IPPreset?
-
-    let onSelect: (String) -> Void
 
     var body: some View {
         VStack(spacing: 0) {

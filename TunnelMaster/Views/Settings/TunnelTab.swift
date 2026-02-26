@@ -66,12 +66,12 @@ struct TunnelTab: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+
+                    RuleListView()
+                        .frame(minHeight: 350)
                 } header: {
                     Label("Routing Rules", systemImage: "arrow.triangle.branch")
                 }
-
-                RuleListView()
-                    .frame(minHeight: 350)
             }
 
             // MARK: Validation

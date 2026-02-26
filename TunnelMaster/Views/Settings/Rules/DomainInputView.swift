@@ -10,14 +10,14 @@ import SwiftUI
 struct DomainInputView: View {
     @Environment(\.dismiss) private var dismiss
 
+    let onSelect: (String, RuleType) -> Void
+
+    private let domainTypes: [RuleType] = [.domain, .domainSuffix, .domainKeyword]
+
     @State private var domainText = ""
     @State private var matchType: RuleType = .domainSuffix
     @State private var suggestions: [DomainSuggestion] = []
     @State private var selectedCategory: DomainCategory?
-
-    let onSelect: (String, RuleType) -> Void
-
-    private let domainTypes: [RuleType] = [.domain, .domainSuffix, .domainKeyword]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,6 +32,12 @@ struct DomainInputView: View {
             footer
         }
         .frame(width: 450, height: 520)
+        .sheet(item: $selectedCategory) { category in
+            CategoryBrowserSheet(category: category) { domain in
+                domainText = domain
+                selectedCategory = nil
+            }
+        }
     }
 
     // MARK: - Header
@@ -241,12 +247,6 @@ struct DomainInputView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
-        .sheet(item: $selectedCategory) { category in
-            CategoryBrowserSheet(category: category) { domain in
-                domainText = domain
-                selectedCategory = nil
-            }
-        }
     }
 
     // MARK: - Footer
@@ -296,82 +296,93 @@ private struct CategoryBrowserSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Image(systemName: category.icon)
-                    .font(.title2)
-                    .foregroundStyle(.purple)
-                Text(category.name)
-                    .font(.headline)
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding()
-
+            header
             Divider()
+            searchField
+            Divider()
+            domainList
+        }
+        .frame(width: 400, height: 450)
+    }
 
-            // Search
-            HStack {
-                Image(systemName: "magnifyingglass")
+    // MARK: - Subviews
+
+    private var header: some View {
+        HStack {
+            Image(systemName: category.icon)
+                .font(.title2)
+                .foregroundStyle(.purple)
+            Text(category.name)
+                .font(.headline)
+            Spacer()
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(.secondary)
-                TextField("Search in \(category.name)...", text: $searchText)
-                    .textFieldStyle(.plain)
             }
-            .padding(8)
-            .background(.quaternary)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            .buttonStyle(.plain)
+        }
+        .padding()
+    }
 
-            Divider()
+    private var searchField: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("Search in \(category.name)...", text: $searchText)
+                .textFieldStyle(.plain)
+        }
+        .padding(8)
+        .background(.quaternary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+    }
 
-            // Domains list
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    let filteredDomains = searchText.isEmpty
-                        ? category.domains
-                        : category.domains.filter {
-                            $0.name.localizedCaseInsensitiveContains(searchText) ||
-                                $0.domain.localizedCaseInsensitiveContains(searchText)
-                        }
+    private var domainList: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(filteredDomains) { domain in
+                    Button {
+                        onSelect(domain.domain)
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: domain.icon)
+                                .frame(width: 24)
+                                .foregroundStyle(.purple)
 
-                    ForEach(filteredDomains) { domain in
-                        Button {
-                            onSelect(domain.domain)
-                            dismiss()
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: domain.icon)
-                                    .frame(width: 24)
-                                    .foregroundStyle(.purple)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(domain.name)
-                                    Text(domain.domain)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer()
-
-                                Image(systemName: "plus.circle")
-                                    .foregroundStyle(.blue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(domain.name)
+                                Text(domain.domain)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
-                            .padding(.horizontal)
-                            .padding(.vertical, 8)
-                            .contentShape(Rectangle())
+
+                            Spacer()
+
+                            Image(systemName: "plus.circle")
+                                .foregroundStyle(.blue)
                         }
-                        .buttonStyle(.plain)
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .frame(width: 400, height: 450)
+    }
+
+    private var filteredDomains: [DomainSuggestion] {
+        if searchText.isEmpty {
+            category.domains
+        } else {
+            category.domains.filter {
+                $0.name.localizedCaseInsensitiveContains(searchText) ||
+                    $0.domain.localizedCaseInsensitiveContains(searchText)
+            }
+        }
     }
 }
