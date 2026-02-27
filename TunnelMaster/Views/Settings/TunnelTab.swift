@@ -9,8 +9,15 @@ struct TunnelTab: View {
     @Environment(AppState.self) private var appState
 
     @State private var validationResult: TunnelConfigValidator.ValidationResult = .valid
-    @State private var showSaveAlert = false
+    @State private var showSavePopover = false
     @State private var newPresetName = ""
+    @State private var showRenameAlert = false
+    @State private var renameText = ""
+    @State private var presetToRename: TunnelPreset?
+
+    private var sortedPresets: [TunnelPreset] {
+        appState.presets.sorted { $0.createdAt > $1.createdAt }
+    }
 
     var body: some View {
         @Bindable var state = appState
@@ -19,7 +26,88 @@ struct TunnelTab: View {
             // MARK: Presets
 
             Section {
-                PresetListView(showSaveAlert: $showSaveAlert)
+                if appState.presets.isEmpty {
+                    Text("Save your current tunnel configuration as a preset.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(sortedPresets) { preset in
+                        PresetRow(
+                            preset: preset,
+                            isActive: preset.id == appState.activePresetId,
+                            serviceName: resolveServiceName(for: preset),
+                            chainHops: preset.chainEnabled ? preset.chain.count : 0,
+                            enabledRuleCount: preset.enabledRuleIds.count
+                        )
+                        .onTapGesture(count: 2) {
+                            appState.loadPreset(preset)
+                        }
+                        .contextMenu {
+                            Button {
+                                appState.loadPreset(preset)
+                            } label: {
+                                Label("Load", systemImage: "tray.and.arrow.down")
+                            }
+
+                            Button {
+                                appState.updatePreset(id: preset.id)
+                            } label: {
+                                Label("Update with Current Config", systemImage: "arrow.triangle.2.circlepath")
+                            }
+
+                            Button {
+                                presetToRename = preset
+                                renameText = preset.name
+                                showRenameAlert = true
+                            } label: {
+                                Label("Rename\u{2026}", systemImage: "pencil")
+                            }
+
+                            Divider()
+
+                            Button(role: .destructive) {
+                                appState.deletePreset(id: preset.id)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+
+                Button {
+                    newPresetName = ""
+                    showSavePopover = true
+                } label: {
+                    Label("Save Current Config\u{2026}", systemImage: "plus.circle")
+                }
+                .popover(isPresented: $showSavePopover, arrowEdge: .trailing) {
+                    VStack(spacing: 12) {
+                        Text("Save Preset")
+                            .font(.headline)
+
+                        TextField("Preset name", text: $newPresetName)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(minWidth: 200)
+                            .onSubmit {
+                                savePresetFromPopover()
+                            }
+
+                        HStack {
+                            Button("Cancel") {
+                                showSavePopover = false
+                            }
+                            .keyboardShortcut(.cancelAction)
+
+                            Spacer()
+
+                            Button("Save") {
+                                savePresetFromPopover()
+                            }
+                            .keyboardShortcut(.defaultAction)
+                            .disabled(newPresetName.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+                    }
+                    .padding()
+                }
             } header: {
                 Label("Presets", systemImage: "star")
             }
@@ -74,89 +162,6 @@ struct TunnelTab: View {
         .task {
             validationResult = TunnelConfigValidator.validate(config: appState.tunnelConfig, services: appState.services)
         }
-        .alert("Save Preset", isPresented: $showSaveAlert) {
-            TextField("Preset name", text: $newPresetName)
-            Button("Save") {
-                appState.saveCurrentConfigAsPreset(name: newPresetName)
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Enter a name for this tunnel configuration preset.")
-        }
-    }
-}
-
-// MARK: - Preset List
-
-private struct PresetListView: View {
-    @Environment(AppState.self) private var appState
-
-    @Binding var showSaveAlert: Bool
-    @State private var selectedPresetId: UUID?
-    @State private var activePresetId: UUID?
-    @State private var showRenameAlert = false
-    @State private var renameText = ""
-    @State private var presetToRename: TunnelPreset?
-
-    private var sortedPresets: [TunnelPreset] {
-        appState.presets.sorted { $0.createdAt > $1.createdAt }
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            if appState.presets.isEmpty {
-                ContentUnavailableView(
-                    "No Presets",
-                    systemImage: "star",
-                    description: Text("Save your current config as a preset")
-                )
-                .frame(minHeight: 60, maxHeight: 100)
-            } else {
-                List(selection: $selectedPresetId) {
-                    ForEach(sortedPresets) { preset in
-                        PresetRow(preset: preset, isActive: preset.id == activePresetId)
-                            .tag(preset.id)
-                    }
-                }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
-                .contextMenu(forSelectionType: UUID.self) { ids in
-                    if let id = ids.first, let preset = appState.presets.first(where: { $0.id == id }) {
-                        Button {
-                            appState.loadPreset(preset)
-                            activePresetId = preset.id
-                        } label: {
-                            Label("Load", systemImage: "tray.and.arrow.down")
-                        }
-
-                        Button {
-                            presetToRename = preset
-                            renameText = preset.name
-                            showRenameAlert = true
-                        } label: {
-                            Label("Rename…", systemImage: "pencil")
-                        }
-
-                        Divider()
-
-                        Button(role: .destructive) {
-                            appState.deletePreset(id: id)
-                            if selectedPresetId == id { selectedPresetId = nil }
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                } primaryAction: { ids in
-                    if let id = ids.first, let preset = appState.presets.first(where: { $0.id == id }) {
-                        appState.loadPreset(preset)
-                        activePresetId = id
-                    }
-                }
-                .frame(minHeight: 60, maxHeight: 150)
-            }
-
-            Divider()
-            bottomBar
-        }
         .alert("Rename Preset", isPresented: $showRenameAlert) {
             TextField("New name", text: $renameText)
             Button("Rename") {
@@ -168,70 +173,75 @@ private struct PresetListView: View {
         }
     }
 
-    private var bottomBar: some View {
-        HStack(spacing: 4) {
-            Button {
-                showSaveAlert = true
-            } label: {
-                Image(systemName: "plus")
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.borderless)
-            .help("Save current config as preset")
+    private func resolveServiceName(for preset: TunnelPreset) -> String? {
+        guard let serviceId = preset.selectedServiceId else { return nil }
+        return appState.services.first { $0.id == serviceId }?.name
+    }
 
-            Button {
-                if let id = selectedPresetId {
-                    appState.deletePreset(id: id)
-                    selectedPresetId = nil
-                }
-            } label: {
-                Image(systemName: "minus")
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.borderless)
-            .disabled(selectedPresetId == nil)
-            .help("Delete selected preset")
-
-            Spacer()
-
-            let count = appState.presets.count
-            Text("\(count) preset\(count == 1 ? "" : "s")")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(.bar)
+    private func savePresetFromPopover() {
+        let trimmed = newPresetName.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        appState.saveCurrentConfigAsPreset(name: trimmed)
+        showSavePopover = false
     }
 }
+
+// MARK: - Preset Row
 
 private struct PresetRow: View {
     let preset: TunnelPreset
     var isActive = false
+    var serviceName: String?
+    var chainHops = 0
+    var enabledRuleCount = 0
 
     var body: some View {
         HStack {
-            if isActive {
-                Image(systemName: "checkmark")
-                    .font(.caption)
-                    .foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(preset.name)
+                    .lineLimit(1)
+                    .fontWeight(isActive ? .medium : .regular)
+                    .foregroundStyle(isActive ? .primary : .secondary)
+
+                if !summaryParts.isEmpty {
+                    Text(summaryParts.joined(separator: " \u{00B7} "))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
             }
 
-            Text(preset.name)
-                .lineLimit(1)
-                .fontWeight(isActive ? .semibold : .regular)
-
             Spacer()
+
+            if isActive {
+                Image(systemName: "checkmark")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.tint)
+            }
 
             Text(preset.mode.displayName)
                 .font(.caption)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(.secondary.opacity(0.15))
+                .background(isActive ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
-                .foregroundStyle(.secondary)
+                .foregroundColor(isActive ? .accentColor : .secondary)
         }
+        .contentShape(Rectangle())
+    }
+
+    private var summaryParts: [String] {
+        var parts: [String] = []
+        if let name = serviceName {
+            parts.append(name)
+        }
+        if chainHops >= 2 {
+            parts.append("\(chainHops)-hop chain")
+        }
+        if enabledRuleCount > 0 {
+            parts.append("\(enabledRuleCount) rule\(enabledRuleCount == 1 ? "" : "s")")
+        }
+        return parts
     }
 }
 

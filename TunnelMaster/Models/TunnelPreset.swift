@@ -16,6 +16,16 @@ struct TunnelPreset: Identifiable, Codable, Hashable, Sendable {
     var enabledRuleIds: Set<UUID>
     var createdAt: Date
 
+    /// Update this preset's config fields from the given tunnel config, preserving id/name/createdAt.
+    mutating func updateFromConfig(_ config: TunnelConfig) {
+        mode = config.mode
+        finalOutbound = config.finalOutbound
+        selectedServiceId = config.selectedServiceId
+        chainEnabled = config.chainEnabled
+        chain = config.chain
+        enabledRuleIds = Set(config.rules.filter(\.isEnabled).map(\.id))
+    }
+
     /// Snapshot the current tunnel config into a new preset
     init(name: String, config: TunnelConfig) {
         self.id = UUID()

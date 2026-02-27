@@ -27,6 +27,7 @@ final class AppState {
     var tunnelConfig: TunnelConfig = .default
     var settings: AppSettings = .default
     var presets: [TunnelPreset] = []
+    var activePresetId: UUID?
 
     // MARK: - Computed
 
@@ -174,6 +175,13 @@ final class AppState {
         for i in 0 ..< tunnelConfig.rules.count {
             tunnelConfig.rules[i].isEnabled = preset.enabledRuleIds.contains(tunnelConfig.rules[i].id)
         }
+        activePresetId = preset.id
+    }
+
+    func updatePreset(id: UUID) {
+        guard let index = presets.firstIndex(where: { $0.id == id }) else { return }
+        presets[index].updateFromConfig(tunnelConfig)
+        savePresets()
     }
 
     func deletePreset(id: UUID) {
