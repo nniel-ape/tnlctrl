@@ -57,6 +57,12 @@ final class ServiceStore {
         }
     }
 
+    private var presetsURL: URL {
+        get throws {
+            try applicationSupportURL.appendingPathComponent("presets.json")
+        }
+    }
+
     // MARK: - Services
 
     func loadServices() async throws -> [Service] {
@@ -147,6 +153,29 @@ final class ServiceStore {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         let data = try encoder.encode(servers)
+        try data.write(to: url, options: .atomic)
+    }
+
+    // MARK: - Presets
+
+    func loadPresets() async throws -> [TunnelPreset] {
+        let url = try presetsURL
+
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return []
+        }
+
+        let data = try Data(contentsOf: url)
+        return try decoder.decode([TunnelPreset].self, from: data)
+    }
+
+    func savePresets(_ presets: [TunnelPreset]) async throws {
+        let url = try presetsURL
+
+        let directory = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        let data = try encoder.encode(presets)
         try data.write(to: url, options: .atomic)
     }
 }

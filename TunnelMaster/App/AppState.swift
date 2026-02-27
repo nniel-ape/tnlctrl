@@ -26,6 +26,7 @@ final class AppState {
     var servers: [Server] = []
     var tunnelConfig: TunnelConfig = .default
     var settings: AppSettings = .default
+    var presets: [TunnelPreset] = []
 
     // MARK: - Computed
 
@@ -96,6 +97,7 @@ final class AppState {
             servers = try await ServiceStore.shared.loadServers()
             tunnelConfig = try await ServiceStore.shared.loadTunnelConfig()
             settings = try await ServiceStore.shared.loadSettings()
+            presets = try await ServiceStore.shared.loadPresets()
         } catch {
             logger.error("Failed to load data: \(error)")
         }
@@ -128,6 +130,51 @@ final class AppState {
             } catch {
                 logger.error("Failed to save tunnel config: \(error)")
             }
+        }
+    }
+
+    // MARK: - Preset Management
+
+    func savePresets() {
+        Task {
+            do {
+                try await ServiceStore.shared.savePresets(presets)
+            } catch {
+                logger.error("Failed to save presets: \(error)")
+            }
+        }
+    }
+
+    func saveCurrentConfigAsPreset(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let preset = TunnelPreset(name: trimmed, config: tunnelConfig)
+        presets.append(preset)
+        savePresets()
+    }
+
+    func loadPreset(_ preset: TunnelPreset) {
+        tunnelConfig.mode = preset.mode
+        tunnelConfig.finalOutbound = preset.finalOutbound
+        tunnelConfig.selectedServiceId = preset.selectedServiceId
+        tunnelConfig.chainEnabled = preset.chainEnabled
+        tunnelConfig.chain = preset.chain
+        for i in 0 ..< tunnelConfig.rules.count {
+            tunnelConfig.rules[i].isEnabled = preset.enabledRuleIds.contains(tunnelConfig.rules[i].id)
+        }
+    }
+
+    func deletePreset(id: UUID) {
+        presets.removeAll { $0.id == id }
+        savePresets()
+    }
+
+    func renamePreset(id: UUID, newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        if let index = presets.firstIndex(where: { $0.id == id }) {
+            presets[index].name = trimmed
+            savePresets()
         }
     }
 

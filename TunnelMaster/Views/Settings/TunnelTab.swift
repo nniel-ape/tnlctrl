@@ -9,11 +9,21 @@ struct TunnelTab: View {
     @Environment(AppState.self) private var appState
 
     @State private var validationResult: TunnelConfigValidator.ValidationResult = .valid
+    @State private var showSaveAlert = false
+    @State private var newPresetName = ""
 
     var body: some View {
         @Bindable var state = appState
 
         Form {
+            // MARK: Presets
+
+            Section {
+                PresetListView(showSaveAlert: $showSaveAlert)
+            } header: {
+                Label("Presets", systemImage: "star")
+            }
+
             // MARK: Tunnel Mode
 
             Section {
@@ -63,6 +73,164 @@ struct TunnelTab: View {
         }
         .task {
             validationResult = TunnelConfigValidator.validate(config: appState.tunnelConfig, services: appState.services)
+        }
+        .alert("Save Preset", isPresented: $showSaveAlert) {
+            TextField("Preset name", text: $newPresetName)
+            Button("Save") {
+                appState.saveCurrentConfigAsPreset(name: newPresetName)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter a name for this tunnel configuration preset.")
+        }
+    }
+}
+
+// MARK: - Preset List
+
+private struct PresetListView: View {
+    @Environment(AppState.self) private var appState
+
+    @Binding var showSaveAlert: Bool
+    @State private var selectedPresetId: UUID?
+    @State private var activePresetId: UUID?
+    @State private var showRenameAlert = false
+    @State private var renameText = ""
+    @State private var presetToRename: TunnelPreset?
+
+    private var sortedPresets: [TunnelPreset] {
+        appState.presets.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if appState.presets.isEmpty {
+                ContentUnavailableView(
+                    "No Presets",
+                    systemImage: "star",
+                    description: Text("Save your current config as a preset")
+                )
+                .frame(minHeight: 60, maxHeight: 100)
+            } else {
+                List(selection: $selectedPresetId) {
+                    ForEach(sortedPresets) { preset in
+                        PresetRow(preset: preset, isActive: preset.id == activePresetId)
+                            .tag(preset.id)
+                    }
+                }
+                .listStyle(.inset(alternatesRowBackgrounds: true))
+                .contextMenu(forSelectionType: UUID.self) { ids in
+                    if let id = ids.first, let preset = appState.presets.first(where: { $0.id == id }) {
+                        Button {
+                            appState.loadPreset(preset)
+                            activePresetId = preset.id
+                        } label: {
+                            Label("Load", systemImage: "tray.and.arrow.down")
+                        }
+
+                        Button {
+                            presetToRename = preset
+                            renameText = preset.name
+                            showRenameAlert = true
+                        } label: {
+                            Label("Rename…", systemImage: "pencil")
+                        }
+
+                        Divider()
+
+                        Button(role: .destructive) {
+                            appState.deletePreset(id: id)
+                            if selectedPresetId == id { selectedPresetId = nil }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                } primaryAction: { ids in
+                    if let id = ids.first, let preset = appState.presets.first(where: { $0.id == id }) {
+                        appState.loadPreset(preset)
+                        activePresetId = id
+                    }
+                }
+                .frame(minHeight: 60, maxHeight: 150)
+            }
+
+            Divider()
+            bottomBar
+        }
+        .alert("Rename Preset", isPresented: $showRenameAlert) {
+            TextField("New name", text: $renameText)
+            Button("Rename") {
+                if let preset = presetToRename {
+                    appState.renamePreset(id: preset.id, newName: renameText)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private var bottomBar: some View {
+        HStack(spacing: 4) {
+            Button {
+                showSaveAlert = true
+            } label: {
+                Image(systemName: "plus")
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.borderless)
+            .help("Save current config as preset")
+
+            Button {
+                if let id = selectedPresetId {
+                    appState.deletePreset(id: id)
+                    selectedPresetId = nil
+                }
+            } label: {
+                Image(systemName: "minus")
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.borderless)
+            .disabled(selectedPresetId == nil)
+            .help("Delete selected preset")
+
+            Spacer()
+
+            let count = appState.presets.count
+            Text("\(count) preset\(count == 1 ? "" : "s")")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(.bar)
+    }
+}
+
+private struct PresetRow: View {
+    let preset: TunnelPreset
+    var isActive = false
+
+    var body: some View {
+        HStack {
+            if isActive {
+                Image(systemName: "checkmark")
+                    .font(.caption)
+                    .foregroundStyle(.tint)
+            }
+
+            Text(preset.name)
+                .lineLimit(1)
+                .fontWeight(isActive ? .semibold : .regular)
+
+            Spacer()
+
+            Text(preset.mode.displayName)
+                .font(.caption)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(.secondary.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .foregroundStyle(.secondary)
         }
     }
 }
