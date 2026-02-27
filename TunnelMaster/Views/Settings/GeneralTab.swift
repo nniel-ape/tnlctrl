@@ -3,6 +3,7 @@
 //  TunnelMaster
 //
 
+import ServiceManagement
 import SwiftUI
 
 private enum URLs {
@@ -18,9 +19,25 @@ struct GeneralTab: View {
     @State private var geoUpdater = GeoDatabaseUpdater.shared
     @State private var installError: String?
     @State private var isInstalling = false
+    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
         Form {
+            Section("General") {
+                Toggle("Launch at Login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, newValue in
+                        do {
+                            if newValue {
+                                try SMAppService.mainApp.register()
+                            } else {
+                                try SMAppService.mainApp.unregister()
+                            }
+                        } catch {
+                            launchAtLogin = SMAppService.mainApp.status == .enabled
+                        }
+                    }
+            }
+
             Section("Privileged Helper") {
                 HStack {
                     VStack(alignment: .leading) {
