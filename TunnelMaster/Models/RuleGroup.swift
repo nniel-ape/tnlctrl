@@ -23,7 +23,7 @@ struct RuleGroup: Identifiable, Codable, Hashable, Sendable {
         description: String = "",
         icon: String = "folder",
         color: GroupColor = .blue,
-        isExpanded: Bool = true,
+        isExpanded: Bool = false,
         position: Int = 0
     ) {
         self.id = id
@@ -54,7 +54,7 @@ struct RuleGroup: Identifiable, Codable, Hashable, Sendable {
         self.description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
         self.icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? "folder"
         self.color = try container.decodeIfPresent(GroupColor.self, forKey: .color) ?? .blue
-        self.isExpanded = try container.decodeIfPresent(Bool.self, forKey: .isExpanded) ?? true
+        self.isExpanded = try container.decodeIfPresent(Bool.self, forKey: .isExpanded) ?? false
         self.position = try container.decodeIfPresent(Int.self, forKey: .position) ?? 0
     }
 }

@@ -9,39 +9,24 @@ import SwiftUI
 
 struct RuleRow: View {
     let rule: RoutingRule
-    let group: RuleGroup?
     let onToggleEnabled: () -> Void
     let onDelete: () -> Void
     let onSetOutbound: (RuleOutbound) -> Void
 
     var body: some View {
         HStack(spacing: 0) {
-            // Group color indicator
-            if let group {
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(group.color.swiftUIColor)
-                    .frame(width: 3, height: 20)
-                    .padding(.trailing, 6)
-            }
-
             // Type icon
             Image(systemName: rule.type.systemImage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
 
-            // Type short name
-            Text(rule.type.shortName)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .frame(width: 50, alignment: .leading)
-                .padding(.leading, 4)
-
             // Value
             Text(rule.value)
                 .font(.body.monospaced())
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .padding(.leading, 6)
 
             Spacer(minLength: 8)
 
@@ -53,12 +38,25 @@ struct RuleRow: View {
                     .padding(.trailing, 6)
             }
 
+            // Type short name
+            Text(rule.type.shortName)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .padding(.trailing, 8)
+
             // Outbound badge
             Text(rule.outbound.displayName.uppercased())
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(rule.outbound.color)
+                .padding(.trailing, 8)
+
+            // Enable/disable toggle
+            Toggle("", isOn: Binding(get: { rule.isEnabled }, set: { _ in onToggleEnabled() }))
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .labelsHidden()
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
         .opacity(rule.isEnabled ? 1.0 : 0.4)
         .contextMenu {
             Button {

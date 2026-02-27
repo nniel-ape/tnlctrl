@@ -24,46 +24,55 @@ struct RuleInspectorPanel: View {
         }
     }
 
-    private var ruleIndex: Int? {
-        appState.tunnelConfig.rules.firstIndex(where: { $0.id == ruleId })
+    private func ruleBinding() -> Binding<RoutingRule>? {
+        guard appState.tunnelConfig.rules.contains(where: { $0.id == ruleId }) else {
+            return nil
+        }
+        return Binding(
+            get: {
+                appState.tunnelConfig.rules.first(where: { $0.id == ruleId })
+                    ?? RoutingRule(type: .domain, value: "", outbound: .proxy)
+            },
+            set: { newValue in
+                if let i = appState.tunnelConfig.rules.firstIndex(where: { $0.id == ruleId }) {
+                    appState.tunnelConfig.rules[i] = newValue
+                }
+            }
+        )
     }
 
     var body: some View {
-        @Bindable var state = appState
-
-        if let index = ruleIndex {
-            let rule = appState.tunnelConfig.rules[index]
-
+        if let rule = ruleBinding() {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    header(rule: rule, index: index)
+                    header(rule: rule)
 
-                    if rule.type.category.ruleTypes.count > 1 {
+                    if rule.wrappedValue.type.category.ruleTypes.count > 1 {
                         Divider()
-                        typeSection(rule: rule, index: index)
+                        typeSection(rule: rule)
                     }
 
                     Divider()
-                    valueSection(rule: rule, index: index)
+                    valueSection(rule: rule)
                     Divider()
-                    actionSection(index: index)
+                    actionSection(rule: rule)
                     Divider()
-                    organizationSection(rule: rule, index: index)
+                    organizationSection(rule: rule)
 
-                    if let conflict = detectConflict(rule: rule) {
+                    if let conflict = detectConflict(rule: rule.wrappedValue) {
                         Divider()
                         conflictWarning(conflict)
                     }
 
                     Divider()
-                    metadataSection(rule: rule)
+                    metadataSection(rule: rule.wrappedValue)
 
                     Spacer()
                 }
                 .padding(16)
             }
             .sheet(item: $activeSheet) { sheet in
-                pickerSheet(sheet, index: index)
+                pickerSheet(sheet, rule: rule)
             }
         } else {
             ContentUnavailableView(
@@ -76,18 +85,16 @@ struct RuleInspectorPanel: View {
 
     // MARK: - Header
 
-    private func header(rule: RoutingRule, index: Int) -> some View {
-        @Bindable var state = appState
-
-        return HStack(spacing: 8) {
-            Image(systemName: rule.type.systemImage)
+    private func header(rule: Binding<RoutingRule>) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: rule.wrappedValue.type.systemImage)
                 .font(.title3)
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(rule.type.displayName)
+                Text(rule.wrappedValue.type.displayName)
                     .font(.headline)
-                Text(rule.value)
+                Text(rule.wrappedValue.value)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -96,7 +103,7 @@ struct RuleInspectorPanel: View {
 
             Spacer()
 
-            Toggle("", isOn: $state.tunnelConfig.rules[index].isEnabled)
+            Toggle("", isOn: rule.isEnabled)
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .labelsHidden()
@@ -105,16 +112,14 @@ struct RuleInspectorPanel: View {
 
     // MARK: - Type
 
-    private func typeSection(rule: RoutingRule, index: Int) -> some View {
-        @Bindable var state = appState
-
-        return VStack(alignment: .leading, spacing: 6) {
+    private func typeSection(rule: Binding<RoutingRule>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             Text("TYPE")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.tertiary)
 
-            Picker("", selection: $state.tunnelConfig.rules[index].type) {
-                ForEach(rule.type.category.ruleTypes, id: \.self) { type in
+            Picker("", selection: rule.type) {
+                ForEach(rule.wrappedValue.type.category.ruleTypes, id: \.self) { type in
                     Text(type.shortName).tag(type)
                 }
             }
@@ -125,21 +130,19 @@ struct RuleInspectorPanel: View {
 
     // MARK: - Value
 
-    private func valueSection(rule: RoutingRule, index: Int) -> some View {
-        @Bindable var state = appState
-
-        return VStack(alignment: .leading, spacing: 6) {
+    private func valueSection(rule: Binding<RoutingRule>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             Text("VALUE")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.tertiary)
 
             HStack(spacing: 6) {
-                TextField(rule.type.placeholder, text: $state.tunnelConfig.rules[index].value)
+                TextField(rule.wrappedValue.type.placeholder, text: rule.value)
                     .textFieldStyle(.roundedBorder)
                     .font(.body.monospaced())
 
                 Button {
-                    openVisualPicker(for: rule.type.category)
+                    openVisualPicker(for: rule.wrappedValue.type.category)
                 } label: {
                     Image(systemName: "rectangle.and.hand.point.up.left")
                 }
@@ -151,15 +154,13 @@ struct RuleInspectorPanel: View {
 
     // MARK: - Action
 
-    private func actionSection(index: Int) -> some View {
-        @Bindable var state = appState
-
-        return VStack(alignment: .leading, spacing: 6) {
+    private func actionSection(rule: Binding<RoutingRule>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             Text("ACTION")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.tertiary)
 
-            Picker("", selection: $state.tunnelConfig.rules[index].outbound) {
+            Picker("", selection: rule.outbound) {
                 ForEach(RuleOutbound.allCases) { action in
                     Text(action.displayName).tag(action)
                 }
@@ -171,15 +172,13 @@ struct RuleInspectorPanel: View {
 
     // MARK: - Organization
 
-    private func organizationSection(rule: RoutingRule, index: Int) -> some View {
-        @Bindable var state = appState
-
-        return VStack(alignment: .leading, spacing: 6) {
+    private func organizationSection(rule: Binding<RoutingRule>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             Text("ORGANIZATION")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.tertiary)
 
-            Picker("Group", selection: $state.tunnelConfig.rules[index].groupId) {
+            Picker("Group", selection: rule.groupId) {
                 Text("Ungrouped").tag(UUID?.none)
                 if !appState.tunnelConfig.groups.isEmpty {
                     Divider()
@@ -191,7 +190,7 @@ struct RuleInspectorPanel: View {
             }
             .controlSize(.small)
 
-            TextField("Note", text: noteBinding(index: index))
+            TextField("Note", text: noteBinding(rule: rule))
                 .textFieldStyle(.roundedBorder)
                 .font(.callout)
         }
@@ -245,11 +244,11 @@ struct RuleInspectorPanel: View {
 
     // MARK: - Helpers
 
-    private func noteBinding(index: Int) -> Binding<String> {
+    private func noteBinding(rule: Binding<RoutingRule>) -> Binding<String> {
         Binding(
-            get: { appState.tunnelConfig.rules[index].note ?? "" },
+            get: { rule.wrappedValue.note ?? "" },
             set: { newValue in
-                appState.tunnelConfig.rules[index].note = newValue.isEmpty ? nil : newValue
+                rule.wrappedValue.note = newValue.isEmpty ? nil : newValue
             }
         )
     }
@@ -265,32 +264,32 @@ struct RuleInspectorPanel: View {
     }
 
     @ViewBuilder
-    private func pickerSheet(_ sheet: PickerSheet, index: Int) -> some View {
+    private func pickerSheet(_ sheet: PickerSheet, rule: Binding<RoutingRule>) -> some View {
         switch sheet {
         case .app:
             AppPickerView { processName, type in
-                appState.tunnelConfig.rules[index].value = processName
-                appState.tunnelConfig.rules[index].type = type
+                rule.wrappedValue.value = processName
+                rule.wrappedValue.type = type
             }
         case .domain:
             DomainInputView { domain, type in
-                appState.tunnelConfig.rules[index].value = domain
-                appState.tunnelConfig.rules[index].type = type
+                rule.wrappedValue.value = domain
+                rule.wrappedValue.type = type
             }
         case .geoSite:
             GeoSiteBrowserView { category in
-                appState.tunnelConfig.rules[index].value = category
-                appState.tunnelConfig.rules[index].type = .geosite
+                rule.wrappedValue.value = category
+                rule.wrappedValue.type = .geosite
             }
         case .geoIP:
             GeoIPBrowserView { country in
-                appState.tunnelConfig.rules[index].value = country
-                appState.tunnelConfig.rules[index].type = .geoip
+                rule.wrappedValue.value = country
+                rule.wrappedValue.type = .geoip
             }
         case .ipRange:
             IPRangeInputView { cidr in
-                appState.tunnelConfig.rules[index].value = cidr
-                appState.tunnelConfig.rules[index].type = .ipCidr
+                rule.wrappedValue.value = cidr
+                rule.wrappedValue.type = .ipCidr
             }
         }
     }

@@ -5,11 +5,16 @@
 
 import SwiftUI
 
+enum RuleListSelection: Hashable {
+    case rule(UUID)
+    case group(UUID)
+}
+
 struct RulesTab: View {
     @Environment(AppState.self) private var appState
 
-    @State private var selectedRuleId: UUID?
-    @State private var selectedRuleIds: Set<UUID> = []
+    @State private var selection: RuleListSelection?
+    @State private var selectedItems: Set<RuleListSelection> = []
 
     var body: some View {
         @Bindable var state = appState
@@ -38,20 +43,33 @@ struct RulesTab: View {
             // Main content: list + inspector
             HStack(spacing: 0) {
                 RuleListView(
-                    selectedRuleId: $selectedRuleId,
-                    selectedRuleIds: $selectedRuleIds
+                    selection: $selection,
+                    selectedItems: $selectedItems
                 )
                 .frame(maxWidth: .infinity)
 
-                if selectedRuleId != nil {
+                if selection != nil {
                     Divider()
-                    RuleInspectorPanel(ruleId: selectedRuleId!)
+                    inspectorPanel
                         .frame(width: 260)
                 }
             }
         }
         .onChange(of: appState.tunnelConfig) { _, _ in
             appState.saveTunnelConfig()
+        }
+    }
+
+    // MARK: - Inspector Panel
+
+    @ViewBuilder private var inspectorPanel: some View {
+        switch selection {
+        case let .rule(id):
+            RuleInspectorPanel(ruleId: id)
+        case let .group(id):
+            GroupInspectorPanel(groupId: id)
+        case nil:
+            EmptyView()
         }
     }
 

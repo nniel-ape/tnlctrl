@@ -150,4 +150,41 @@ extension TunnelConfig {
     mutating func moveRulesToGroup(_ groupId: UUID?, ids: Set<UUID>) {
         updateRules(where: { ids.contains($0.id) }, mutation: { $0.groupId = groupId })
     }
+
+    /// Whether all rules in a group are enabled
+    func allRulesEnabled(in groupId: UUID) -> Bool {
+        let groupRules = rules(in: groupId)
+        return !groupRules.isEmpty && groupRules.allSatisfy(\.isEnabled)
+    }
+
+    /// Set outbound for all rules in a group
+    mutating func setGroupOutbound(_ groupId: UUID, outbound: RuleOutbound) {
+        let ids = Set(rules(in: groupId).map(\.id))
+        setOutbound(outbound, for: ids)
+    }
+
+    /// Enable or disable all rules in a group
+    mutating func setGroupEnabled(_ groupId: UUID, enabled: Bool) {
+        let ids = Set(rules(in: groupId).map(\.id))
+        if enabled {
+            enableRules(ids)
+        } else {
+            disableRules(ids)
+        }
+    }
+
+    /// Toggle a group's expanded state
+    mutating func toggleGroupExpanded(_ groupId: UUID) {
+        if let index = groups.firstIndex(where: { $0.id == groupId }) {
+            groups[index].isExpanded.toggle()
+        }
+    }
+
+    /// Delete a group, ungrouping its rules first
+    mutating func deleteGroup(_ groupId: UUID) {
+        for i in 0 ..< rules.count where rules[i].groupId == groupId {
+            rules[i].groupId = nil
+        }
+        groups.removeAll { $0.id == groupId }
+    }
 }
