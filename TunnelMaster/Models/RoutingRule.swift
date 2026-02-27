@@ -166,6 +166,19 @@ enum RuleType: String, Codable, CaseIterable, Identifiable, Sendable {
             return "list.bullet.rectangle"
         }
     }
+
+    var shortName: String {
+        switch self {
+        case .processName: "App"
+        case .processPath: "Path"
+        case .domain: "Domain"
+        case .domainSuffix: "Suffix"
+        case .domainKeyword: "Keyword"
+        case .ipCidr: "IP"
+        case .geoip: "GeoIP"
+        case .geosite: "GeoSite"
+        }
+    }
 }
 
 enum RuleCategory: String, CaseIterable, Identifiable, Sendable {

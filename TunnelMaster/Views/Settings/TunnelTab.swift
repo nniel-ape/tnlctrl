@@ -49,31 +49,6 @@ struct TunnelTab: View {
                 Label("Outbound Service", systemImage: "arrow.up.forward.app")
             }
 
-            // MARK: Routing Rules
-
-            if appState.tunnelConfig.mode == .split {
-                Section {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Picker("Unmatched traffic", selection: $state.tunnelConfig.finalOutbound) {
-                            ForEach(RuleOutbound.allCases) { outbound in
-                                Label(outbound.displayName, systemImage: outbound.systemImage)
-                                    .tag(outbound)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        Text("Traffic not matching any rule will go to: \(appState.tunnelConfig.finalOutbound.displayName)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    RuleListView()
-                        .frame(minHeight: 350)
-                } header: {
-                    Label("Routing Rules", systemImage: "arrow.triangle.branch")
-                }
-            }
-
             // MARK: Validation
 
             ValidationDisplayView(result: validationResult)

@@ -2,7 +2,7 @@
 //  RuleBuilderSheet.swift
 //  TunnelMaster
 //
-//  Single-page rule builder with native Form layout.
+//  Streamlined rule builder for adding new rules. Editing happens in the inspector.
 //
 
 import SwiftUI
@@ -11,14 +11,13 @@ struct RuleBuilderSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
 
-    private let existingRule: RoutingRule?
+    private let initialCategory: RuleCategory
+    private let onCreated: ((UUID) -> Void)?
 
     @State private var selectedCategory: RuleCategory
     @State private var selectedRuleType: RuleType
-    @State private var ruleValue: String
-    @State private var outbound: RuleOutbound
-    @State private var note: String
-    @State private var selectedGroupId: UUID?
+    @State private var ruleValue = ""
+    @State private var outbound: RuleOutbound = .proxy
     @State private var activeSheet: PickerSheet?
 
     enum PickerSheet: Identifiable {
@@ -33,25 +32,11 @@ struct RuleBuilderSheet: View {
         }
     }
 
-    init(category: RuleCategory? = nil, existingRule: RoutingRule? = nil) {
-        self.existingRule = existingRule
-
-        if let rule = existingRule {
-            _selectedCategory = State(initialValue: rule.type.category)
-            _selectedRuleType = State(initialValue: rule.type)
-            _ruleValue = State(initialValue: rule.value)
-            _outbound = State(initialValue: rule.outbound)
-            _note = State(initialValue: rule.note ?? "")
-            _selectedGroupId = State(initialValue: rule.groupId)
-        } else {
-            let cat = category ?? .domain
-            _selectedCategory = State(initialValue: cat)
-            _selectedRuleType = State(initialValue: cat.ruleTypes[0])
-            _ruleValue = State(initialValue: "")
-            _outbound = State(initialValue: .proxy)
-            _note = State(initialValue: "")
-            _selectedGroupId = State(initialValue: nil)
-        }
+    init(category: RuleCategory = .domain, onCreated: ((UUID) -> Void)? = nil) {
+        self.initialCategory = category
+        self.onCreated = onCreated
+        _selectedCategory = State(initialValue: category)
+        _selectedRuleType = State(initialValue: category.ruleTypes[0])
     }
 
     var body: some View {
@@ -110,22 +95,6 @@ struct RuleBuilderSheet: View {
                     .pickerStyle(.segmented)
                 }
 
-                // Organization
-                Section("Organization") {
-                    Picker("Group", selection: $selectedGroupId) {
-                        Text("Ungrouped").tag(UUID?.none)
-                        if !appState.tunnelConfig.groups.isEmpty {
-                            Divider()
-                            ForEach(appState.tunnelConfig.sortedGroups) { group in
-                                Label(group.name, systemImage: group.icon)
-                                    .tag(UUID?.some(group.id))
-                            }
-                        }
-                    }
-
-                    TextField("Note (optional)", text: $note)
-                }
-
                 // Conflict warning
                 if let conflict = potentialConflict {
                     Section {
@@ -145,18 +114,18 @@ struct RuleBuilderSheet: View {
                 }
             }
             .formStyle(.grouped)
-            .navigationTitle(existingRule == nil ? "Add Rule" : "Edit Rule")
+            .navigationTitle("Add Rule")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
+                    Button("Add") { save() }
                         .disabled(ruleValue.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }
-        .frame(width: 420, height: 420)
+        .frame(width: 400, height: 340)
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .app:
@@ -235,38 +204,25 @@ struct RuleBuilderSheet: View {
             isEnabled: true
         )
 
-        let rulesToCheck = appState.tunnelConfig.rules.filter {
-            $0.id != existingRule?.id
-        }
-
-        return RuleConflictDetector.detectConflictForNewRule(tempRule, in: rulesToCheck)
+        return RuleConflictDetector.detectConflictForNewRule(tempRule, in: appState.tunnelConfig.rules)
     }
 
     // MARK: - Save
 
     private func save() {
+        let newId = UUID()
         let rule = RoutingRule(
-            id: existingRule?.id ?? UUID(),
+            id: newId,
             type: selectedRuleType,
             value: ruleValue.trimmingCharacters(in: .whitespaces),
             outbound: outbound,
-            isEnabled: existingRule?.isEnabled ?? true,
-            note: note.isEmpty ? nil : note,
-            groupId: selectedGroupId,
-            createdAt: existingRule?.createdAt ?? Date(),
+            isEnabled: true,
+            createdAt: Date(),
             lastModified: Date()
         )
 
-        if let existing = existingRule {
-            if let index = appState.tunnelConfig.rules.firstIndex(where: { $0.id == existing.id }) {
-                appState.tunnelConfig.rules[index] = rule
-            } else {
-                appState.tunnelConfig.rules.append(rule)
-            }
-        } else {
-            appState.tunnelConfig.rules.append(rule)
-        }
-
+        appState.tunnelConfig.rules.append(rule)
+        onCreated?(newId)
         dismiss()
     }
 }

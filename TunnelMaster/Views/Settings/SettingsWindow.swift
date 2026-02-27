@@ -25,6 +25,11 @@ struct SettingsWindow: View {
                     Label("Tunnel", systemImage: "arrow.triangle.branch")
                 }
 
+            RulesTab()
+                .tabItem {
+                    Label("Rules", systemImage: "list.bullet.rectangle")
+                }
+
             GeneralTab()
                 .tabItem {
                     Label("General", systemImage: "gear")
