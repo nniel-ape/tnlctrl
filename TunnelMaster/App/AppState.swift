@@ -28,6 +28,7 @@ final class AppState {
     var settings: AppSettings = .default
     var presets: [TunnelPreset] = []
     var activePresetId: UUID?
+    private var hasLoaded = false
 
     // MARK: - Computed
 
@@ -105,6 +106,8 @@ final class AppState {
     }
 
     func load() async {
+        guard !hasLoaded else { return }
+        hasLoaded = true
         do {
             services = try await ServiceStore.shared.loadServices()
             servers = try await ServiceStore.shared.loadServers()

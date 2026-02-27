@@ -80,7 +80,7 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
         self.port = try container.decode(Int.self, forKey: .port)
         self.credentialRef = try container.decodeIfPresent(String.self, forKey: .credentialRef)
         self.settings = try container.decodeIfPresent([String: AnyCodableValue].self, forKey: .settings) ?? [:]
-        self.latency = try container.decodeIfPresent(Int.self, forKey: .latency)
+        self.latency = nil // Not persisted — measured at runtime
 
         // Migration: new fields with defaults
         self.source = try container.decodeIfPresent(ServiceSource.self, forKey: .source) ?? .imported
@@ -97,7 +97,7 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
         try container.encode(port, forKey: .port)
         try container.encodeIfPresent(credentialRef, forKey: .credentialRef)
         try container.encode(settings, forKey: .settings)
-        try container.encodeIfPresent(latency, forKey: .latency)
+        // latency is ephemeral runtime state — not persisted
         try container.encode(source, forKey: .source)
         try container.encodeIfPresent(serverId, forKey: .serverId)
         try container.encode(createdAt, forKey: .createdAt)

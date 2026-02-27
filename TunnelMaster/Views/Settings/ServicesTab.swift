@@ -281,6 +281,7 @@ struct ServicesTab: View {
         pingAllTask?.cancel()
         pingAllTask = Task {
             await latencyTester.testAll(services: appState.services) { id, result in
+                guard !Task.isCancelled else { return }
                 if let index = appState.services.firstIndex(where: { $0.id == id }) {
                     switch result {
                     case let .success(ms):
@@ -290,6 +291,7 @@ struct ServicesTab: View {
                     }
                 }
             }
+            guard !Task.isCancelled else { return }
             appState.saveServices()
         }
     }
