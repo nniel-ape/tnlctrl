@@ -20,4 +20,5 @@ enum RuleDragItem: Codable, Transferable, Equatable {
 
 extension UTType {
     static let ruleDragItem = UTType(exportedAs: "nniel.TunnelMaster.ruleDragItem")
+    static let tunnelMasterConfig = UTType(exportedAs: "nniel.TunnelMaster.configBundle")
 }

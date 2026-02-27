@@ -23,6 +23,10 @@ actor MockKeychainManager: KeychainManaging {
         storage.removeValue(forKey: key)
     }
 
+    func deleteAll() throws {
+        storage.removeAll()
+    }
+
     func exists(_ key: String) -> Bool {
         storage[key] != nil
     }

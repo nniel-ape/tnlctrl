@@ -15,6 +15,7 @@ protocol KeychainManaging: Actor, Sendable {
     func save(_ value: String, for key: String) throws
     func get(_ key: String) throws -> String?
     func delete(_ key: String) throws
+    func deleteAll() throws
     func exists(_ key: String) -> Bool
     func generateCredentialRef() -> String
 }

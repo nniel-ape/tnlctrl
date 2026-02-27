@@ -16,6 +16,23 @@
 			<key>UTTypeTagSpecification</key>
 			<dict/>
 		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>nniel.TunnelMaster.configBundle</string>
+			<key>UTTypeDescription</key>
+			<string>TunnelMaster Configuration Bundle</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>tunnelmaster</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 </dict>
 </plist>

@@ -20,6 +20,11 @@ struct GeneralTab: View {
     @State private var installError: String?
     @State private var isInstalling = false
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var isExporting = false
+    @State private var isImporting = false
+    @State private var importExportError: String?
+    @State private var pendingImportBundle: ConfigBundle?
+    @State private var showImportConfirmation = false
 
     var body: some View {
         Form {
@@ -37,6 +42,8 @@ struct GeneralTab: View {
                         }
                     }
             }
+
+            configurationSection
 
             Section("Privileged Helper") {
                 HStack {
@@ -233,10 +240,119 @@ struct GeneralTab: View {
         }
     }
 
+    private var configurationSection: some View {
+        Section("Configuration") {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Export")
+                        .font(.headline)
+                    Text("Save all services, servers, rules, presets, and credentials to a file")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button("Export...") {
+                    Task { await performExport() }
+                }
+                .disabled(isExporting)
+            }
+
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Import")
+                        .font(.headline)
+                    Text("Replace all configuration from a previously exported file")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button("Import...") {
+                    performImportRead()
+                }
+                .disabled(isImporting)
+            }
+
+            if let error = importExportError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .confirmationDialog(
+            "Import Configuration",
+            isPresented: $showImportConfirmation,
+            presenting: pendingImportBundle
+        ) { bundle in
+            Button("Import", role: .destructive) {
+                Task { await performImportApply(bundle) }
+            }
+        } message: { bundle in
+            Text(importConfirmationMessage(for: bundle))
+        }
+    }
+
     private var singBoxBundled: Bool {
         let singBoxURL = Bundle.main.bundleURL
             .appendingPathComponent("Contents/Library/LaunchDaemons/sing-box")
         return FileManager.default.fileExists(atPath: singBoxURL.path)
+    }
+
+    // MARK: - Config Export/Import
+
+    private func importConfirmationMessage(for bundle: ConfigBundle) -> String {
+        """
+        This will replace your entire configuration with:
+        \(bundle.services.count) services, \(bundle.servers.count) servers, \
+        \(bundle.tunnelConfig.rules.count) rules, \(bundle.presets.count) presets
+
+        Exported \(bundle.exportedAt.formatted(date: .abbreviated, time: .shortened)) \
+        (v\(bundle.appVersion))
+
+        This action cannot be undone.
+        """
+    }
+
+    private func performExport() async {
+        isExporting = true
+        importExportError = nil
+        defer { isExporting = false }
+
+        do {
+            let manager = ConfigBundleManager(appState: appState)
+            try await manager.exportConfig()
+        } catch {
+            importExportError = error.localizedDescription
+        }
+    }
+
+    private func performImportRead() {
+        importExportError = nil
+
+        do {
+            let manager = ConfigBundleManager(appState: appState)
+            guard let bundle = try manager.readBundleFromFile() else { return }
+            pendingImportBundle = bundle
+            showImportConfirmation = true
+        } catch {
+            importExportError = error.localizedDescription
+        }
+    }
+
+    private func performImportApply(_ bundle: ConfigBundle) async {
+        isImporting = true
+        importExportError = nil
+        defer { isImporting = false }
+
+        do {
+            let manager = ConfigBundleManager(appState: appState)
+            try await manager.applyBundle(bundle)
+        } catch {
+            importExportError = error.localizedDescription
+        }
     }
 
     private func installHelper() async {
