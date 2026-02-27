@@ -188,3 +188,101 @@ extension TunnelConfig {
         groups.removeAll { $0.id == groupId }
     }
 }
+
+// MARK: - Drag & Drop Reordering
+
+extension TunnelConfig {
+    /// Move a single rule to a target group at a specific index within that group's rules.
+    /// `targetGroupId` of nil means ungrouped. `atGroupIndex` is the position within the group's rules.
+    mutating func moveRule(_ ruleId: UUID, toGroup targetGroupId: UUID?, atGroupIndex: Int) {
+        guard let sourceIndex = rules.firstIndex(where: { $0.id == ruleId }) else { return }
+
+        var rule = rules.remove(at: sourceIndex)
+        rule.groupId = targetGroupId
+
+        let flatIndex = flatInsertionIndex(forGroup: targetGroupId, atGroupIndex: atGroupIndex)
+        rules.insert(rule, at: flatIndex)
+    }
+
+    /// Move multiple rules to a target group at a specific index within that group's rules.
+    mutating func moveRules(_ ruleIds: [UUID], toGroup targetGroupId: UUID?, atGroupIndex: Int) {
+        let idSet = Set(ruleIds)
+        // Extract in array order to preserve relative ordering
+        let movingRules = rules.filter { idSet.contains($0.id) }
+        rules.removeAll { idSet.contains($0.id) }
+
+        let flatIndex = flatInsertionIndex(forGroup: targetGroupId, atGroupIndex: atGroupIndex)
+        for (offset, var rule) in movingRules.enumerated() {
+            rule.groupId = targetGroupId
+            rules.insert(rule, at: min(flatIndex + offset, rules.count))
+        }
+    }
+
+    /// Reorder a group to a new position among groups.
+    mutating func moveGroup(_ groupId: UUID, toPosition newPosition: Int) {
+        guard let index = groups.firstIndex(where: { $0.id == groupId }) else { return }
+        let group = groups.remove(at: index)
+        let clamped = min(max(newPosition, 0), groups.count)
+        groups.insert(group, at: clamped)
+        renormalizeGroupPositions()
+    }
+
+    // MARK: - Private Helpers
+
+    /// Map a group-local index to a flat-array insertion index.
+    private func flatInsertionIndex(forGroup groupId: UUID?, atGroupIndex: Int) -> Int {
+        let groupRules: [RoutingRule] = if let groupId {
+            rules.filter { $0.groupId == groupId }
+        } else {
+            rules.filter { $0.groupId == nil }
+        }
+
+        if atGroupIndex >= groupRules.count {
+            // Append after last rule in this group
+            if let lastRule = groupRules.last, let lastIdx = rules.firstIndex(where: { $0.id == lastRule.id }) {
+                return lastIdx + 1
+            }
+            // Empty group — find where this group's rules should go based on group ordering
+            return insertionPointForEmptyGroup(groupId)
+        }
+
+        // Insert before the rule at atGroupIndex
+        let targetRule = groupRules[atGroupIndex]
+        return rules.firstIndex(where: { $0.id == targetRule.id }) ?? rules.count
+    }
+
+    /// For an empty group, determine the flat-array index where its rules should be inserted.
+    private func insertionPointForEmptyGroup(_ groupId: UUID?) -> Int {
+        guard let groupId else {
+            // Ungrouped goes at end
+            return rules.count
+        }
+
+        let sorted = sortedGroups
+        guard let groupPosition = sorted.firstIndex(where: { $0.id == groupId }) else {
+            return rules.count
+        }
+
+        // Look for the first rule belonging to a subsequent group
+        for laterGroup in sorted[(groupPosition + 1)...] {
+            if let firstRule = rules.first(where: { $0.groupId == laterGroup.id }),
+               let idx = rules.firstIndex(where: { $0.id == firstRule.id }) {
+                return idx
+            }
+        }
+
+        // No subsequent group has rules — insert before ungrouped rules
+        if let firstUngrouped = rules.firstIndex(where: { $0.groupId == nil }) {
+            return firstUngrouped
+        }
+
+        return rules.count
+    }
+
+    /// Renormalize group positions to 0, 1, 2, ...
+    private mutating func renormalizeGroupPositions() {
+        for i in 0 ..< groups.count {
+            groups[i].position = i
+        }
+    }
+}

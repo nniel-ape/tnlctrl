@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct RuleListView: View {
     @Environment(AppState.self) private var appState
@@ -16,6 +17,8 @@ struct RuleListView: View {
     @State private var searchText = ""
     @State private var categoryFilter: RuleCategory?
     @State private var activeSheet: SheetDestination?
+    @State private var draggedRuleId: UUID?
+    @State private var draggedGroupId: UUID?
 
     enum SheetDestination: Identifiable {
         case ruleBuilder(category: RuleCategory)
@@ -196,6 +199,11 @@ struct RuleListView: View {
 
     // MARK: - Rules List
 
+    /// Whether drag-and-drop is enabled (disabled while filtering since visible order != actual order)
+    private var isDragEnabled: Bool {
+        !isFiltering
+    }
+
     private var rulesList: some View {
         List(selection: $selectedItems) {
             // Grouped rules — each group as a header + its rules
@@ -204,42 +212,30 @@ struct RuleListView: View {
 
                 // Hide group header when filtering and no rules match
                 if !groupRules.isEmpty || !isFiltering {
-                    GroupHeaderRow(
-                        group: group,
-                        ruleCount: appState.tunnelConfig.rules(in: group.id).count,
-                        isEnabled: appState.tunnelConfig.allRulesEnabled(in: group.id),
-                        onToggleEnabled: {
-                            let enabled = appState.tunnelConfig.allRulesEnabled(in: group.id)
-                            appState.tunnelConfig.setGroupEnabled(group.id, enabled: !enabled)
-                        },
-                        onSetOutbound: { outbound in
-                            appState.tunnelConfig.setGroupOutbound(group.id, outbound: outbound)
-                        },
-                        onToggleExpanded: { appState.tunnelConfig.toggleGroupExpanded(group.id) },
-                        onDelete: {
-                            if case .group(group.id) = selection { selection = nil }
-                            appState.tunnelConfig.deleteGroup(group.id)
-                        }
-                    )
-                    .tag(RuleListSelection.group(group.id))
+                    groupHeaderWithDrag(group)
 
                     if group.isExpanded {
                         ForEach(groupRules, id: \.id) { rule in
-                            ruleRow(rule)
+                            ruleRowWithDrag(rule)
                                 .padding(.leading, 20)
                                 .tag(RuleListSelection.rule(rule.id))
+                        }
+                        .onInsert(of: [.ruleDragItem]) { index, _ in
+                            guard isDragEnabled else { return }
+                            handleInsert(at: index, inGroup: group.id)
                         }
                     }
                 }
             }
 
-            // Ungrouped rules at the bottom
-            let ungrouped = filteredUngroupedRules
-            if !ungrouped.isEmpty {
-                ForEach(ungrouped, id: \.id) { rule in
-                    ruleRow(rule)
-                        .tag(RuleListSelection.rule(rule.id))
-                }
+            // Ungrouped rules (always present so .onInsert provides a drop target)
+            ForEach(filteredUngroupedRules, id: \.id) { rule in
+                ruleRowWithDrag(rule)
+                    .tag(RuleListSelection.rule(rule.id))
+            }
+            .onInsert(of: [.ruleDragItem]) { index, _ in
+                guard isDragEnabled else { return }
+                handleInsert(at: index, inGroup: nil)
             }
         }
         .listStyle(.inset(alternatesRowBackgrounds: true))
@@ -250,6 +246,158 @@ struct RuleListView: View {
             } else if newValue.isEmpty {
                 selection = nil
             }
+        }
+    }
+
+    // MARK: - Drag & Drop
+
+    /// Group header with drag (for reordering groups) and drop (for rules dropped onto the group)
+    @ViewBuilder
+    private func groupHeaderWithDrag(_ group: RuleGroup) -> some View {
+        let header = GroupHeaderRow(
+            group: group,
+            ruleCount: appState.tunnelConfig.rules(in: group.id).count,
+            isEnabled: appState.tunnelConfig.allRulesEnabled(in: group.id),
+            onToggleEnabled: {
+                let enabled = appState.tunnelConfig.allRulesEnabled(in: group.id)
+                appState.tunnelConfig.setGroupEnabled(group.id, enabled: !enabled)
+            },
+            onSetOutbound: { outbound in
+                appState.tunnelConfig.setGroupOutbound(group.id, outbound: outbound)
+            },
+            onToggleExpanded: { appState.tunnelConfig.toggleGroupExpanded(group.id) },
+            onDelete: {
+                if case .group(group.id) = selection { selection = nil }
+                appState.tunnelConfig.deleteGroup(group.id)
+            }
+        )
+        .tag(RuleListSelection.group(group.id))
+
+        if isDragEnabled {
+            header
+                .onDrag {
+                    draggedGroupId = group.id
+                    return makeDragProvider(.group(group.id))
+                } preview: {
+                    dragPreview(for: .group(group.id))
+                }
+                .dropDestination(for: RuleDragItem.self) { items, _ in
+                    handleDropOnGroupHeader(items, groupId: group.id)
+                }
+        } else {
+            header
+        }
+    }
+
+    /// Rule row with .onDrag for initiating drags (insertion handled by .onInsert on ForEach)
+    @ViewBuilder
+    private func ruleRowWithDrag(_ rule: RoutingRule) -> some View {
+        let row = ruleRow(rule)
+        if isDragEnabled {
+            row.onDrag {
+                draggedRuleId = rule.id
+                return makeDragProvider(.rule(rule.id))
+            } preview: {
+                dragPreview(for: .rule(rule.id))
+            }
+        } else {
+            row
+        }
+    }
+
+    /// Create an NSItemProvider with encoded RuleDragItem data
+    private func makeDragProvider(_ item: RuleDragItem) -> NSItemProvider {
+        let provider = NSItemProvider()
+        if let data = try? JSONEncoder().encode(item) {
+            provider.registerDataRepresentation(
+                forTypeIdentifier: UTType.ruleDragItem.identifier,
+                visibility: .ownProcess
+            ) { completion in
+                completion(data, nil)
+                return nil
+            }
+        }
+        return provider
+    }
+
+    /// Custom drag preview
+    @ViewBuilder
+    private func dragPreview(for item: RuleDragItem) -> some View {
+        switch item {
+        case let .rule(id):
+            let count = ruleIdsForDrag(id).count
+            if count > 1 {
+                Label("\(count) rules", systemImage: "list.bullet")
+                    .font(.callout.weight(.medium))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.regularMaterial, in: Capsule())
+            } else if let rule = appState.tunnelConfig.rules.first(where: { $0.id == id }) {
+                Text(rule.value)
+                    .font(.callout.monospaced())
+                    .lineLimit(1)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.regularMaterial, in: Capsule())
+            }
+        case let .group(id):
+            if let group = appState.tunnelConfig.groups.first(where: { $0.id == id }) {
+                Label(group.name, systemImage: group.icon)
+                    .font(.callout.weight(.medium))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.regularMaterial, in: Capsule())
+            }
+        }
+    }
+
+    // MARK: - Drop Handlers
+
+    /// Returns the rule IDs to move when dragging a rule (supports multi-selection)
+    private func ruleIdsForDrag(_ draggedRuleId: UUID) -> [UUID] {
+        if selectedRuleIds.contains(draggedRuleId), selectedRuleIds.count > 1 {
+            // Move all selected rules, preserving their array order
+            return appState.tunnelConfig.rules
+                .filter { selectedRuleIds.contains($0.id) }
+                .map(\.id)
+        }
+        return [draggedRuleId]
+    }
+
+    /// Handle .onInsert — rule dragged between rows (produces native blue insertion line)
+    private func handleInsert(at index: Int, inGroup groupId: UUID?) {
+        if let ruleId = draggedRuleId {
+            let ids = ruleIdsForDrag(ruleId)
+            appState.tunnelConfig.moveRules(ids, toGroup: groupId, atGroupIndex: index)
+            draggedRuleId = nil
+        } else if let groupId2 = draggedGroupId, groupId == nil {
+            // Group dragged to ungrouped area → move group to end
+            appState.tunnelConfig.moveGroup(groupId2, toPosition: appState.tunnelConfig.groups.count)
+            draggedGroupId = nil
+        }
+    }
+
+    /// Drop rule(s) onto a group header — appends to the group
+    @discardableResult
+    private func handleDropOnGroupHeader(_ items: [RuleDragItem], groupId: UUID) -> Bool {
+        guard let item = items.first else { return false }
+        switch item {
+        case let .rule(ruleId):
+            let ids = ruleIdsForDrag(ruleId)
+            let endIndex = appState.tunnelConfig.rules(in: groupId).count
+            appState.tunnelConfig.moveRules(ids, toGroup: groupId, atGroupIndex: endIndex)
+            // Auto-expand the group when dropping into it
+            if let gi = appState.tunnelConfig.groups.firstIndex(where: { $0.id == groupId }),
+               !appState.tunnelConfig.groups[gi].isExpanded {
+                appState.tunnelConfig.groups[gi].isExpanded = true
+            }
+            return true
+        case let .group(draggedGroupId):
+            guard draggedGroupId != groupId else { return false }
+            if let targetIdx = appState.tunnelConfig.sortedGroups.firstIndex(where: { $0.id == groupId }) {
+                appState.tunnelConfig.moveGroup(draggedGroupId, toPosition: targetIdx)
+            }
+            return true
         }
     }
 
@@ -318,14 +466,16 @@ struct RuleListView: View {
         .padding(.vertical, 5)
         .background(.bar)
     }
+}
 
-    // MARK: - Filtering
+// MARK: - Filtering & Actions
 
-    private var isFiltering: Bool {
+extension RuleListView {
+    var isFiltering: Bool {
         !searchText.isEmpty || categoryFilter != nil
     }
 
-    private func matchesFilter(_ rule: RoutingRule) -> Bool {
+    func matchesFilter(_ rule: RoutingRule) -> Bool {
         let matchesSearch = searchText.isEmpty ||
             rule.value.localizedCaseInsensitiveContains(searchText) ||
             rule.type.displayName.localizedCaseInsensitiveContains(searchText) ||
@@ -336,25 +486,23 @@ struct RuleListView: View {
         return matchesSearch && matchesCategory
     }
 
-    private func filteredRules(in groupId: UUID) -> [RoutingRule] {
+    func filteredRules(in groupId: UUID) -> [RoutingRule] {
         appState.tunnelConfig.rules(in: groupId).filter { matchesFilter($0) }
     }
 
-    private var filteredUngroupedRules: [RoutingRule] {
+    var filteredUngroupedRules: [RoutingRule] {
         appState.tunnelConfig.ungroupedRules.filter { matchesFilter($0) }
     }
 
     /// Total visible items for empty state detection
-    private var visibleItemCount: Int {
+    var visibleItemCount: Int {
         let groupedCount = appState.tunnelConfig.sortedGroups.reduce(0) { sum, group in
             sum + filteredRules(in: group.id).count
         }
         return groupedCount + filteredUngroupedRules.count
     }
 
-    // MARK: - Actions
-
-    private func deleteRule(_ rule: RoutingRule) {
+    func deleteRule(_ rule: RoutingRule) {
         appState.tunnelConfig.rules.removeAll { $0.id == rule.id }
         selectedItems.remove(.rule(rule.id))
         if case .rule(rule.id) = selection {
@@ -362,20 +510,20 @@ struct RuleListView: View {
         }
     }
 
-    private func toggleRuleEnabled(_ id: UUID) {
+    func toggleRuleEnabled(_ id: UUID) {
         if let i = appState.tunnelConfig.rules.firstIndex(where: { $0.id == id }) {
             appState.tunnelConfig.rules[i].isEnabled.toggle()
         }
     }
 
-    private func setOutbound(_ outbound: RuleOutbound, for id: UUID) {
+    func setOutbound(_ outbound: RuleOutbound, for id: UUID) {
         if let i = appState.tunnelConfig.rules.firstIndex(where: { $0.id == id }) {
             appState.tunnelConfig.rules[i].outbound = outbound
             appState.tunnelConfig.rules[i].lastModified = Date()
         }
     }
 
-    private func createGroup() {
+    func createGroup() {
         let group = RuleGroup(
             name: "New Group",
             position: appState.tunnelConfig.groups.count
@@ -385,7 +533,7 @@ struct RuleListView: View {
         selectedItems = [.group(group.id)]
     }
 
-    private func deleteSelection() {
+    func deleteSelection() {
         // Multi-select: delete all selected items
         if selectedItems.count > 1 {
             let ruleIds = Set(selectedItems.compactMap { item -> UUID? in
