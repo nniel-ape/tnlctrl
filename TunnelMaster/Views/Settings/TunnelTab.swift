@@ -65,7 +65,7 @@ struct TunnelTab: View {
         }
         .formStyle(.grouped)
         .onChange(of: appState.tunnelConfig) { _, newValue in
-            appState.saveTunnelConfig()
+            appState.scheduleTunnelConfigSave()
             validationResult = TunnelConfigValidator.validate(config: newValue, services: appState.services)
         }
         .onChange(of: appState.services) { _, _ in

@@ -91,6 +91,18 @@ final class AppState {
 
     // MARK: - Persistence
 
+    private var saveConfigTask: Task<Void, Never>?
+
+    /// Debounced save — coalesces rapid tunnelConfig mutations into a single disk write after 500ms of inactivity.
+    func scheduleTunnelConfigSave() {
+        saveConfigTask?.cancel()
+        saveConfigTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            saveTunnelConfig()
+        }
+    }
+
     func load() async {
         do {
             services = try await ServiceStore.shared.loadServices()

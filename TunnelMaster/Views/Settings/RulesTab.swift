@@ -56,7 +56,7 @@ struct RulesTab: View {
             }
         }
         .onChange(of: appState.tunnelConfig) { _, _ in
-            appState.saveTunnelConfig()
+            appState.scheduleTunnelConfigSave()
         }
     }
 

@@ -25,20 +25,11 @@ struct RuleInspectorPanel: View {
     }
 
     private func ruleBinding() -> Binding<RoutingRule>? {
-        guard appState.tunnelConfig.rules.contains(where: { $0.id == ruleId }) else {
+        guard let index = appState.tunnelConfig.rules.firstIndex(where: { $0.id == ruleId }) else {
             return nil
         }
-        return Binding(
-            get: {
-                appState.tunnelConfig.rules.first(where: { $0.id == ruleId })
-                    ?? RoutingRule(type: .domain, value: "", outbound: .proxy)
-            },
-            set: { newValue in
-                if let i = appState.tunnelConfig.rules.firstIndex(where: { $0.id == ruleId }) {
-                    appState.tunnelConfig.rules[i] = newValue
-                }
-            }
-        )
+        @Bindable var state = appState
+        return $state.tunnelConfig.rules[index]
     }
 
     var body: some View {

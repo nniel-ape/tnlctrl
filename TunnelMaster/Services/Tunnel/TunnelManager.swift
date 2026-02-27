@@ -31,8 +31,8 @@ final class TunnelManager {
     private let notificationService = NotificationService.shared
 
     private var statusCheckTask: Task<Void, Never>?
-    private var consecutiveStatusFailures = 0
-    private let maxConsecutiveFailures = 3
+    @ObservationIgnored private var consecutiveStatusFailures = 0
+    @ObservationIgnored private let maxConsecutiveFailures = 3
 
     private init() {}
 

@@ -20,6 +20,15 @@ struct RuleListView: View {
     @State private var draggedRuleId: UUID?
     @State private var draggedGroupId: UUID?
 
+    // MARK: - Cached Filtered Results
+
+    @State private var cachedSortedGroups: [RuleGroup] = []
+    @State private var cachedGroupRules: [UUID: [RoutingRule]] = [:]
+    @State private var cachedGroupRuleCounts: [UUID: Int] = [:]
+    @State private var cachedGroupAllEnabled: [UUID: Bool] = [:]
+    @State private var cachedUngroupedRules: [RoutingRule] = []
+    @State private var cachedEnabledCount = 0
+
     enum SheetDestination: Identifiable {
         case ruleBuilder(category: RuleCategory)
 
@@ -43,7 +52,7 @@ struct RuleListView: View {
                     systemImage: "list.bullet.rectangle",
                     description: Text("Add rules to control routing")
                 )
-            } else if visibleItemCount == 0, !searchText.isEmpty || categoryFilter != nil {
+            } else if cachedVisibleItemCount == 0, !searchText.isEmpty || categoryFilter != nil {
                 ContentUnavailableView(
                     "No Results",
                     systemImage: "magnifyingglass",
@@ -65,6 +74,38 @@ struct RuleListView: View {
                 }
             }
         }
+        .onAppear { recomputeFilteredRules() }
+        .onChange(of: searchText) { _, _ in recomputeFilteredRules() }
+        .onChange(of: categoryFilter) { _, _ in recomputeFilteredRules() }
+        .onChange(of: appState.tunnelConfig.rules) { _, _ in recomputeFilteredRules() }
+        .onChange(of: appState.tunnelConfig.groups) { _, _ in recomputeFilteredRules() }
+    }
+
+    // MARK: - Cache Recomputation
+
+    private func recomputeFilteredRules() {
+        let sorted = appState.tunnelConfig.groups.sorted { $0.position < $1.position }
+        cachedSortedGroups = sorted
+
+        var groupRules: [UUID: [RoutingRule]] = [:]
+        var groupCounts: [UUID: Int] = [:]
+        var groupEnabled: [UUID: Bool] = [:]
+
+        for group in sorted {
+            let allInGroup = appState.tunnelConfig.rules.filter { $0.groupId == group.id }
+            let filtered = allInGroup.filter { matchesFilter($0) }
+            groupRules[group.id] = filtered
+            groupCounts[group.id] = allInGroup.count
+            groupEnabled[group.id] = !allInGroup.isEmpty && allInGroup.allSatisfy(\.isEnabled)
+        }
+
+        cachedGroupRules = groupRules
+        cachedGroupRuleCounts = groupCounts
+        cachedGroupAllEnabled = groupEnabled
+        cachedUngroupedRules = appState.tunnelConfig.rules
+            .filter { $0.groupId == nil }
+            .filter { matchesFilter($0) }
+        cachedEnabledCount = appState.tunnelConfig.rules.filter(\.isEnabled).count
     }
 
     // MARK: - Toolbar
@@ -172,9 +213,9 @@ struct RuleListView: View {
                 Button("Ungrouped") {
                     appState.tunnelConfig.moveRulesToGroup(nil, ids: ids)
                 }
-                if !appState.tunnelConfig.groups.isEmpty {
+                if !cachedSortedGroups.isEmpty {
                     Divider()
-                    ForEach(appState.tunnelConfig.sortedGroups) { group in
+                    ForEach(cachedSortedGroups) { group in
                         Button {
                             appState.tunnelConfig.moveRulesToGroup(group.id, ids: ids)
                         } label: {
@@ -207,8 +248,8 @@ struct RuleListView: View {
     private var rulesList: some View {
         List(selection: $selectedItems) {
             // Grouped rules — each group as a header + its rules
-            ForEach(appState.tunnelConfig.sortedGroups) { group in
-                let groupRules = filteredRules(in: group.id)
+            ForEach(cachedSortedGroups) { group in
+                let groupRules = cachedGroupRules[group.id] ?? []
 
                 // Hide group header when filtering and no rules match
                 if !groupRules.isEmpty || !isFiltering {
@@ -229,7 +270,7 @@ struct RuleListView: View {
             }
 
             // Ungrouped rules (always present so .onInsert provides a drop target)
-            ForEach(filteredUngroupedRules, id: \.id) { rule in
+            ForEach(cachedUngroupedRules, id: \.id) { rule in
                 ruleRowWithDrag(rule)
                     .tag(RuleListSelection.rule(rule.id))
             }
@@ -256,10 +297,10 @@ struct RuleListView: View {
     private func groupHeaderWithDrag(_ group: RuleGroup) -> some View {
         let header = GroupHeaderRow(
             group: group,
-            ruleCount: appState.tunnelConfig.rules(in: group.id).count,
-            isEnabled: appState.tunnelConfig.allRulesEnabled(in: group.id),
+            ruleCount: cachedGroupRuleCounts[group.id] ?? 0,
+            isEnabled: cachedGroupAllEnabled[group.id] ?? false,
             onToggleEnabled: {
-                let enabled = appState.tunnelConfig.allRulesEnabled(in: group.id)
+                let enabled = cachedGroupAllEnabled[group.id] ?? false
                 appState.tunnelConfig.setGroupEnabled(group.id, enabled: !enabled)
             },
             onSetOutbound: { outbound in
@@ -455,9 +496,8 @@ struct RuleListView: View {
             Spacer()
 
             // Status
-            let enabledCount = appState.tunnelConfig.rules.filter(\.isEnabled).count
             let totalCount = appState.tunnelConfig.rules.count
-            Text("\(totalCount) rule\(totalCount == 1 ? "" : "s") (\(enabledCount) on)")
+            Text("\(totalCount) rule\(totalCount == 1 ? "" : "s") (\(cachedEnabledCount) on)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -494,12 +534,10 @@ extension RuleListView {
         appState.tunnelConfig.ungroupedRules.filter { matchesFilter($0) }
     }
 
-    /// Total visible items for empty state detection
-    var visibleItemCount: Int {
-        let groupedCount = appState.tunnelConfig.sortedGroups.reduce(0) { sum, group in
-            sum + filteredRules(in: group.id).count
-        }
-        return groupedCount + filteredUngroupedRules.count
+    /// Total visible items for empty state detection (uses cached values)
+    var cachedVisibleItemCount: Int {
+        let groupedCount = cachedGroupRules.values.reduce(0) { $0 + $1.count }
+        return groupedCount + cachedUngroupedRules.count
     }
 
     func deleteRule(_ rule: RoutingRule) {

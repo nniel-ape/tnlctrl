@@ -13,6 +13,8 @@ struct ServicesTab: View {
     @State private var serverForNewService: Server?
     @State private var pingAllTask: Task<Void, Never>?
     @State private var servicesToDelete: [Service] = []
+    @State private var createdServices: [Service] = []
+    @State private var importedServices: [Service] = []
     private let latencyTester = LatencyTester.shared
 
     var body: some View {
@@ -41,6 +43,8 @@ struct ServicesTab: View {
             )
             .environment(appState)
         }
+        .onAppear { recomputeServiceSections() }
+        .onChange(of: appState.services) { _, _ in recomputeServiceSections() }
         .confirmationDialog(
             "Delete Service\(servicesToDelete.count > 1 ? "s" : "")",
             isPresented: Binding(
@@ -156,14 +160,14 @@ struct ServicesTab: View {
     private var servicesList: some View {
         List(selection: $selectedServiceId) {
             // Created Services Section (only show if not empty)
-            if !appState.createdServices.isEmpty {
+            if !createdServices.isEmpty {
                 sectionHeader(
                     title: "Created",
-                    count: appState.createdServices.count,
+                    count: createdServices.count,
                     systemImage: "server.rack"
                 )
 
-                ForEach(appState.createdServices) { service in
+                ForEach(createdServices) { service in
                     ServiceRow(
                         service: service,
                         isPinging: latencyTester.pingingServiceIds.contains(service.id)
@@ -175,14 +179,14 @@ struct ServicesTab: View {
             }
 
             // Imported Services Section (only show if not empty)
-            if !appState.importedServices.isEmpty {
+            if !importedServices.isEmpty {
                 sectionHeader(
                     title: "Imported",
-                    count: appState.importedServices.count,
+                    count: importedServices.count,
                     systemImage: "arrow.down.doc"
                 )
 
-                ForEach(appState.importedServices) { service in
+                ForEach(importedServices) { service in
                     ServiceRow(
                         service: service,
                         isPinging: latencyTester.pingingServiceIds.contains(service.id)
@@ -290,24 +294,31 @@ struct ServicesTab: View {
         }
     }
 
+    // MARK: - Service Section Cache
+
+    private func recomputeServiceSections() {
+        createdServices = appState.services.filter { $0.source == .created }
+        importedServices = appState.services.filter { $0.source == .imported }
+    }
+
     // MARK: - Move / Delete Actions
 
     private func moveCreatedServices(from source: IndexSet, to destination: Int) {
-        var created = appState.createdServices
+        var created = createdServices
         created.move(fromOffsets: source, toOffset: destination)
-        appState.services = created + appState.importedServices
+        appState.services = created + importedServices
         appState.saveServices()
     }
 
     private func moveImportedServices(from source: IndexSet, to destination: Int) {
-        var imported = appState.importedServices
+        var imported = importedServices
         imported.move(fromOffsets: source, toOffset: destination)
-        appState.services = appState.createdServices + imported
+        appState.services = createdServices + imported
         appState.saveServices()
     }
 
     private func deleteCreatedServices(at offsets: IndexSet) {
-        let created = appState.createdServices
+        let created = createdServices
         var needConfirmation: [Service] = []
         for index in offsets {
             let service = created[index]
@@ -323,7 +334,7 @@ struct ServicesTab: View {
     }
 
     private func deleteImportedServices(at offsets: IndexSet) {
-        let imported = appState.importedServices
+        let imported = importedServices
         for index in offsets {
             Task { await appState.deleteService(imported[index]) }
         }
