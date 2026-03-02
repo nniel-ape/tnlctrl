@@ -38,7 +38,12 @@ final class TunnelManager {
 
     // MARK: - Start
 
-    func start(services: [Service], tunnelConfig: TunnelConfig, enableLogs: Bool = false) async throws {
+    func start(
+        services: [Service],
+        tunnelConfig: TunnelConfig,
+        appSettings: AppSettings = .default,
+        enableLogs: Bool = false
+    ) async throws {
         guard helperInstaller.status == .installed else {
             throw TunnelManagerError.helperNotInstalled
         }
@@ -58,7 +63,7 @@ final class TunnelManager {
 
         do {
             // Build sing-box config
-            let builder = SingBoxConfigBuilder(services: services, tunnelConfig: tunnelConfig)
+            let builder = SingBoxConfigBuilder(services: services, tunnelConfig: tunnelConfig, appSettings: appSettings)
             let configJSON = try await builder.build()
 
             // Debug: log generated config
@@ -101,7 +106,7 @@ final class TunnelManager {
 
     // MARK: - Reload Config
 
-    func reload(services: [Service], tunnelConfig: TunnelConfig) async throws {
+    func reload(services: [Service], tunnelConfig: TunnelConfig, appSettings: AppSettings = .default) async throws {
         guard status == .running else {
             throw TunnelManagerError.notRunning
         }
@@ -111,7 +116,7 @@ final class TunnelManager {
         }
 
         do {
-            let builder = SingBoxConfigBuilder(services: services, tunnelConfig: tunnelConfig)
+            let builder = SingBoxConfigBuilder(services: services, tunnelConfig: tunnelConfig, appSettings: appSettings)
             let configJSON = try await builder.build()
             try await xpcClient.reloadConfig(configJSON: configJSON)
         } catch {

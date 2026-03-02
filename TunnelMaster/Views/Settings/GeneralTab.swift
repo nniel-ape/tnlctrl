@@ -122,9 +122,25 @@ struct GeneralTab: View {
                 }
             }
 
-            Section("Debugging") {
+            Section("Security") {
                 @Bindable var state = appState
-                Toggle("Enable sing-box logs", isOn: $state.settings.enableSingBoxLogs)
+                Picker("Certificate Store", selection: $state.settings.certificateStore) {
+                    Text("System (Default)").tag(CertificateStore.system)
+                    Text("Chrome Root Store").tag(CertificateStore.chrome)
+                    Text("Mozilla Root Store").tag(CertificateStore.mozilla)
+                }
+                .onChange(of: appState.settings.certificateStore) { _, _ in
+                    appState.saveSettings()
+                }
+
+                Text("Chrome and Mozilla stores exclude China-based Certificate Authorities. Takes effect on next connect.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Debugging") {
+                @Bindable var state2 = appState
+                Toggle("Enable sing-box logs", isOn: $state2.settings.enableSingBoxLogs)
                     .onChange(of: appState.settings.enableSingBoxLogs) { _, _ in
                         appState.saveSettings()
                     }
@@ -150,9 +166,9 @@ struct GeneralTab: View {
                 LabeledContent("Version", value: "1.0.0 (1)")
                 LabeledContent("sing-box") {
                     if singBoxBundled {
-                        Text("v1.12.22 (bundled)")
+                        Text("v\(SingBoxVersion.current) (bundled)")
                     } else {
-                        Label("v1.12.22 (Homebrew fallback)", systemImage: "exclamationmark.triangle.fill")
+                        Label("v\(SingBoxVersion.current) (Homebrew fallback)", systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
                             .font(.caption)
                     }

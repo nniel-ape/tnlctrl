@@ -13,11 +13,18 @@ private let logger = Logger(subsystem: "nniel.TunnelMaster", category: "SingBoxC
 struct SingBoxConfigBuilder {
     private let services: [Service]
     private let tunnelConfig: TunnelConfig
+    private let appSettings: AppSettings
     private let keychainManager: any KeychainManaging
 
-    init(services: [Service], tunnelConfig: TunnelConfig, keychainManager: any KeychainManaging = KeychainManager.shared) {
+    init(
+        services: [Service],
+        tunnelConfig: TunnelConfig,
+        appSettings: AppSettings = .default,
+        keychainManager: any KeychainManaging = KeychainManager.shared
+    ) {
         self.services = services
         self.tunnelConfig = tunnelConfig
+        self.appSettings = appSettings
         self.keychainManager = keychainManager
     }
 
@@ -32,6 +39,10 @@ struct SingBoxConfigBuilder {
         config["outbounds"] = try await buildOutbounds()
         config["route"] = buildRoute()
         config["experimental"] = buildExperimental()
+
+        if appSettings.certificateStore != .system {
+            config["certificate"] = ["store": appSettings.certificateStore.rawValue]
+        }
 
         let data = try JSONSerialization.data(withJSONObject: config, options: [.prettyPrinted, .sortedKeys])
         guard let json = String(data: data, encoding: .utf8) else {
@@ -55,9 +66,8 @@ struct SingBoxConfigBuilder {
         [
             "servers": [
                 [
-                    "type": "udp",
-                    "tag": "dns-local",
-                    "server": "8.8.8.8"
+                    "type": "local",
+                    "tag": "dns-local"
                 ],
                 [
                     "type": "https",
@@ -75,10 +85,9 @@ struct SingBoxConfigBuilder {
 
     private func buildInbounds() -> [[String: Any]] {
         // Collect IPs to exclude from TUN routing
-        var excludeIPs: [String] = [
-            // DNS servers must be reachable directly for domain resolution
-            "1.1.1.1/32",
-            "8.8.8.8/32"
+        var excludeIPs = [
+            // DNS proxy server must be reachable directly
+            "1.1.1.1/32"
         ]
 
         // Add proxy server IPs (skip domain names - they'll use auto_detect_interface)

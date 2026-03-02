@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="${1:-1.12.22}"
+VERSION="${1:-1.13.0}"
 ARCH="arm64"
 DEST_DIR="$(cd "$(dirname "$0")/.." && pwd)/TunnelMasterHelper/bin"
 DEST="$DEST_DIR/sing-box"

@@ -25,6 +25,10 @@ extension ProtocolTemplate {
     var displayName: String {
         protocolType.displayName
     }
+
+    var defaultImage: String {
+        SingBoxVersion.dockerImage
+    }
 }
 
 // MARK: - Deployment Settings

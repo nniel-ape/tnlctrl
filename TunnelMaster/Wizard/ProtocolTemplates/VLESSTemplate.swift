@@ -10,7 +10,6 @@ import Foundation
 struct VLESSTemplate: ProtocolTemplate {
     let protocolType: ProxyProtocol = .vless
     let description = "Modern, lightweight protocol with optional Reality encryption"
-    let defaultImage = "ghcr.io/sagernet/sing-box:v1.12.22"
     let requiredPorts = [443]
 
     func generateServerConfig(settings: DeploymentSettings) -> String {

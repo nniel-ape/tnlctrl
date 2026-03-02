@@ -68,6 +68,7 @@ final class AppState {
             try await tunnelManager.start(
                 services: services,
                 tunnelConfig: tunnelConfig,
+                appSettings: settings,
                 enableLogs: settings.enableSingBoxLogs
             )
         } catch {
