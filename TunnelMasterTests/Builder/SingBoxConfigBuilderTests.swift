@@ -24,10 +24,15 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
     // MARK: - Helper
 
-    private func makeBuilder(services: [Service], config: TunnelConfig? = nil) -> SingBoxConfigBuilder {
+    private func makeBuilder(
+        services: [Service],
+        config: TunnelConfig? = nil,
+        appSettings: AppSettings = .default
+    ) -> SingBoxConfigBuilder {
         SingBoxConfigBuilder(
             services: services,
             tunnelConfig: config ?? ConfigFixtures.makeDefaultTunnelConfig(),
+            appSettings: appSettings,
             keychainManager: mockKeychain
         )
     }
@@ -94,7 +99,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         XCTAssertEqual(tun["strict_route"] as? Bool, true)
         XCTAssertEqual(tun["sniff"] as? Bool, true)
         XCTAssertEqual(tun["stack"] as? String, "system")
-        XCTAssertEqual(tun["mtu"] as? Int, 9000)
+        XCTAssertEqual(tun["mtu"] as? Int, 1400)
 
         // Required since sing-box 1.11+
         let addresses = tun["address"] as? [String]
@@ -131,19 +136,18 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         let dns = try XCTUnwrap(config["dns"] as? [String: Any])
 
         let servers = try XCTUnwrap(dns["servers"] as? [[String: Any]])
-        XCTAssertGreaterThanOrEqual(servers.count, 2, "Should have at least 2 DNS servers")
+        XCTAssertEqual(servers.count, 2, "Should have 2 DNS servers")
+
+        // Check for local DNS (platform-native resolution, sing-box 1.13+)
+        let localDNS = servers.first { $0["tag"] as? String == "dns-local" }
+        XCTAssertNotNil(localDNS, "Should have dns-local server")
+        XCTAssertEqual(localDNS?["type"] as? String, "local")
+        XCTAssertNil(localDNS?["server"], "Local DNS should not have a server field")
 
         // Check for proxy DNS
         let proxyDNS = servers.first { $0["tag"] as? String == "dns-proxy" }
         XCTAssertNotNil(proxyDNS, "Should have dns-proxy server")
-
-        // Check for direct DNS
-        let directDNS = servers.first { $0["tag"] as? String == "dns-direct" }
-        XCTAssertNotNil(directDNS, "Should have dns-direct server")
-
-        // Check rules exist
-        let rules = dns["rules"] as? [[String: Any]]
-        XCTAssertNotNil(rules)
+        XCTAssertEqual(proxyDNS?["type"] as? String, "https")
 
         // Check final DNS
         XCTAssertEqual(dns["final"] as? String, "dns-proxy")
@@ -1249,5 +1253,44 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         let transport = try XCTUnwrap(vmessOutbound["transport"] as? [String: Any])
 
         XCTAssertEqual(transport["path"] as? String, "/path?ed=2048")
+    }
+
+    // MARK: - Certificate Store Tests (sing-box 1.13+)
+
+    func testCertificateStoreDefaultOmitted() async throws {
+        await mockKeychain.preloadCredential("test-uuid", ref: "test-cred-ref")
+        let service = ConfigFixtures.makeVLESSService(credentialRef: "test-cred-ref")
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+
+        XCTAssertNil(config["certificate"], "System (default) certificate store should not emit certificate block")
+    }
+
+    func testCertificateStoreChrome() async throws {
+        await mockKeychain.preloadCredential("test-uuid", ref: "test-cred-ref")
+        let service = ConfigFixtures.makeVLESSService(credentialRef: "test-cred-ref")
+        let settings = AppSettings(certificateStore: .chrome)
+        let builder = makeBuilder(services: [service], appSettings: settings)
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+
+        let certificate = try XCTUnwrap(config["certificate"] as? [String: Any])
+        XCTAssertEqual(certificate["store"] as? String, "chrome")
+    }
+
+    func testCertificateStoreMozilla() async throws {
+        await mockKeychain.preloadCredential("test-uuid", ref: "test-cred-ref")
+        let service = ConfigFixtures.makeVLESSService(credentialRef: "test-cred-ref")
+        let settings = AppSettings(certificateStore: .mozilla)
+        let builder = makeBuilder(services: [service], appSettings: settings)
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+
+        let certificate = try XCTUnwrap(config["certificate"] as? [String: Any])
+        XCTAssertEqual(certificate["store"] as? String, "mozilla")
     }
 }
