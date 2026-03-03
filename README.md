@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" width="128" height="128" alt="tnl_ctrl logo">
+</p>
+
 # tnl_ctrl
 
 A macOS menu bar app for unified VPN and proxy management, powered by [sing-box](https://sing-box.sagernet.org/).
