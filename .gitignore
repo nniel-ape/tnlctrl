@@ -8,7 +8,7 @@ DerivedData/
 .netrc
 
 # Bundled binaries (downloaded via Scripts/download-sing-box.sh)
-TunnelMasterHelper/bin/
+tnl_ctrl_helper/bin/
 
 # ralphex progress logs
 .ralphex/progress/

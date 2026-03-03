@@ -6,9 +6,9 @@
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
-			<string>nniel.TunnelMaster.ruleDragItem</string>
+			<string>nniel.tnlctrl.ruleDragItem</string>
 			<key>UTTypeDescription</key>
-			<string>TunnelMaster Rule Drag Item</string>
+			<string>tnl_ctrl Rule Drag Item</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
@@ -18,9 +18,9 @@
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
-			<string>nniel.TunnelMaster.configBundle</string>
+			<string>nniel.tnlctrl.configBundle</string>
 			<key>UTTypeDescription</key>
-			<string>TunnelMaster Configuration Bundle</string>
+			<string>tnl_ctrl Configuration Bundle</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.json</string>
@@ -29,7 +29,7 @@
 			<dict>
 				<key>public.filename-extension</key>
 				<array>
-					<string>tunnelmaster</string>
+					<string>tnlctrl</string>
 				</array>
 			</dict>
 		</dict>

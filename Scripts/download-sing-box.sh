@@ -1,12 +1,12 @@
 #!/bin/bash
-# Downloads the sing-box binary for bundling with TunnelMasterHelper.
+# Downloads the sing-box binary for bundling with tnl_ctrl_helper.
 # Usage: ./Scripts/download-sing-box.sh [version]
 
 set -euo pipefail
 
 VERSION="${1:-1.13.0}"
 ARCH="arm64"
-DEST_DIR="$(cd "$(dirname "$0")/.." && pwd)/TunnelMasterHelper/bin"
+DEST_DIR="$(cd "$(dirname "$0")/.." && pwd)/tnl_ctrl_helper/bin"
 DEST="$DEST_DIR/sing-box"
 
 # Check if already present and correct version

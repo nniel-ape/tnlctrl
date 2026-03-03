@@ -1,4 +1,4 @@
-# TunnelMaster
+# tnl_ctrl
 
 A macOS menu bar app for unified VPN and proxy management, powered by [sing-box](https://sing-box.sagernet.org/).
 
@@ -6,7 +6,7 @@ A macOS menu bar app for unified VPN and proxy management, powered by [sing-box]
 
 ## Overview
 
-TunnelMaster brings all your proxy and VPN configurations into a single native macOS app. Import configs from any major format, deploy new proxy servers with a guided wizard, and route traffic through sing-box with flexible split tunneling and multi-hop chaining — all from your menu bar.
+tnl_ctrl brings all your proxy and VPN configurations into a single native macOS app. Import configs from any major format, deploy new proxy servers with a guided wizard, and route traffic through sing-box with flexible split tunneling and multi-hop chaining — all from your menu bar.
 
 ## Features
 
@@ -17,13 +17,13 @@ TunnelMaster brings all your proxy and VPN configurations into a single native m
 - **Server deployment wizard** — Deploy proxy containers to local Docker or remote servers via SSH with auto-generated secure configs
 - **Latency testing** — Real TCP handshake probes to measure and display server response times
 - **Secure credentials** — Passwords, keys, and UUIDs stored in macOS Keychain, never in plaintext
-- **Config export/import** — Back up and share your full app configuration as `.tunnelmaster` bundles
+- **Config export/import** — Back up and share your full app configuration as `.tnlctrl` bundles
 - **Routing presets** — Save and switch between tunnel configurations instantly
 - **Rule organization** — Group, reorder (drag-and-drop), and manage routing rules with conflict detection
 
 ## Architecture
 
-TunnelMaster uses a three-process model:
+tnl_ctrl uses a three-process model:
 
 ```
 ┌─────────────────────────┐
@@ -33,7 +33,7 @@ TunnelMaster uses a three-process model:
             │ XPC (NSXPCConnection)
 ┌───────────▼─────────────┐
 │   Privileged Helper     │  Root daemon via SMAppService
-│   nniel.TunnelMaster    │  Manages sing-box lifecycle
+│   nniel.tnlctrl    │  Manages sing-box lifecycle
 │   .helper               │
 └───────────┬─────────────┘
             │ Process management
@@ -54,22 +54,22 @@ sing-box is bundled with the app — no separate installation required.
 ## Building from Source
 
 ```bash
-git clone https://github.com/nniel/TunnelMaster.git
-cd TunnelMaster
-open TunnelMaster.xcodeproj
+git clone https://github.com/nniel/tnl_ctrl.git
+cd tnl_ctrl
+open tnl_ctrl.xcodeproj
 ```
 
-Build and run the `TunnelMaster` scheme in Xcode. The helper target builds automatically as a dependency.
+Build and run the `tnl_ctrl` scheme in Xcode. The helper target builds automatically as a dependency.
 
 For local development without a paid Apple Developer account, ad-hoc sign both targets:
 
 ```bash
-codesign --deep --force --sign - build/Release/TunnelMaster.app
+codesign --deep --force --sign - build/Release/tnl_ctrl.app
 ```
 
 ## Usage
 
-1. **Install the helper** — On first launch, TunnelMaster prompts to install its privileged helper via macOS system dialog
+1. **Install the helper** — On first launch, tnl_ctrl prompts to install its privileged helper via macOS system dialog
 2. **Add services** — Import existing configs (drag-and-drop files, paste text, or enter URIs) or deploy a new server with the wizard
 3. **Configure routing** — Choose full tunnel or set up split tunnel rules in the Tunnel tab
 4. **Connect** — Click the menu bar icon and toggle the connection
@@ -89,7 +89,7 @@ codesign --deep --force --sign - build/Release/TunnelMaster.app
 ## Project Structure
 
 ```
-TunnelMaster/
+tnl_ctrl/
 ├── App/                    # App entry point, AppState, WindowManager
 ├── Models/                 # Service, Server, RoutingRule, TunnelConfig
 ├── Services/
@@ -105,12 +105,12 @@ TunnelMaster/
 │   └── Onboarding/         # First-launch wizard
 └── Wizard/                 # Deployment wizard, protocol templates
 
-TunnelMasterHelper/         # Privileged helper daemon
+tnl_ctrl_helper/         # Privileged helper daemon
 ├── main.swift              # XPC listener
 ├── SingBoxManager.swift    # sing-box process management
 └── bin/                    # Bundled sing-box binary
 
-TunnelMasterTests/          # Parser, builder, migration tests
+tnl_ctrl_tests/          # Parser, builder, migration tests
 ```
 
 ## License

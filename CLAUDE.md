@@ -4,35 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-TunnelMaster is a macOS menu bar application for unified VPN/proxy management. It uses a **three-process architecture**:
+tnl_ctrl is a macOS menu bar application for unified VPN/proxy management. It uses a **three-process architecture**:
 
-1. **Main App** (TunnelMaster) — Sandboxed SwiftUI app for UI, config management, Docker orchestration
-2. **Privileged Helper** (TunnelMasterHelper) — Root daemon via SMAppService for sing-box process management and network tunneling
+1. **Main App** (tnl_ctrl) — Sandboxed SwiftUI app for UI, config management, Docker orchestration
+2. **Privileged Helper** (tnl_ctrl_helper) — Root daemon via SMAppService for sing-box process management and network tunneling
 3. **External Dependencies** — Docker Engine, sing-box binary, geo databases (geoip.db, geosite.db)
 
 ## Build & Test Commands
 
 ```fish
 # Build main app (Debug)
-xcodebuild -scheme TunnelMaster -configuration Debug build
+xcodebuild -scheme tnl_ctrl -configuration Debug build
 
 # Build helper (Debug)
-xcodebuild -scheme TunnelMasterHelper -configuration Debug build
+xcodebuild -scheme tnl_ctrl_helper -configuration Debug build
 
 # Build both for Release
-xcodebuild -scheme TunnelMaster -configuration Release build
+xcodebuild -scheme tnl_ctrl -configuration Release build
 
 # Clean build
-xcodebuild clean -scheme TunnelMaster
+xcodebuild clean -scheme tnl_ctrl
 
 # Run all tests
-xcodebuild test -scheme TunnelMaster -destination 'platform=macOS'
+xcodebuild test -scheme tnl_ctrl -destination 'platform=macOS'
 
 # Run a single test class
-xcodebuild test -scheme TunnelMaster -destination 'platform=macOS' -only-testing:TunnelMasterTests/SingBoxConfigBuilderTests
+xcodebuild test -scheme tnl_ctrl -destination 'platform=macOS' -only-testing:tnl_ctrl_tests/SingBoxConfigBuilderTests
 
 # Run a single test method
-xcodebuild test -scheme TunnelMaster -destination 'platform=macOS' -only-testing:TunnelMasterTests/SingBoxConfigBuilderTests/testBuildVLESSOutbound
+xcodebuild test -scheme tnl_ctrl -destination 'platform=macOS' -only-testing:tnl_ctrl_tests/SingBoxConfigBuilderTests/testBuildVLESSOutbound
 
 # Verify sing-box config generation
 sing-box check -c /path/to/config.json
@@ -40,7 +40,7 @@ sing-box check -c /path/to/config.json
 
 ### Test Structure
 
-Tests live in `TunnelMasterTests/` with:
+Tests live in `tnl_ctrl_tests/` with:
 - `Parsers/` — Tests for all config importers (SingBox, Clash, V2Ray, URI)
 - `Builder/` — `SingBoxConfigBuilderTests` — comprehensive protocol/transport/routing tests
 - `Mocks/MockKeychainManager.swift` — Test double for KeychainManager
@@ -55,7 +55,7 @@ Tests use `@MainActor` and `async` setUp/tearDown. `SingBoxConfigBuilder` tests 
 ```
 Main App (sandboxed)
     ↓ NSXPCConnection
-XPCClient.swift → XPCProtocol.swift ← TunnelMasterHelper/main.swift
+XPCClient.swift → XPCProtocol.swift ← tnl_ctrl_helper/main.swift
                                             ↓
                                     SingBoxManager.swift
                                             ↓
@@ -66,15 +66,15 @@ XPCClient.swift → XPCProtocol.swift ← TunnelMasterHelper/main.swift
 
 | Component | Location | Role |
 |-----------|----------|------|
-| AppState | `TunnelMaster/App/AppState.swift` | Central state container, orchestrates tunnel lifecycle |
-| TunnelManager | `TunnelMaster/Services/Tunnel/TunnelManager.swift` | Tunnel start/stop, config building, status polling |
-| XPCClient | `TunnelMaster/Services/XPC/XPCClient.swift` | Actor wrapping NSXPCConnection with async/await |
-| SingBoxManager | `TunnelMasterHelper/SingBoxManager.swift` | Actor managing sing-box process (start/stop/SIGHUP reload) |
-| SingBoxConfigBuilder | `TunnelMaster/Services/Tunnel/SingBoxConfigBuilder.swift` | Converts Service models → sing-box JSON |
-| ConfigImporter/* | `TunnelMaster/Services/ConfigImporter/` | Parsers for sing-box, Clash, V2Ray, URI schemes |
-| ServiceStore | `TunnelMaster/Services/ServiceStore.swift` | JSON persistence to ~/Library/Application Support/TunnelMaster/ |
-| LatencyTester | `TunnelMaster/Services/Tunnel/LatencyTester.swift` | TCP connect latency using Network framework |
-| Deployer | `TunnelMaster/Wizard/Deployer.swift` | Deploys proxy containers to local Docker or remote servers via SSH |
+| AppState | `tnl_ctrl/App/AppState.swift` | Central state container, orchestrates tunnel lifecycle |
+| TunnelManager | `tnl_ctrl/Services/Tunnel/TunnelManager.swift` | Tunnel start/stop, config building, status polling |
+| XPCClient | `tnl_ctrl/Services/XPC/XPCClient.swift` | Actor wrapping NSXPCConnection with async/await |
+| SingBoxManager | `tnl_ctrl_helper/SingBoxManager.swift` | Actor managing sing-box process (start/stop/SIGHUP reload) |
+| SingBoxConfigBuilder | `tnl_ctrl/Services/Tunnel/SingBoxConfigBuilder.swift` | Converts Service models → sing-box JSON |
+| ConfigImporter/* | `tnl_ctrl/Services/ConfigImporter/` | Parsers for sing-box, Clash, V2Ray, URI schemes |
+| ServiceStore | `tnl_ctrl/Services/ServiceStore.swift` | JSON persistence to ~/Library/Application Support/tnl_ctrl/ |
+| LatencyTester | `tnl_ctrl/Services/Tunnel/LatencyTester.swift` | TCP connect latency using Network framework |
+| Deployer | `tnl_ctrl/Wizard/Deployer.swift` | Deploys proxy containers to local Docker or remote servers via SSH |
 
 ### Data Flow for Tunnel Start
 
@@ -97,7 +97,7 @@ XPCClient.swift → XPCProtocol.swift ← TunnelMasterHelper/main.swift
 }
 ```
 
-Service name: `nniel.TunnelMaster.helper`
+Service name: `nniel.tnlctrl.helper`
 
 ### Concurrency Patterns
 
@@ -108,14 +108,14 @@ Service name: `nniel.TunnelMaster.helper`
 
 ### Logging
 
-Uses `OSLog` with subsystem `nniel.TunnelMaster`:
+Uses `OSLog` with subsystem `nniel.tnlctrl`:
 ```swift
-private let logger = Logger(subsystem: "nniel.TunnelMaster", category: "ComponentName")
+private let logger = Logger(subsystem: "nniel.tnlctrl", category: "ComponentName")
 ```
 
 ### Data Persistence
 
-`ServiceStore` saves/loads all app data as JSON files in `~/Library/Application Support/TunnelMaster/`:
+`ServiceStore` saves/loads all app data as JSON files in `~/Library/Application Support/tnl_ctrl/`:
 - `services.json` — Array of Service
 - `servers.json` — Array of Server
 - `tunnel-config.json` — TunnelConfig (mode, rules, chain, presets)
