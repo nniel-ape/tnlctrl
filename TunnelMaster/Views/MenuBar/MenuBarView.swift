@@ -12,10 +12,49 @@ struct MenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             statusSection
+            if appState.pendingConfigReload, appState.isConnected {
+                reloadBanner
+            }
             Divider()
             actionsSection
         }
         .frame(width: 220)
+        .onChange(of: appState.isConnected) { _, connected in
+            if !connected {
+                appState.pendingConfigReload = false
+            }
+        }
+    }
+
+    private var reloadBanner: some View {
+        Button {
+            Task {
+                do {
+                    try await appState.tunnelManager.reload(
+                        services: appState.services,
+                        tunnelConfig: appState.tunnelConfig,
+                        appSettings: appState.settings
+                    )
+                    appState.pendingConfigReload = false
+                } catch {
+                    // Reload failed — banner stays visible
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .foregroundStyle(.orange)
+                    .frame(width: 16)
+                Text("Config changed — Reload")
+                    .font(.caption)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var statusSection: some View {

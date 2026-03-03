@@ -19,6 +19,7 @@ final class AppState {
     // MARK: - Connection State
 
     var activeServiceId: UUID?
+    var pendingConfigReload = false
 
     // MARK: - Data
 

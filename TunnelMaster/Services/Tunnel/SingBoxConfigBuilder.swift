@@ -84,11 +84,8 @@ struct SingBoxConfigBuilder {
     // MARK: - Inbounds
 
     private func buildInbounds() -> [[String: Any]] {
-        // Collect IPs to exclude from TUN routing
-        var excludeIPs = [
-            // DNS proxy server must be reachable directly
-            "1.1.1.1/32"
-        ]
+        // Collect IPs to exclude from TUN routing (proxy server IPs for loop prevention)
+        var excludeIPs: [String] = []
 
         // Add proxy server IPs (skip domain names - they'll use auto_detect_interface)
         for service in services where isIPAddress(service.server) {
@@ -304,6 +301,17 @@ struct SingBoxConfigBuilder {
         } else {
             throw ConfigBuilderError.missingCredential("shadowsocks", service.name)
         }
+
+        if let plugin = service.settings["plugin"]?.stringValue, !plugin.isEmpty {
+            outbound["plugin"] = plugin
+            if let pluginOpts = service.settings["pluginOpts"]?.stringValue, !pluginOpts.isEmpty {
+                outbound["plugin_opts"] = pluginOpts
+            }
+        }
+
+        if let udpOverTcp = service.settings["udpOverTcp"]?.boolValue, udpOverTcp {
+            outbound["udp_over_tcp"] = true
+        }
     }
 
     private func addSOCKS5Settings(to outbound: inout [String: Any], service: Service) async throws {
@@ -368,12 +376,13 @@ struct SingBoxConfigBuilder {
             outbound["password"] = password
         }
 
-        if let up = service.settings["up"]?.stringValue {
-            outbound["up_mbps"] = Int(up) ?? 100
+        // Only set bandwidth when explicitly configured; omitting enables BBR congestion control
+        if let up = service.settings["up"]?.stringValue, !up.isEmpty, let upMbps = Int(up) {
+            outbound["up_mbps"] = upMbps
         }
 
-        if let down = service.settings["down"]?.stringValue {
-            outbound["down_mbps"] = Int(down) ?? 100
+        if let down = service.settings["down"]?.stringValue, !down.isEmpty, let downMbps = Int(down) {
+            outbound["down_mbps"] = downMbps
         }
 
         if let obfs = service.settings["obfs"]?.stringValue, !obfs.isEmpty {
@@ -381,6 +390,16 @@ struct SingBoxConfigBuilder {
                 "type": "salamander",
                 "password": obfs
             ]
+        }
+
+        // Port hopping: server_ports replaces server_port
+        if let serverPorts = service.settings["serverPorts"]?.stringValue, !serverPorts.isEmpty {
+            outbound["server_ports"] = serverPorts
+            outbound.removeValue(forKey: "server_port")
+        }
+
+        if let hopInterval = service.settings["hopInterval"]?.stringValue, !hopInterval.isEmpty {
+            outbound["hop_interval"] = hopInterval
         }
     }
 
@@ -408,6 +427,10 @@ struct SingBoxConfigBuilder {
 
         if let fingerprint = service.settings["fingerprint"]?.stringValue {
             tls["utls"] = ["enabled": true, "fingerprint": fingerprint]
+        }
+
+        if let fragment = service.settings["fragment"]?.boolValue, fragment {
+            tls["fragment"] = ["enabled": true]
         }
 
         if let reality = service.settings["reality"]?.boolValue, reality {
@@ -438,6 +461,13 @@ struct SingBoxConfigBuilder {
             if let host = service.settings["wsHost"]?.stringValue {
                 ws["headers"] = ["Host": host]
             }
+            if let earlyData = service.settings["wsEarlyData"]?.stringValue,
+               !earlyData.isEmpty, let size = Int(earlyData) {
+                ws["max_early_data"] = size
+            }
+            if let earlyDataHeader = service.settings["wsEarlyDataHeader"]?.stringValue, !earlyDataHeader.isEmpty {
+                ws["early_data_header_name"] = earlyDataHeader
+            }
             return ws
 
         case "grpc":
@@ -456,6 +486,16 @@ struct SingBoxConfigBuilder {
                 http["host"] = [host]
             }
             return http
+
+        case "httpupgrade":
+            var httpUpgrade: [String: Any] = ["type": "httpupgrade"]
+            if let path = service.settings["httpUpgradePath"]?.stringValue {
+                httpUpgrade["path"] = path
+            }
+            if let host = service.settings["httpUpgradeHost"]?.stringValue {
+                httpUpgrade["host"] = host
+            }
+            return httpUpgrade
 
         case "quic":
             return ["type": "quic"]

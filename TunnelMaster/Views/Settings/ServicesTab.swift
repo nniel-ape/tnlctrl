@@ -9,6 +9,7 @@ struct ServicesTab: View {
     @Environment(AppState.self) private var appState
     @State private var selectedServiceId: UUID?
     @State private var editingService: Service?
+    @State private var showingCreateSheet = false
     @State private var showingAddServerSheet = false
     @State private var serverForNewService: Server?
     @State private var pingAllTask: Task<Void, Never>?
@@ -32,6 +33,10 @@ struct ServicesTab: View {
         }
         .sheet(item: $editingService) { service in
             ServiceEditSheet(service: service)
+                .environment(appState)
+        }
+        .sheet(isPresented: $showingCreateSheet) {
+            ServiceEditSheet()
                 .environment(appState)
         }
         .sheet(item: $serverForNewService) { server in
@@ -81,6 +86,11 @@ struct ServicesTab: View {
             Text("Deploy a service to a server.")
                 .foregroundStyle(.secondary)
             HStack(spacing: 12) {
+                Button("New Service...") {
+                    showingCreateSheet = true
+                }
+                .buttonStyle(.bordered)
+
                 if appState.servers.isEmpty {
                     Button("Add Server...") {
                         showingAddServerSheet = true
@@ -134,6 +144,12 @@ struct ServicesTab: View {
             }
 
             Menu {
+                Button("New Service...") {
+                    showingCreateSheet = true
+                }
+
+                Divider()
+
                 Button("Add Server...") {
                     showingAddServerSheet = true
                 }

@@ -40,6 +40,7 @@ struct SettingsWindow: View {
         .background(WindowAccessor { window in
             // Register window with WindowManager for reliable tracking and activation
             window.styleMask.insert(.resizable)
+            window.collectionBehavior.insert(.moveToActiveSpace)
             WindowManager.shared.registerSettingsWindow(window)
         })
         .onDisappear {

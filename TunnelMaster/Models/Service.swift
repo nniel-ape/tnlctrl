@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - ServiceSource
 
@@ -166,5 +167,30 @@ enum AnyCodableValue: Codable, Hashable, Sendable {
     var boolValue: Bool? {
         if case let .bool(value) = self { return value }
         return nil
+    }
+}
+
+// MARK: - Binding Helpers for Settings Dictionary
+
+extension Binding where Value == [String: AnyCodableValue] {
+    func string(for key: String, default defaultValue: String = "") -> Binding<String> {
+        Binding<String>(
+            get: { wrappedValue[key]?.stringValue ?? defaultValue },
+            set: { wrappedValue[key] = $0.isEmpty && defaultValue.isEmpty ? nil : .string($0) }
+        )
+    }
+
+    func bool(for key: String, default defaultValue: Bool = false) -> Binding<Bool> {
+        Binding<Bool>(
+            get: { wrappedValue[key]?.boolValue ?? defaultValue },
+            set: { wrappedValue[key] = .bool($0) }
+        )
+    }
+
+    func int(for key: String, default defaultValue: Int = 0) -> Binding<Int> {
+        Binding<Int>(
+            get: { wrappedValue[key]?.intValue ?? defaultValue },
+            set: { wrappedValue[key] = .int($0) }
+        )
     }
 }

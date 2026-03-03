@@ -53,11 +53,12 @@ final class WindowManager {
             NSApplication.shared.setActivationPolicy(.regular)
 
             // Activate the app
-            NSApplication.shared.activate(ignoringOtherApps: true)
+            NSRunningApplication.current.activate(options: [.activateIgnoringOtherApps])
 
             // Find the Settings window using multiple strategies
             guard let window = findSettingsWindow() else {
-                logger.warning("Could not find Settings window")
+                logger.warning("Could not find Settings window, will retry")
+                retryBringToFront(attemptsRemaining: 5)
                 return
             }
 
@@ -101,6 +102,26 @@ final class WindowManager {
         return nil
     }
 
+    /// Retry finding and bringing the Settings window to front.
+    ///
+    /// On first open, SwiftUI may not have created the window yet by the time
+    /// `activateSettings()` runs. This retries with short delays to handle the race.
+    private func retryBringToFront(attemptsRemaining: Int) {
+        guard attemptsRemaining > 0 else {
+            logger.warning("Failed to find Settings window after all retry attempts")
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self else { return }
+            if let window = findSettingsWindow() {
+                bringToFront(window)
+            } else {
+                retryBringToFront(attemptsRemaining: attemptsRemaining - 1)
+            }
+        }
+    }
+
     /// Bring window to front with guaranteed frontmost positioning.
     ///
     /// Temporarily elevates window level to .floating to ensure it appears
@@ -110,6 +131,7 @@ final class WindowManager {
 
         // Temporarily elevate to floating level to guarantee frontmost
         window.level = .floating
+        window.orderFrontRegardless()
         window.makeKeyAndOrderFront(nil)
 
         logger.debug("Brought window '\(window.title)' to front")
