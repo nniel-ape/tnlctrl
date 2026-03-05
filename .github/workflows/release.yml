@@ -32,7 +32,7 @@ jobs:
             -project tnl_ctrl.xcodeproj \
             -target tnl_ctrl \
             -configuration Release \
-            -derivedDataPath build/DerivedData \
+            SYMROOT="$(pwd)/build" \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="" \
@@ -44,8 +44,7 @@ jobs:
 
       - name: Package zip
         run: |
-          APP=$(find build/DerivedData -name "tnl_ctrl.app" -maxdepth 6 | head -1)
-          ditto -c -k --keepParent "$APP" "tnl_ctrl-${{ steps.version.outputs.version }}-arm64.zip"
+          ditto -c -k --keepParent "build/Release/tnl_ctrl.app" "tnl_ctrl-${{ steps.version.outputs.version }}-arm64.zip"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
