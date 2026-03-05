@@ -65,6 +65,7 @@ final class WizardState {
     var useReality = false
 
     // Hysteria2 specific
+    var hysteriaDomain = ""
     var hysteriaBandwidthUp = "100"
     var hysteriaBandwidthDown = "100"
     var hysteriaObfsEnabled = false
@@ -100,6 +101,8 @@ final class WizardState {
         case 1: // Protocol step
             return true
         case 2: // Configure step
+            if selectedProtocol == .hysteria2,
+               hysteriaDomain.trimmingCharacters(in: .whitespaces).isEmpty { return false }
             return serverPort > 0 && serverPort < 65536
         case 3: // Deploy step
             return deployedService != nil
@@ -157,6 +160,7 @@ final class WizardState {
         serverPort = Self.availablePort(preferred: ProxyProtocol.vless.defaultPort, usedPorts: usedPorts)
         useReality = false
         // Hysteria2
+        hysteriaDomain = ""
         hysteriaBandwidthUp = "100"
         hysteriaBandwidthDown = "100"
         hysteriaObfsEnabled = false
@@ -203,6 +207,7 @@ final class WizardState {
         settings.realityEnabled = useReality
 
         // Hysteria2
+        settings.sni = hysteriaDomain.trimmingCharacters(in: .whitespaces)
         settings.hysteriaBandwidthUp = hysteriaBandwidthUp
         settings.hysteriaBandwidthDown = hysteriaBandwidthDown
         settings.hysteriaObfsType = hysteriaObfsEnabled ? "salamander" : ""

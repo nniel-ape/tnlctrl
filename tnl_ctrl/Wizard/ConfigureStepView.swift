@@ -57,6 +57,10 @@ struct ConfigureStepView: View {
     // MARK: - Hysteria2 Configuration
 
     @ViewBuilder private var hysteria2ConfigSection: some View {
+        TextField("Domain (SNI)", text: $state.hysteriaDomain)
+            .textContentType(.URL)
+            .help("Domain for TLS — required for Hysteria2 (QUIC)")
+
         Divider()
             .padding(.vertical, 4)
 

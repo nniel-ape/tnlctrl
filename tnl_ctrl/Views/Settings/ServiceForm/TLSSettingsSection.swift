@@ -8,15 +8,18 @@ import SwiftUI
 struct TLSSettingsSection: View {
     @Binding var settings: [String: AnyCodableValue]
     var showReality = false
+    var sniRequired = false
 
     private static let fingerprints = ["", "chrome", "firefox", "safari", "edge", "ios", "android", "random", "randomized"]
 
     var body: some View {
         Section {
             Toggle("Enable TLS", isOn: $settings.bool(for: "tls", default: true))
+                .disabled(sniRequired)
 
             TextField("SNI (Server Name)", text: $settings.string(for: "sni"))
                 .textContentType(.URL)
+                .help(sniRequired ? "Required for Hysteria2" : "")
 
             TextField("ALPN (comma-separated)", text: $settings.string(for: "alpn"))
 

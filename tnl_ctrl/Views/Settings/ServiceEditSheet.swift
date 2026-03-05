@@ -111,12 +111,31 @@ struct ServiceEditSheet: View {
 
     private var formContent: some View {
         Form {
+            if !isCreateMode, originalService?.source == .created {
+                Section {
+                    Label(
+                        """
+                        Changes only affect the client-side tunnel config. \
+                        The server container keeps its original settings. \
+                        To apply server-side changes, delete and redeploy.
+                        """,
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                }
+            }
+
             generalSection
 
             protocolSection
 
             if supportsTLS {
-                TLSSettingsSection(settings: $settings, showReality: supportsReality)
+                TLSSettingsSection(
+                    settings: $settings,
+                    showReality: supportsReality,
+                    sniRequired: selectedProtocol == .hysteria2
+                )
             }
 
             if supportsTransport {
@@ -244,6 +263,8 @@ struct ServiceEditSheet: View {
         if trimmedName.isEmpty || trimmedServer.isEmpty { return false }
         if parsedPort == nil { return false }
         if credentialRequired, credentialValue.trimmingCharacters(in: .whitespaces).isEmpty { return false }
+        if selectedProtocol == .hysteria2,
+           (settings["sni"]?.stringValue ?? "").trimmingCharacters(in: .whitespaces).isEmpty { return false }
         if !isCreateMode, !hasChanges { return false }
         return true
     }
