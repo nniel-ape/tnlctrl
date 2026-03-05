@@ -7,6 +7,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @Environment(AppState.self) private var appState
+    @Environment(UpdaterViewModel.self) private var updaterViewModel
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
@@ -103,6 +104,10 @@ struct MenuBarView: View {
             }
 
             Divider()
+
+            MenuButton(title: "Check for Updates...", systemImage: "arrow.triangle.2.circlepath") {
+                updaterViewModel.checkForUpdates()
+            }
 
             Button {
                 openSettings()

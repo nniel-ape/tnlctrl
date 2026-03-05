@@ -10,12 +10,14 @@ import SwiftUI
 @main
 struct tnl_ctrlApp: App {
     @State private var appState = AppState()
+    @State private var updaterViewModel = UpdaterViewModel()
     @State private var showOnboarding = OnboardingView.shouldShowOnboarding()
 
     var body: some Scene {
         MenuBarExtra {
             MenuBarView()
                 .environment(appState)
+                .environment(updaterViewModel)
                 .task {
                     await appState.load()
                 }
@@ -26,6 +28,7 @@ struct tnl_ctrlApp: App {
         Settings {
             SettingsWindow()
                 .environment(appState)
+                .environment(updaterViewModel)
         }
 
         Window("Welcome", id: "onboarding") {

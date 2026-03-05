@@ -15,6 +15,7 @@ private enum URLs {
 
 struct GeneralTab: View {
     @Environment(AppState.self) private var appState
+    @Environment(UpdaterViewModel.self) private var updaterViewModel
     @State private var helperInstaller = HelperInstaller.shared
     @State private var geoUpdater = GeoDatabaseUpdater.shared
     @State private var installError: String?
@@ -163,7 +164,9 @@ struct GeneralTab: View {
             }
 
             Section("About") {
-                LabeledContent("Version", value: "1.0.0 (1)")
+                LabeledContent("Version") {
+                    Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")
+                }
                 LabeledContent("sing-box") {
                     if singBoxBundled {
                         Text("v\(SingBoxVersion.current) (bundled)")
@@ -175,6 +178,11 @@ struct GeneralTab: View {
                 }
 
                 Link("View on GitHub", destination: URLs.github)
+
+                Button("Check for Updates...") {
+                    updaterViewModel.checkForUpdates()
+                }
+                .disabled(!updaterViewModel.canCheckForUpdates)
             }
         }
         .formStyle(.grouped)
