@@ -413,7 +413,7 @@ final class Deployer {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
         process.arguments = [
-            "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1",
+            "req", "-x509", "-newkey", "rsa:2048",
             "-days", "3650", "-nodes",
             "-keyout", keyPath,
             "-out", certPath,
