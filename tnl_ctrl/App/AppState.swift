@@ -225,6 +225,11 @@ final class AppState {
             await cleanupContainer(for: service, server: server)
         }
 
+        // Clean up Keychain credential
+        if let credRef = service.credentialRef, !credRef.isEmpty {
+            try? await KeychainManager.shared.delete(credRef)
+        }
+
         // Remove from server's tracking arrays
         if let server {
             if var updated = servers.first(where: { $0.id == server.id }) {
@@ -240,6 +245,7 @@ final class AppState {
         if activeServiceId == id {
             activeServiceId = nil
         }
+        cleanTunnelConfigReferences(deletedIds: [id])
         saveServices()
     }
 
@@ -278,8 +284,18 @@ final class AppState {
         let serverServices = services.filter { $0.serverId == id }
         for service in serverServices {
             await cleanupContainer(for: service, server: server)
+            if let credRef = service.credentialRef, !credRef.isEmpty {
+                try? await KeychainManager.shared.delete(credRef)
+            }
         }
+
+        let deletedIds = Set(serverServices.map(\.id))
         services.removeAll { $0.serverId == id }
+
+        if let activeId = activeServiceId, deletedIds.contains(activeId) {
+            activeServiceId = nil
+        }
+        cleanTunnelConfigReferences(deletedIds: deletedIds)
 
         servers.removeAll { $0.id == id }
         saveServers()
@@ -288,6 +304,31 @@ final class AppState {
 
     func deleteServer(_ server: Server) async {
         await deleteServer(id: server.id)
+    }
+
+    // MARK: - TunnelConfig Cleanup
+
+    /// Remove references to deleted service IDs from tunnelConfig.
+    private func cleanTunnelConfigReferences(deletedIds: Set<UUID>) {
+        var changed = false
+
+        if let selectedId = tunnelConfig.selectedServiceId, deletedIds.contains(selectedId) {
+            tunnelConfig.selectedServiceId = nil
+            changed = true
+        }
+
+        let originalCount = tunnelConfig.chain.count
+        tunnelConfig.chain.removeAll { deletedIds.contains($0) }
+        if tunnelConfig.chain.count != originalCount {
+            changed = true
+            if tunnelConfig.chain.isEmpty, tunnelConfig.chainEnabled {
+                tunnelConfig.chainEnabled = false
+            }
+        }
+
+        if changed {
+            saveTunnelConfig()
+        }
     }
 
     // MARK: - Container Cleanup
@@ -328,6 +369,16 @@ final class AppState {
                 )
             } catch {
                 logger.warning("Failed to clean up remote container \(containerName): \(error)")
+            }
+            // Remove remote config directories
+            for prefix in ["sing-box-", "hysteria-", "wireguard-"] {
+                _ = try? await SSHClient.shared.execute(
+                    command: "rm -rf \(SSHClient.shellQuote("/etc/\(prefix)\(containerName)"))",
+                    host: server.host,
+                    port: server.sshPort,
+                    username: server.sshUsername,
+                    privateKeyPath: server.sshKeyPath
+                )
             }
         }
     }
