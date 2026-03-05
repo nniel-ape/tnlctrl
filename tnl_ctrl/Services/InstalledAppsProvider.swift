@@ -13,7 +13,7 @@ import OSLog
 private let logger = Logger(subsystem: "nniel.tnlctrl", category: "InstalledAppsProvider")
 
 /// Represents an installed application
-struct InstalledApp: Identifiable, Hashable, Sendable {
+struct InstalledApp: Identifiable, Hashable {
     let id: String // Bundle ID or process name
     let name: String
     let path: String

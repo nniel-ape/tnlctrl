@@ -8,14 +8,14 @@ import SwiftUI
 
 // MARK: - ServiceSource
 
-enum ServiceSource: String, Codable, Hashable, Sendable {
+enum ServiceSource: String, Codable, Hashable {
     case imported
     case created
 }
 
 // MARK: - Service
 
-struct Service: Identifiable, Codable, Hashable, Sendable {
+struct Service: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
     var `protocol`: ProxyProtocol
@@ -107,7 +107,7 @@ struct Service: Identifiable, Codable, Hashable, Sendable {
 
 // MARK: - AnyCodableValue for protocol-specific settings
 
-enum AnyCodableValue: Codable, Hashable, Sendable {
+enum AnyCodableValue: Codable, Hashable {
     case string(String)
     case int(Int)
     case double(Double)

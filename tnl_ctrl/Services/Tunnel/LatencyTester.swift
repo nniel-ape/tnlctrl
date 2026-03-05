@@ -12,7 +12,7 @@ private let logger = Logger(subsystem: "nniel.tnlctrl", category: "LatencyTester
 
 // MARK: - LatencyResult
 
-enum LatencyResult: Sendable {
+enum LatencyResult {
     case success(ms: Int)
     case timeout
     case error(String)

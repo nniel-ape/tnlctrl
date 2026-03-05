@@ -231,7 +231,7 @@ actor SSHClient {
 
 // MARK: - SSH Configuration
 
-struct SSHConnectionConfig: Sendable {
+struct SSHConnectionConfig {
     let host: String
     let port: Int
     let username: String

@@ -6,7 +6,7 @@
 import Foundation
 import SwiftUI
 
-struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
+struct RoutingRule: Identifiable, Codable, Hashable {
     let id: UUID
     var type: RuleType
     var value: String
@@ -86,7 +86,7 @@ struct RoutingRule: Identifiable, Codable, Hashable, Sendable {
     }
 }
 
-enum RuleType: String, Codable, CaseIterable, Identifiable, Sendable {
+enum RuleType: String, Codable, CaseIterable, Identifiable {
     // Process-based rules
     case processName = "process_name"
     case processPath = "process_path"
@@ -181,7 +181,7 @@ enum RuleType: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
-enum RuleCategory: String, CaseIterable, Identifiable, Sendable {
+enum RuleCategory: String, CaseIterable, Identifiable {
     case app
     case domain
     case ip
@@ -233,7 +233,7 @@ enum RuleCategory: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-enum RuleOutbound: String, Codable, CaseIterable, Identifiable, Sendable {
+enum RuleOutbound: String, Codable, CaseIterable, Identifiable {
     case direct
     case proxy
     case block

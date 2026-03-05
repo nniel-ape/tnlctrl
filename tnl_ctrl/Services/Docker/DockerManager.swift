@@ -231,7 +231,7 @@ actor DockerManager {
 
 // MARK: - Types
 
-enum ContainerStatus: String, Sendable {
+enum ContainerStatus: String {
     case running
     case paused
     case exited
@@ -257,14 +257,14 @@ enum ContainerStatus: String, Sendable {
     }
 }
 
-enum RestartPolicy: String, Sendable {
+enum RestartPolicy: String {
     case no
     case always
     case on_failure = "on-failure"
     case unless_stopped = "unless-stopped"
 }
 
-struct ContainerInfo: Identifiable, Sendable {
+struct ContainerInfo: Identifiable {
     let id: String
     let name: String
     let image: String

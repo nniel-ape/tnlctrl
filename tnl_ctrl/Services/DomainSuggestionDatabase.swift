@@ -8,7 +8,7 @@
 import Foundation
 
 /// A domain suggestion entry
-struct DomainSuggestion: Identifiable, Hashable, Sendable {
+struct DomainSuggestion: Identifiable, Hashable {
     let id: String
     let domain: String
     let name: String
@@ -23,7 +23,7 @@ struct DomainSuggestion: Identifiable, Hashable, Sendable {
 }
 
 /// Category for domain suggestions
-struct DomainCategory: Identifiable, Hashable, Sendable {
+struct DomainCategory: Identifiable, Hashable {
     let id: String
     let name: String
     let icon: String
@@ -297,7 +297,7 @@ enum DomainSuggestionDatabase {
 
 /// Popular GeoSite categories from sing-box geosite database
 enum GeoSiteDatabase {
-    struct GeoSiteCategory: Identifiable, Hashable, Sendable {
+    struct GeoSiteCategory: Identifiable, Hashable {
         let id: String
         let name: String
         let description: String
@@ -356,7 +356,7 @@ enum GeoSiteDatabase {
 
 /// Common IP range presets
 enum IPRangePresets {
-    struct IPPreset: Identifiable, Hashable, Sendable {
+    struct IPPreset: Identifiable, Hashable {
         let id: String
         let name: String
         let description: String
@@ -423,7 +423,7 @@ enum IPRangePresets {
 
 /// Common country codes for GeoIP rules
 enum CountryCodeDatabase {
-    struct Country: Identifiable, Hashable, Sendable {
+    struct Country: Identifiable, Hashable {
         let code: String
         let name: String
         let flag: String

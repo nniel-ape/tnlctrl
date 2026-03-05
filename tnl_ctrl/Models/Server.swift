@@ -7,7 +7,7 @@ import Foundation
 
 // MARK: - ServerStatus
 
-enum ServerStatus: String, Codable, Hashable, Sendable {
+enum ServerStatus: String, Codable, Hashable {
     case active
     case stopped
     case unknown
@@ -16,7 +16,7 @@ enum ServerStatus: String, Codable, Hashable, Sendable {
 
 // MARK: - Server
 
-struct Server: Identifiable, Codable, Hashable, Sendable {
+struct Server: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
     var host: String

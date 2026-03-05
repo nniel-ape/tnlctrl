@@ -121,7 +121,7 @@ final class HelperInstaller {
 
 // MARK: - Status Enum
 
-enum HelperStatus: Sendable {
+enum HelperStatus {
     case unknown
     case notInstalled
     case installing

@@ -89,6 +89,17 @@ final class Deployer {
             state.log("Using environment-based configuration")
         }
 
+        // Generate self-signed TLS certificates for Hysteria2
+        if template is Hysteria2Template, let configDir {
+            state.log("Generating self-signed TLS certificate...")
+            try await generateSelfSignedCert(
+                certPath: configDir.appendingPathComponent("cert.pem").path,
+                keyPath: configDir.appendingPathComponent("key.pem").path,
+                host: settings.sni.isEmpty ? settings.serverHost : settings.sni
+            )
+            state.log("TLS certificate generated")
+        }
+
         // Determine ports and protocols
         var ports: [Int: Int] = [:]
         var portProtocols: [Int: String] = [:]
@@ -262,6 +273,26 @@ final class Deployer {
             state.log("Using environment-based configuration")
         }
 
+        // Generate self-signed TLS certificates for Hysteria2
+        if template is Hysteria2Template {
+            state.log("Generating self-signed TLS certificate...")
+            let certCmd = """
+            openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
+            -days 3650 -nodes \
+            -keyout \(SSHClient.shellQuote("\(remoteConfigDir)/key.pem")) \
+            -out \(SSHClient.shellQuote("\(remoteConfigDir)/cert.pem")) \
+            -subj '/CN=\(settings.sni.isEmpty ? settings.serverHost : settings.sni)' 2>/dev/null
+            """
+            _ = try await sshClient.execute(
+                command: certCmd,
+                host: state.sshHost,
+                port: state.sshPort,
+                username: state.sshUsername,
+                privateKeyPath: keyPath
+            )
+            state.log("TLS certificate generated")
+        }
+
         // Pull image
         state.log("Pulling image \(template.defaultImage)...")
         _ = try await sshClient.runDockerRemotely(
@@ -332,6 +363,28 @@ final class Deployer {
         state.log("Deployment complete!")
 
         return service
+    }
+
+    /// Generate a self-signed TLS certificate using openssl.
+    private func generateSelfSignedCert(certPath: String, keyPath: String, host: String) async throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
+        process.arguments = [
+            "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1",
+            "-days", "3650", "-nodes",
+            "-keyout", keyPath,
+            "-out", certPath,
+            "-subj", "/CN=\(host)"
+        ]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            throw DeployerError.configurationFailed("Failed to generate TLS certificate: \(output)")
+        }
     }
 
     /// Build remote config paths based on template type

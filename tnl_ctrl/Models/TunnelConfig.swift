@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct TunnelConfig: Codable, Hashable, Sendable {
+struct TunnelConfig: Codable, Hashable {
     var mode: TunnelMode
     var selectedServiceId: UUID?
     var chainEnabled: Bool
@@ -87,7 +87,7 @@ struct TunnelConfig: Codable, Hashable, Sendable {
     }
 }
 
-enum TunnelMode: String, Codable, CaseIterable, Identifiable, Sendable {
+enum TunnelMode: String, Codable, CaseIterable, Identifiable {
     case full
     case split
 

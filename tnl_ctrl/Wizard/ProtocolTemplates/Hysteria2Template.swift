@@ -78,7 +78,8 @@ struct Hysteria2Template: ProtocolTemplate {
         var serviceSettings: [String: AnyCodableValue] = [
             "password": .string(settings.password),
             "tls": .bool(true),
-            "sni": .string(settings.sni.isEmpty ? settings.serverHost : settings.sni)
+            "sni": .string(settings.sni.isEmpty ? settings.serverHost : settings.sni),
+            "allowInsecure": .bool(true)
         ]
 
         if !settings.hysteriaObfsType.isEmpty {

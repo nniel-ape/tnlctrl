@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct TunnelPreset: Identifiable, Codable, Hashable, Sendable {
+struct TunnelPreset: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
     var mode: TunnelMode

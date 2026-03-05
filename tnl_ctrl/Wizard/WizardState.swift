@@ -225,7 +225,7 @@ final class WizardState {
 
 // MARK: - Deployment Target
 
-enum DeploymentTarget: String, Codable, CaseIterable, Identifiable, Sendable {
+enum DeploymentTarget: String, Codable, CaseIterable, Identifiable {
     case local
     case remote
 

@@ -8,13 +8,13 @@ import Foundation
 enum TunnelConfigValidator {
     // MARK: - Types
 
-    enum ValidationSeverity: Sendable {
+    enum ValidationSeverity {
         case error
         case warning
         case info
     }
 
-    struct ValidationIssue: Identifiable, Sendable {
+    struct ValidationIssue: Identifiable {
         let id = UUID()
         let severity: ValidationSeverity
         let message: String
@@ -35,7 +35,7 @@ enum TunnelConfigValidator {
         }
     }
 
-    struct ValidationResult: Sendable {
+    struct ValidationResult {
         let issues: [ValidationIssue]
 
         var isValid: Bool {

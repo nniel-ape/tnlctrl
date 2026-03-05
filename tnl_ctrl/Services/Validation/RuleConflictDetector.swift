@@ -11,14 +11,14 @@ import Foundation
 enum RuleConflictDetector {
     // MARK: - Types
 
-    enum ConflictType: String, Codable, Sendable {
+    enum ConflictType: String, Codable {
         case exactDuplicate // Same type+value+outbound
         case outboundConflict // Same type+value, different outbound
         case shadowedRule // Rule will never match (earlier rule catches all)
         case overlappingDomain // e.g., "google.com" + "*.google.com"
     }
 
-    enum Severity: Sendable {
+    enum Severity {
         case error // Must fix (exact duplicates)
         case warning // Should review (outbound conflicts)
         case info // Nice to know (potential shadowing)
@@ -32,7 +32,7 @@ enum RuleConflictDetector {
         }
     }
 
-    struct Conflict: Identifiable, Sendable {
+    struct Conflict: Identifiable {
         let id = UUID()
         let type: ConflictType
         let rule1: RoutingRule

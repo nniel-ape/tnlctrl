@@ -14,12 +14,12 @@ final class UpdaterViewModel {
     private var observation: NSKeyValueObservation?
 
     init() {
-        updaterController = SPUStandardUpdaterController(
+        self.updaterController = SPUStandardUpdaterController(
             startingUpdater: true,
             updaterDelegate: nil,
             userDriverDelegate: nil
         )
-        observation = updaterController.updater.observe(
+        self.observation = updaterController.updater.observe(
             \.canCheckForUpdates, options: [.initial, .new]
         ) { [weak self] updater, _ in
             let value = updater.canCheckForUpdates

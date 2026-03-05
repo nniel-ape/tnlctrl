@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 
-struct RuleGroup: Identifiable, Codable, Hashable, Sendable {
+struct RuleGroup: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
     var description: String
@@ -61,7 +61,7 @@ struct RuleGroup: Identifiable, Codable, Hashable, Sendable {
 
 // MARK: - Group Color
 
-enum GroupColor: String, Codable, CaseIterable, Sendable {
+enum GroupColor: String, Codable, CaseIterable {
     case blue
     case purple
     case pink

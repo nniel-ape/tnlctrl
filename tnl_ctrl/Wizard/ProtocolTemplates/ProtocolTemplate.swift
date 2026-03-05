@@ -33,7 +33,7 @@ extension ProtocolTemplate {
 
 // MARK: - Deployment Settings
 
-struct DeploymentSettings: Sendable {
+struct DeploymentSettings {
     var serverHost: String
     var port: Int
     var uuid: String
