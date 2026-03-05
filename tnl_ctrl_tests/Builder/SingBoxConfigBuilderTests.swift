@@ -759,13 +759,13 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         XCTAssertNotNil(domainRule)
         XCTAssertEqual(domainRule?["outbound"] as? String, "proxy")
 
-        // Find geoip rule
-        let geoipRule = rules.first { ($0["geoip"] as? [String])?.contains("CN") == true }
+        // Find geoip rule (sing-box 1.12+ uses rule_set references)
+        let geoipRule = rules.first { ($0["rule_set"] as? [String])?.contains("geoip-CN") == true }
         XCTAssertNotNil(geoipRule)
         XCTAssertEqual(geoipRule?["outbound"] as? String, "direct")
 
-        // Find geosite rule
-        let geositeRule = rules.first { ($0["geosite"] as? [String])?.contains("category-ads") == true }
+        // Find geosite rule (sing-box 1.12+ uses rule_set references)
+        let geositeRule = rules.first { ($0["rule_set"] as? [String])?.contains("geosite-category-ads") == true }
         XCTAssertNotNil(geositeRule)
         XCTAssertEqual(geositeRule?["outbound"] as? String, "block")
 
@@ -799,11 +799,11 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         let ipCidrRule = rules.first { ($0["ip_cidr"] as? [String])?.contains("10.0.0.0/8") == true }
         XCTAssertNotNil(ipCidrRule, "Should have IP CIDR rule")
 
-        // Verify geo rules
-        let geoipRule = rules.first { ($0["geoip"] as? [String])?.contains("CN") == true }
+        // Verify geo rules (sing-box 1.12+ uses rule_set references)
+        let geoipRule = rules.first { ($0["rule_set"] as? [String])?.contains("geoip-CN") == true }
         XCTAssertNotNil(geoipRule, "Should have geoip rule")
 
-        let geositeRule = rules.first { ($0["geosite"] as? [String])?.contains("category-ads") == true }
+        let geositeRule = rules.first { ($0["rule_set"] as? [String])?.contains("geosite-category-ads") == true }
         XCTAssertNotNil(geositeRule, "Should have geosite rule")
 
         // Verify process rules
@@ -837,7 +837,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
             settings: ["tls": .bool(true)]
         )
 
-        let config = TunnelConfig(mode: .full, chain: [service1.id, service2.id], rules: [])
+        let config = TunnelConfig(mode: .full, chainEnabled: true, chain: [service1.id, service2.id], rules: [])
         let builder = makeBuilder(services: [service1, service2], config: config)
 
         let json = try await builder.build()
@@ -875,7 +875,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
             settings: ["sni": .string("exit.example.com"), "tls": .bool(true)]
         )
 
-        let config = TunnelConfig(mode: .full, chain: [service1.id, service2.id], rules: [])
+        let config = TunnelConfig(mode: .full, chainEnabled: true, chain: [service1.id, service2.id], rules: [])
         let builder = makeBuilder(services: [service1, service2], config: config)
 
         let json = try await builder.build()
@@ -997,7 +997,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         let service = ConfigFixtures.makeVLESSService(credentialRef: "cred")
 
         // Create chain with non-existent service ID
-        let config = TunnelConfig(mode: .full, chain: [UUID()], rules: [])
+        let config = TunnelConfig(mode: .full, chainEnabled: true, chain: [UUID()], rules: [])
         let builder = makeBuilder(services: [service], config: config)
 
         do {
@@ -1292,5 +1292,505 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let certificate = try XCTUnwrap(config["certificate"] as? [String: Any])
         XCTAssertEqual(certificate["store"] as? String, "mozilla")
+    }
+
+    // MARK: - Transport Edge Cases
+
+    func testBuildHTTPUpgradeTransport() async throws {
+        await mockKeychain.preloadCredential("uuid", ref: "test-cred-ref")
+        let service = Service(
+            name: "HTTPUpgrade Test",
+            protocol: .vless,
+            server: "httpup.example.com",
+            port: 443,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "network": .string("httpupgrade"),
+                "httpUpgradePath": .string("/upgrade"),
+                "httpUpgradeHost": .string("httpup.host.com"),
+                "tls": .bool(true)
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
+        let transport = try XCTUnwrap(vlessOutbound["transport"] as? [String: Any])
+
+        XCTAssertEqual(transport["type"] as? String, "httpupgrade")
+        XCTAssertEqual(transport["path"] as? String, "/upgrade")
+        XCTAssertEqual(transport["host"] as? String, "httpup.host.com")
+    }
+
+    func testBuildWebSocketEarlyData() async throws {
+        await mockKeychain.preloadCredential("uuid", ref: "test-cred-ref")
+        let service = Service(
+            name: "WS Early Data",
+            protocol: .vmess,
+            server: "ws.example.com",
+            port: 443,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "alterId": .int(0),
+                "security": .string("auto"),
+                "network": .string("ws"),
+                "wsPath": .string("/ws"),
+                "wsEarlyData": .string("2048"),
+                "wsEarlyDataHeader": .string("Sec-WebSocket-Protocol"),
+                "tls": .bool(true)
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let vmessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vmess"))
+        let transport = try XCTUnwrap(vmessOutbound["transport"] as? [String: Any])
+
+        XCTAssertEqual(transport["max_early_data"] as? Int, 2048)
+        XCTAssertEqual(transport["early_data_header_name"] as? String, "Sec-WebSocket-Protocol")
+    }
+
+    // MARK: - Protocol-Specific Edge Cases
+
+    func testBuildShadowsocksPlugin() async throws {
+        await mockKeychain.preloadCredential("ss-pass", ref: "test-cred-ref")
+        let service = Service(
+            name: "SS Plugin",
+            protocol: .shadowsocks,
+            server: "ss.example.com",
+            port: 443,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "method": .string("aes-256-gcm"),
+                "plugin": .string("v2ray-plugin"),
+                "pluginOpts": .string("server;tls;host=ss.example.com")
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let ssOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "shadowsocks"))
+        XCTAssertEqual(ssOutbound["plugin"] as? String, "v2ray-plugin")
+        XCTAssertEqual(ssOutbound["plugin_opts"] as? String, "server;tls;host=ss.example.com")
+    }
+
+    func testBuildShadowsocksUdpOverTcp() async throws {
+        await mockKeychain.preloadCredential("ss-pass", ref: "test-cred-ref")
+        let service = Service(
+            name: "SS UDP",
+            protocol: .shadowsocks,
+            server: "ss.example.com",
+            port: 8388,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "method": .string("aes-256-gcm"),
+                "udpOverTcp": .bool(true)
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let ssOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "shadowsocks"))
+        XCTAssertEqual(ssOutbound["udp_over_tcp"] as? Bool, true)
+    }
+
+    func testBuildHysteria2PortHopping() async throws {
+        await mockKeychain.preloadCredential("hy2-pass", ref: "test-cred-ref")
+        let service = Service(
+            name: "Hy2 Port Hop",
+            protocol: .hysteria2,
+            server: "hy2.example.com",
+            port: 443,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "serverPorts": .string("20000-40000"),
+                "hopInterval": .string("30s"),
+                "tls": .bool(true),
+                "sni": .string("hy2.example.com")
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let hy2Outbound = try XCTUnwrap(findOutbound(in: outbounds, type: "hysteria2"))
+        XCTAssertEqual(hy2Outbound["server_ports"] as? String, "20000-40000")
+        XCTAssertEqual(hy2Outbound["hop_interval"] as? String, "30s")
+        // server_port should be removed when serverPorts is set
+        XCTAssertNil(hy2Outbound["server_port"])
+    }
+
+    func testBuildHysteria2NonNumericBandwidthOmitted() async throws {
+        await mockKeychain.preloadCredential("hy2-pass", ref: "test-cred-ref")
+        let service = Service(
+            name: "Hy2 Bad BW",
+            protocol: .hysteria2,
+            server: "hy2.example.com",
+            port: 443,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "up": .string("notanumber"),
+                "down": .string(""),
+                "tls": .bool(true),
+                "sni": .string("hy2.example.com")
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let hy2Outbound = try XCTUnwrap(findOutbound(in: outbounds, type: "hysteria2"))
+        // Non-numeric and empty strings should not produce bandwidth fields
+        XCTAssertNil(hy2Outbound["up_mbps"])
+        XCTAssertNil(hy2Outbound["down_mbps"])
+    }
+
+    func testBuildWireGuardReservedBytes() async throws {
+        await mockKeychain.preloadCredential("wg-key", ref: "test-cred-ref")
+        let service = Service(
+            name: "WG Reserved",
+            protocol: .wireguard,
+            server: "wg.example.com",
+            port: 51820,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "publicKey": .string("PUBLIC_KEY_BASE64"),
+                "reserved": .string("72, 83, 104")
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let wgOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "wireguard"))
+        let reserved = try XCTUnwrap(wgOutbound["reserved"] as? [Int])
+        XCTAssertEqual(reserved, [72, 83, 104])
+    }
+
+    func testBuildWireGuardPreSharedKey() async throws {
+        await mockKeychain.preloadCredential("wg-key", ref: "test-cred-ref")
+        let service = Service(
+            name: "WG PSK",
+            protocol: .wireguard,
+            server: "wg.example.com",
+            port: 51820,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "publicKey": .string("PUBLIC_KEY_BASE64"),
+                "preSharedKey": .string("PSK_BASE64")
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let wgOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "wireguard"))
+        XCTAssertEqual(wgOutbound["pre_shared_key"] as? String, "PSK_BASE64")
+    }
+
+    func testBuildWireGuardDualStackAddresses() async throws {
+        await mockKeychain.preloadCredential("wg-key", ref: "test-cred-ref")
+        let service = Service(
+            name: "WG Dual Stack",
+            protocol: .wireguard,
+            server: "wg.example.com",
+            port: 51820,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "publicKey": .string("PUBLIC_KEY_BASE64"),
+                "localAddressIPv4": .string("10.0.0.2/32"),
+                "localAddressIPv6": .string("fd00::2/128")
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let wgOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "wireguard"))
+        let localAddr = try XCTUnwrap(wgOutbound["local_address"] as? [String])
+        XCTAssertEqual(localAddr, ["10.0.0.2/32", "fd00::2/128"])
+    }
+
+    // MARK: - TLS Edge Cases
+
+    func testBuildTLSFragment() async throws {
+        await mockKeychain.preloadCredential("uuid", ref: "test-cred-ref")
+        let service = Service(
+            name: "TLS Fragment",
+            protocol: .vless,
+            server: "frag.example.com",
+            port: 443,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "tls": .bool(true),
+                "fragment": .bool(true)
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
+        let tls = try XCTUnwrap(vlessOutbound["tls"] as? [String: Any])
+        let fragment = try XCTUnwrap(tls["fragment"] as? [String: Any])
+        XCTAssertEqual(fragment["enabled"] as? Bool, true)
+    }
+
+    func testBuildALPNSplitting() async throws {
+        await mockKeychain.preloadCredential("uuid", ref: "test-cred-ref")
+        let service = Service(
+            name: "ALPN Split",
+            protocol: .vless,
+            server: "alpn.example.com",
+            port: 443,
+            credentialRef: "test-cred-ref",
+            settings: [
+                "tls": .bool(true),
+                "alpn": .string("h2,http/1.1")
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
+        let tls = try XCTUnwrap(vlessOutbound["tls"] as? [String: Any])
+        let alpn = try XCTUnwrap(tls["alpn"] as? [String])
+        XCTAssertEqual(alpn, ["h2", "http/1.1"])
+    }
+
+    // MARK: - Credential Fallback Tests
+
+    func testBuildVLESSCredentialFromSettings() async throws {
+        // No credential in keychain — falls back to settings["uuid"]
+        let service = Service(
+            name: "VLESS Settings UUID",
+            protocol: .vless,
+            server: "vless.example.com",
+            port: 443,
+            settings: [
+                "uuid": .string("fallback-uuid-from-settings"),
+                "tls": .bool(true)
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
+        XCTAssertEqual(vlessOutbound["uuid"] as? String, "fallback-uuid-from-settings")
+    }
+
+    func testBuildVLESSMissingCredentialSilent() async throws {
+        // No credentialRef, no settings["uuid"] — should NOT throw (unlike Trojan/SS)
+        let service = Service(
+            name: "VLESS No Cred",
+            protocol: .vless,
+            server: "vless.example.com",
+            port: 443,
+            settings: ["tls": .bool(true)]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let vlessOutbound = try XCTUnwrap(findOutbound(in: outbounds, type: "vless"))
+        // uuid should be absent, not crash
+        XCTAssertNil(vlessOutbound["uuid"])
+    }
+
+    func testBuildHysteria2CredentialFromSettings() async throws {
+        let service = Service(
+            name: "Hy2 Settings Pass",
+            protocol: .hysteria2,
+            server: "hy2.example.com",
+            port: 443,
+            settings: [
+                "password": .string("settings-password"),
+                "tls": .bool(true),
+                "sni": .string("hy2.example.com")
+            ]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let hy2Outbound = try XCTUnwrap(findOutbound(in: outbounds, type: "hysteria2"))
+        XCTAssertEqual(hy2Outbound["password"] as? String, "settings-password")
+    }
+
+    // MARK: - Routing & Inbound Edge Cases
+
+    func testBuildRouteExcludeIPAddresses() async throws {
+        await mockKeychain.preloadCredential("uuid", ref: "test-cred-ref")
+        let service = Service(
+            name: "IP Server",
+            protocol: .vless,
+            server: "1.2.3.4",
+            port: 443,
+            credentialRef: "test-cred-ref",
+            settings: ["tls": .bool(true)]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let inbounds = try XCTUnwrap(config["inbounds"] as? [[String: Any]])
+
+        let tun = try XCTUnwrap(inbounds.first)
+        let excludeIPs = try XCTUnwrap(tun["route_exclude_address"] as? [String])
+        XCTAssertTrue(excludeIPs.contains("1.2.3.4/32"))
+    }
+
+    func testBuildRouteExcludeEmptyForDomains() async throws {
+        await mockKeychain.preloadCredential("uuid", ref: "test-cred-ref")
+        let service = Service(
+            name: "Domain Server",
+            protocol: .vless,
+            server: "example.com",
+            port: 443,
+            credentialRef: "test-cred-ref",
+            settings: ["tls": .bool(true)]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let inbounds = try XCTUnwrap(config["inbounds"] as? [[String: Any]])
+
+        let tun = try XCTUnwrap(inbounds.first)
+        let excludeIPs = try XCTUnwrap(tun["route_exclude_address"] as? [String])
+        XCTAssertTrue(excludeIPs.isEmpty)
+    }
+
+    func testBuildSelectedServiceInSelector() async throws {
+        await mockKeychain.preloadCredential("uuid1", ref: "cred1")
+        await mockKeychain.preloadCredential("uuid2", ref: "cred2")
+        let service1 = Service(
+            name: "Service 1",
+            protocol: .vless,
+            server: "s1.example.com",
+            port: 443,
+            credentialRef: "cred1",
+            settings: ["tls": .bool(true)]
+        )
+        let service2 = Service(
+            name: "Service 2",
+            protocol: .vless,
+            server: "s2.example.com",
+            port: 443,
+            credentialRef: "cred2",
+            settings: ["tls": .bool(true)]
+        )
+        var tunnelConfig = ConfigFixtures.makeDefaultTunnelConfig()
+        tunnelConfig.selectedServiceId = service2.id
+        let builder = makeBuilder(services: [service1, service2], config: tunnelConfig)
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let outbounds = try XCTUnwrap(config["outbounds"] as? [[String: Any]])
+
+        let selector = try XCTUnwrap(findOutbound(in: outbounds, tag: "proxy"))
+        XCTAssertEqual(selector["default"] as? String, service2.id.uuidString.lowercased())
+    }
+
+    func testBuildSplitTunnelFinalBlock() async throws {
+        await mockKeychain.preloadCredential("uuid", ref: "test-cred-ref")
+        let service = ConfigFixtures.makeVLESSService(credentialRef: "test-cred-ref")
+        var tunnelConfig = ConfigFixtures.makeSplitTunnelConfig()
+        tunnelConfig.finalOutbound = .block
+        let builder = makeBuilder(services: [service], config: tunnelConfig)
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let route = try XCTUnwrap(config["route"] as? [String: Any])
+
+        XCTAssertEqual(route["final"] as? String, "block")
+    }
+
+    func testBuildSplitTunnelWithChainFinalProxy() async throws {
+        await mockKeychain.preloadCredential("uuid1", ref: "cred1")
+        await mockKeychain.preloadCredential("uuid2", ref: "cred2")
+        let service1 = Service(
+            name: "Chain Entry",
+            protocol: .vless,
+            server: "s1.example.com",
+            port: 443,
+            credentialRef: "cred1",
+            settings: ["tls": .bool(true)]
+        )
+        let service2 = Service(
+            name: "Chain Exit",
+            protocol: .vless,
+            server: "s2.example.com",
+            port: 443,
+            credentialRef: "cred2",
+            settings: ["tls": .bool(true)]
+        )
+        var tunnelConfig = ConfigFixtures.makeSplitTunnelConfig()
+        tunnelConfig.chainEnabled = true
+        tunnelConfig.chain = [service1.id, service2.id]
+        tunnelConfig.finalOutbound = .proxy
+        let builder = makeBuilder(services: [service1, service2], config: tunnelConfig)
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let route = try XCTUnwrap(config["route"] as? [String: Any])
+
+        // Split tunnel with chain → final should be "chain" not "proxy"
+        XCTAssertEqual(route["final"] as? String, "chain")
+    }
+
+    func testBuildRouteExcludeIPv6Address() async throws {
+        await mockKeychain.preloadCredential("uuid", ref: "test-cred-ref")
+        let service = Service(
+            name: "IPv6 Server",
+            protocol: .vless,
+            server: "2001:db8::1",
+            port: 443,
+            credentialRef: "test-cred-ref",
+            settings: ["tls": .bool(true)]
+        )
+        let builder = makeBuilder(services: [service])
+
+        let json = try await builder.build()
+        let config = try parseJSON(json)
+        let inbounds = try XCTUnwrap(config["inbounds"] as? [[String: Any]])
+
+        let tun = try XCTUnwrap(inbounds.first)
+        let excludeIPs = try XCTUnwrap(tun["route_exclude_address"] as? [String])
+        XCTAssertTrue(excludeIPs.contains("2001:db8::1/32"))
     }
 }

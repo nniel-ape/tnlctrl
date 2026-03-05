@@ -109,4 +109,50 @@ final class RuleConflictDetectorTests: XCTestCase {
 
         XCTAssertNil(conflict)
     }
+
+    func testNewDisabledRuleReturnsNil() {
+        let existingRules = [
+            RoutingRule(type: .domain, value: "example.com", outbound: .proxy)
+        ]
+
+        let newRule = RoutingRule(type: .domain, value: "example.com", outbound: .proxy, isEnabled: false)
+
+        let conflict = RuleConflictDetector.detectConflictForNewRule(newRule, in: existingRules)
+
+        XCTAssertNil(conflict)
+    }
+
+    func testMultipleConflictsDetected() {
+        let rules = [
+            RoutingRule(type: .domain, value: "example.com", outbound: .proxy),
+            RoutingRule(type: .domain, value: "example.com", outbound: .proxy),
+            RoutingRule(type: .domain, value: "test.com", outbound: .proxy),
+            RoutingRule(type: .domain, value: "test.com", outbound: .direct)
+        ]
+
+        let conflicts = RuleConflictDetector.detectConflicts(in: rules)
+
+        XCTAssertEqual(conflicts.count, 2)
+        XCTAssertTrue(conflicts.contains { $0.type == .exactDuplicate })
+        XCTAssertTrue(conflicts.contains { $0.type == .outboundConflict })
+    }
+
+    func testEmptyRulesNoConflicts() {
+        let conflicts = RuleConflictDetector.detectConflicts(in: [])
+
+        XCTAssertTrue(conflicts.isEmpty)
+    }
+
+    func testNewRuleOutboundConflict() {
+        let existingRules = [
+            RoutingRule(type: .domain, value: "example.com", outbound: .proxy)
+        ]
+
+        let newRule = RoutingRule(type: .domain, value: "example.com", outbound: .block)
+
+        let conflict = RuleConflictDetector.detectConflictForNewRule(newRule, in: existingRules)
+
+        XCTAssertNotNil(conflict)
+        XCTAssertEqual(conflict?.type, .outboundConflict)
+    }
 }

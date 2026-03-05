@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		555281422F59E87300D8597E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 55B86A412F20000100906E9A /* Sparkle */; };
 		55B86A032F1696CE00906E9A /* tnl_ctrl_helper in CopyFiles */ = {isa = PBXBuildFile; fileRef = 55B869F32F1695ED00906E9A /* tnl_ctrl_helper */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -104,6 +105,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				555281422F59E87300D8597E /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

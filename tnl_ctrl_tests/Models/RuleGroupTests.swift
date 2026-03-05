@@ -22,7 +22,7 @@ final class RuleGroupTests: XCTestCase {
         XCTAssertEqual(group.description, "Test Description")
         XCTAssertEqual(group.icon, "folder")
         XCTAssertEqual(group.color, .blue)
-        XCTAssertTrue(group.isExpanded)
+        XCTAssertFalse(group.isExpanded)
         XCTAssertEqual(group.position, 0)
     }
 
@@ -51,7 +51,7 @@ final class RuleGroupTests: XCTestCase {
         // Simulate old JSON without optional fields
         let oldJSON = """
         {
-            "id": "test-id",
+            "id": "550E8400-E29B-41D4-A716-446655440000",
             "name": "Test Group"
         }
         """
@@ -63,7 +63,7 @@ final class RuleGroupTests: XCTestCase {
         XCTAssertEqual(decoded.description, "") // Should default to empty
         XCTAssertEqual(decoded.icon, "folder") // Should default to folder
         XCTAssertEqual(decoded.color, .blue) // Should default to blue
-        XCTAssertTrue(decoded.isExpanded) // Should default to true
+        XCTAssertFalse(decoded.isExpanded) // Should default to false
         XCTAssertEqual(decoded.position, 0) // Should default to 0
     }
 
