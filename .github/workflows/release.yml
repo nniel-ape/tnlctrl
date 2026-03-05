@@ -40,7 +40,8 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_ENTITLEMENTS="" \
             DEVELOPMENT_TEAM="" \
-            MARKETING_VERSION="${{ steps.version.outputs.version }}"
+            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            ASSETCATALOG_COMPILER_APPICON_NAME=""
 
       - name: Package zip
         run: |
