@@ -49,27 +49,37 @@ tnl_ctrl uses a three-process model:
 
 ## Requirements
 
-- **macOS 15** (Sequoia) or later
-- **Xcode 16+** (to build from source)
+- **macOS 26** (Tahoe) or later
+- **Xcode 26+** (to build from source)
 - **Docker** (optional) — Docker Desktop or colima, only needed for the deployment wizard
 
 sing-box is bundled with the app — no separate installation required.
 
+## Installation
+
+Download the latest release from the [Releases page](https://github.com/nniel-ape/tnlctrl/releases).
+
+1. Download `tnl_ctrl-<version>-arm64.zip`
+2. Extract the zip
+3. Remove the quarantine attribute (the app is unsigned):
+   ```bash
+   xattr -cr tnl_ctrl.app
+   ```
+4. Move `tnl_ctrl.app` to `/Applications`
+5. Launch — macOS will prompt to install the privileged helper on first run
+
+> **Note:** Apple Silicon (arm64) only.
+
 ## Building from Source
 
 ```bash
-git clone https://github.com/nniel/tnl_ctrl.git
-cd tnl_ctrl
+git clone https://github.com/nniel-ape/tnlctrl.git
+cd tnlctrl
+./Scripts/download-sing-box.sh
 open tnl_ctrl.xcodeproj
 ```
 
 Build and run the `tnl_ctrl` scheme in Xcode. The helper target builds automatically as a dependency.
-
-For local development without a paid Apple Developer account, ad-hoc sign both targets:
-
-```bash
-codesign --deep --force --sign - build/Release/tnl_ctrl.app
-```
 
 ## Usage
 
