@@ -6,6 +6,9 @@
 //
 
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "nniel.tnlctrl", category: "Deployer")
 
 @MainActor
 final class Deployer {
@@ -23,8 +26,14 @@ final class Deployer {
     /// Returns only the Service - caller is responsible for updating the Server record.
     func deploy(to server: Server) async throws -> Service {
         let settings = state.buildDeploymentSettings()
+        let proto = state.selectedProtocol
+        let target = server.deploymentTarget.rawValue
+        logger.info(
+            "Deploying to \(server.name) (\(target)), protocol: \(proto.rawValue), container: \(settings.containerName)"
+        )
 
-        guard let template = ProtocolTemplates.template(for: state.selectedProtocol) else {
+        guard let template = ProtocolTemplates.template(for: proto) else {
+            logger.error("Unsupported protocol: \(proto.rawValue)")
             throw DeployerError.unsupportedProtocol
         }
 
@@ -40,6 +49,7 @@ final class Deployer {
         service.source = .created
         service.serverId = server.id
 
+        logger.info("Deployment complete: service \(service.id), container \(settings.containerName)")
         return service
     }
 
@@ -55,6 +65,7 @@ final class Deployer {
         // Check Docker is available
         state.log("Checking Docker availability...")
         guard await dockerManager.isDockerAvailable() else {
+            logger.error("Docker not available for local deployment")
             throw DeployerError.dockerNotAvailable
         }
         state.log("Docker is available")
@@ -152,8 +163,17 @@ final class Deployer {
         // Check container is running
         let status = await dockerManager.getContainerStatus(name: settings.containerName)
         guard status == .running else {
+            logger.error("Container \(settings.containerName) not running, status: \(String(describing: status))")
             let logs = await dockerManager.getContainerLogs(name: settings.containerName, tail: 20)
             state.log("Container logs:\n\(logs)")
+            logger.debug("Container logs:\n\(logs)")
+
+            // Cleanup failed container so retry doesn't hit a name collision
+            state.log("Cleaning up failed container...")
+            logger.info("Cleaning up failed container \(settings.containerName)")
+            try? await dockerManager.removeContainer(name: settings.containerName, force: true)
+            cleanupLocalConfigDir(containerName: settings.containerName)
+
             throw DeployerError.containerFailed("Container exited immediately. Check logs for details.")
         }
         state.log("Container started successfully")
@@ -206,6 +226,7 @@ final class Deployer {
     // MARK: - Remote Deployment
 
     private func deployRemote(template: ProtocolTemplate, settings: DeploymentSettings) async throws -> Service {
+        let sshHost = state.sshHost
         let keyPath = state.sshKeyPath.isEmpty ? nil : state.sshKeyPath
 
         // Test SSH connection
@@ -218,6 +239,7 @@ final class Deployer {
                 privateKeyPath: keyPath
             )
         } catch {
+            logger.error("SSH connection failed to \(sshHost): \(error)")
             throw DeployerError.sshConnectionFailed(error.localizedDescription)
         }
         state.log("SSH connection successful")
@@ -232,6 +254,7 @@ final class Deployer {
         )
 
         guard dockerInstalled else {
+            logger.error("Docker not available on remote server \(sshHost)")
             throw DeployerError.dockerNotAvailable
         }
         state.log("Docker is available on remote server")
@@ -276,12 +299,14 @@ final class Deployer {
         // Generate self-signed TLS certificates for Hysteria2
         if template is Hysteria2Template {
             state.log("Generating self-signed TLS certificate...")
+            let certHost = settings.sni.isEmpty ? settings.serverHost : settings.sni
             let certCmd = """
             openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
             -days 3650 -nodes \
             -keyout \(SSHClient.shellQuote("\(remoteConfigDir)/key.pem")) \
             -out \(SSHClient.shellQuote("\(remoteConfigDir)/cert.pem")) \
-            -subj '/CN=\(settings.sni.isEmpty ? settings.serverHost : settings.sni)' 2>/dev/null
+            -subj '/CN=\(certHost)' \
+            -addext 'subjectAltName=DNS:\(certHost)' 2>/dev/null
             """
             _ = try await sshClient.execute(
                 command: certCmd,
@@ -351,7 +376,25 @@ final class Deployer {
         )
 
         guard statusOutput.trimmingCharacters(in: .whitespacesAndNewlines) == "running" else {
-            throw DeployerError.containerFailed("Container is not running. Status: \(statusOutput)")
+            let trimmedStatus = statusOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+            logger.error("Remote container \(settings.containerName) not running, status: \(trimmedStatus)")
+
+            // Cleanup failed container and config so retry doesn't hit a name collision
+            state.log("Cleaning up failed remote container...")
+            logger.info("Cleaning up failed remote container \(settings.containerName) on \(sshHost)")
+            _ = try? await sshClient.runDockerRemotely(
+                command: "rm -f \(SSHClient.shellQuote(settings.containerName))",
+                host: state.sshHost, port: state.sshPort,
+                username: state.sshUsername, privateKeyPath: keyPath
+            )
+            let (failedConfigDir, _) = buildRemoteConfigPaths(template: template, settings: settings)
+            _ = try? await sshClient.execute(
+                command: "rm -rf \(SSHClient.shellQuote(failedConfigDir))",
+                host: state.sshHost, port: state.sshPort,
+                username: state.sshUsername, privateKeyPath: keyPath
+            )
+
+            throw DeployerError.containerFailed("Container is not running. Status: \(trimmedStatus)")
         }
         state.log("Container started successfully")
 
@@ -374,7 +417,8 @@ final class Deployer {
             "-days", "3650", "-nodes",
             "-keyout", keyPath,
             "-out", certPath,
-            "-subj", "/CN=\(host)"
+            "-subj", "/CN=\(host)",
+            "-addext", "subjectAltName=DNS:\(host)"
         ]
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -383,7 +427,16 @@ final class Deployer {
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            logger.error("TLS cert generation failed (exit \(process.terminationStatus)): \(output)")
             throw DeployerError.configurationFailed("Failed to generate TLS certificate: \(output)")
+        }
+    }
+
+    /// Remove local config directory for a container (used on deployment failure cleanup).
+    private func cleanupLocalConfigDir(containerName: String) {
+        for prefix in ["sing-box-", "hysteria-", "wireguard-"] {
+            let dir = Self.containerConfigDir.appendingPathComponent("\(prefix)\(containerName)")
+            try? FileManager.default.removeItem(at: dir)
         }
     }
 
