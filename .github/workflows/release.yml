@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build unsigned release
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)/Contents/Developer"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download sing-box
+        run: bash Scripts/download-sing-box.sh
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project tnl_ctrl.xcodeproj \
+            -target tnl_ctrl \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
+            DEVELOPMENT_TEAM="" \
+            MARKETING_VERSION="${{ steps.version.outputs.version }}"
+
+      - name: Package zip
+        run: |
+          APP=$(find build/DerivedData -name "tnl_ctrl.app" -maxdepth 6 | head -1)
+          ditto -c -k --keepParent "$APP" "tnl_ctrl-${{ steps.version.outputs.version }}-arm64.zip"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: tnl_ctrl ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: tnl_ctrl-${{ steps.version.outputs.version }}-arm64.zip
