@@ -1,49 +1,31 @@
 //
-//  ServiceEditSheet.swift
+//  ServiceCreateSheet.swift
 //  tnl_ctrl
 //
-//  Edit-only form for existing services.
+//  Two-phase service creation: protocol picker → form.
 //
 
 import SwiftUI
 
-struct ServiceEditSheet: View {
+struct ServiceCreateSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
 
     // MARK: - State
 
-    @State private var name: String
-    @State private var selectedProtocol: ProxyProtocol
-    @State private var server: String
-    @State private var portText: String
-    @State private var settings: [String: AnyCodableValue]
+    @State private var selectedProtocol: ProxyProtocol = .vless
+    @State private var protocolSelected = false
+
+    @State private var name = ""
+    @State private var server = ""
+    @State private var portText = ""
+    @State private var settings: [String: AnyCodableValue] = ProxyProtocol.vless.defaultSettings
     @State private var credentialValue = ""
-    @State private var originalCredentialValue = ""
     @State private var isSaving = false
 
-    @State private var showTLSSection: Bool
-    @State private var showTransportSection: Bool
-
-    private let originalService: Service
-
-    // MARK: - Init
-
-    init(service: Service) {
-        self.originalService = service
-        _name = State(initialValue: service.name)
-        _selectedProtocol = State(initialValue: service.protocol)
-        _server = State(initialValue: service.server)
-        _portText = State(initialValue: String(service.port))
-        _settings = State(initialValue: service.settings)
-
-        let hasTLS = service.settings["tls"]?.boolValue == true
-            || !(service.settings["sni"]?.stringValue ?? "").isEmpty
-        _showTLSSection = State(initialValue: hasTLS)
-
-        let hasTransport = !(service.settings["network"]?.stringValue ?? "").isEmpty
-        _showTransportSection = State(initialValue: hasTransport)
-    }
+    @State private var showTLSSection = false
+    @State private var showTransportSection = false
+    @State private var hasInteracted = false
 
     // MARK: - Protocol Capabilities
 
@@ -85,12 +67,15 @@ struct ServiceEditSheet: View {
         VStack(spacing: 0) {
             header
             Divider()
-            formContent
+            if protocolSelected {
+                formContent
+            } else {
+                protocolPickerView
+            }
             Divider()
             footer
         }
-        .frame(minWidth: 500, maxWidth: 500, minHeight: 400, idealHeight: 650, maxHeight: 800)
-        .task { await loadCredential() }
+        .frame(minWidth: 500, maxWidth: 500, minHeight: 400, idealHeight: 600, maxHeight: 800)
     }
 
     // MARK: - Header
@@ -101,48 +86,86 @@ struct ServiceEditSheet: View {
                 .font(.title2)
                 .foregroundStyle(.white)
                 .frame(width: 36, height: 36)
-                .background(Color.secondary)
+                .background(Color.accentColor)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Edit Service")
+                Text("New Service")
                     .font(.headline)
-                Text(selectedProtocol.displayName)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+
+                if protocolSelected {
+                    Text(selectedProtocol.displayName)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Choose a protocol")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()
-
-            Text(originalService.source == .imported ? "Imported" : "Created")
-                .font(.caption)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.secondary.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .padding()
     }
 
-    // MARK: - Form
+    // MARK: - Protocol Picker (Phase 1)
+
+    private var protocolPickerView: some View {
+        ScrollView {
+            let columns = [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12),
+            ]
+
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(ProxyProtocol.allCases) { proto in
+                    Button {
+                        selectedProtocol = proto
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: proto.systemImage)
+                                .font(.title3)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(proto.displayName)
+                                    .font(.body.weight(.medium))
+                                Text(proto.tagline)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            selectedProtocol == proto
+                                ? Color.accentColor.opacity(0.1)
+                                : Color.secondary.opacity(0.05)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(
+                                    selectedProtocol == proto ? Color.accentColor : Color.secondary.opacity(0.2),
+                                    lineWidth: selectedProtocol == proto ? 2 : 1
+                                )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding()
+        }
+    }
+
+    // MARK: - Form (Phase 2)
 
     private var formContent: some View {
         Form {
-            if originalService.source == .created {
-                Section {
-                    Label(
-                        """
-                        Changes only affect the client-side tunnel config. \
-                        The server container keeps its original settings. \
-                        To apply server-side changes, delete and redeploy.
-                        """,
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                }
-            }
-
             generalSection
 
             protocolSection
@@ -184,8 +207,6 @@ struct ServiceEditSheet: View {
                 isRequired: credentialRequired,
                 showGenerateButton: [.vless, .vmess].contains(selectedProtocol)
             )
-
-            infoSection
         }
         .formStyle(.grouped)
     }
@@ -194,27 +215,13 @@ struct ServiceEditSheet: View {
 
     private var generalSection: some View {
         Section {
-            if originalService.source == .imported {
-                Picker("Protocol", selection: $selectedProtocol) {
-                    ForEach(ProxyProtocol.allCases) { proto in
-                        Text(proto.displayName).tag(proto)
-                    }
-                }
-                .onChange(of: selectedProtocol) { oldValue, newValue in
-                    settings = newValue.defaultSettings
-                    credentialValue = ""
-                    if portText.isEmpty || portText == String(oldValue.defaultPort) {
-                        portText = String(newValue.defaultPort)
-                    }
-                    showTLSSection = [.vless, .vmess, .trojan, .hysteria2].contains(newValue)
-                    showTransportSection = false
-                }
-            }
-
             TextField("Name", text: $name, prompt: Text(suggestedName))
 
             TextField("Server", text: $server)
                 .textContentType(.URL)
+                .onChange(of: server) { _, _ in
+                    if !hasInteracted { hasInteracted = true }
+                }
 
             TextField("Port", text: $portText, prompt: Text(String(selectedProtocol.defaultPort)))
                 .onChange(of: portText) { _, newValue in
@@ -222,7 +229,9 @@ struct ServiceEditSheet: View {
                     if filtered != newValue { portText = filtered }
                 }
 
-            validationMessages
+            if hasInteracted {
+                validationMessages
+            }
         } header: {
             Label("General", systemImage: "info.circle")
         }
@@ -286,25 +295,6 @@ struct ServiceEditSheet: View {
         }
     }
 
-    // MARK: - Info Section
-
-    private var infoSection: some View {
-        Section {
-            if let latency = originalService.latency {
-                LabeledContent("Latency", value: "\(latency) ms")
-            }
-
-            LabeledContent("Source", value: originalService.source == .imported ? "Imported" : "Created")
-
-            if let serverId = originalService.serverId,
-               let srv = appState.servers.first(where: { $0.id == serverId }) {
-                LabeledContent("Server", value: srv.name)
-            }
-        } header: {
-            Label("Info", systemImage: "info.circle.fill")
-        }
-    }
-
     // MARK: - Footer
 
     private var footer: some View {
@@ -316,11 +306,27 @@ struct ServiceEditSheet: View {
 
             Spacer()
 
-            Button("Save") {
-                Task { await save() }
+            if protocolSelected {
+                Button("Back") {
+                    withAnimation { protocolSelected = false }
+                }
+
+                Button("Create") {
+                    Task { await save() }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canSave)
+            } else {
+                Button("Continue") {
+                    settings = selectedProtocol.defaultSettings
+                    portText = ""
+                    showTLSSection = supportsTLS
+                    showTransportSection = false
+                    hasInteracted = false
+                    withAnimation { protocolSelected = true }
+                }
+                .keyboardShortcut(.defaultAction)
             }
-            .keyboardShortcut(.defaultAction)
-            .disabled(!canSave)
         }
         .padding()
     }
@@ -356,31 +362,7 @@ struct ServiceEditSheet: View {
         if credentialRequired, credentialValue.trimmingCharacters(in: .whitespaces).isEmpty { return false }
         if selectedProtocol == .hysteria2,
            (settings["sni"]?.stringValue ?? "").trimmingCharacters(in: .whitespaces).isEmpty { return false }
-        if !hasChanges { return false }
         return true
-    }
-
-    private var hasChanges: Bool {
-        name != originalService.name
-            || selectedProtocol != originalService.protocol
-            || server != originalService.server
-            || portText != String(originalService.port)
-            || settings != originalService.settings
-            || credentialValue != originalCredentialValue
-    }
-
-    // MARK: - Credential Load
-
-    private func loadCredential() async {
-        guard let ref = originalService.credentialRef, !ref.isEmpty else { return }
-        do {
-            if let value = try await KeychainManager.shared.get(ref) {
-                credentialValue = value
-                originalCredentialValue = value
-            }
-        } catch {
-            // Credential not found — leave empty
-        }
     }
 
     // MARK: - Save
@@ -390,15 +372,12 @@ struct ServiceEditSheet: View {
         isSaving = true
         defer { isSaving = false }
 
-        var credentialRef = originalService.credentialRef
+        var credentialRef: String?
 
         let trimmedCred = credentialValue.trimmingCharacters(in: .whitespaces)
         if !trimmedCred.isEmpty {
             do {
-                let ref = credentialRef?.isEmpty == false ? credentialRef : nil
-                if ref == nil {
-                    credentialRef = KeychainManager.shared.generateCredentialRef()
-                }
+                credentialRef = KeychainManager.shared.generateCredentialRef()
                 if let ref = credentialRef {
                     try await KeychainManager.shared.save(trimmedCred, for: ref)
                 }
@@ -408,24 +387,16 @@ struct ServiceEditSheet: View {
         }
 
         let service = Service(
-            id: originalService.id,
             name: effectiveName,
             protocol: selectedProtocol,
             server: server.trimmingCharacters(in: .whitespaces),
             port: port,
             credentialRef: credentialRef,
             settings: settings,
-            latency: originalService.latency,
-            source: originalService.source,
-            serverId: originalService.serverId,
-            createdAt: originalService.createdAt
+            source: .imported
         )
 
-        appState.updateService(service)
-        if appState.tunnelManager.status.isConnected {
-            appState.pendingConfigReload = true
-        }
-
+        appState.addService(service)
         dismiss()
     }
 }

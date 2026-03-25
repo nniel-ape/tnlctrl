@@ -50,4 +50,35 @@ enum ProxyProtocol: String, Codable, CaseIterable, Identifiable {
         case .hysteria2: "bolt.horizontal"
         }
     }
+
+    var tagline: String {
+        switch self {
+        case .vless: "Modern, lightweight"
+        case .vmess: "V2Ray protocol"
+        case .trojan: "TLS-based stealth"
+        case .shadowsocks: "Classic encrypted"
+        case .socks5: "Simple proxy"
+        case .wireguard: "Fast VPN tunnel"
+        case .hysteria2: "QUIC-based, fast"
+        }
+    }
+
+    var defaultSettings: [String: AnyCodableValue] {
+        switch self {
+        case .vless:
+            ["tls": .bool(true), "fingerprint": .string("chrome"), "flow": .string("")]
+        case .vmess:
+            ["tls": .bool(true), "fingerprint": .string("chrome"), "security": .string("auto"), "alterId": .int(0)]
+        case .trojan:
+            ["tls": .bool(true), "fingerprint": .string("chrome")]
+        case .shadowsocks:
+            ["method": .string("aes-256-gcm")]
+        case .wireguard:
+            ["mtu": .int(1420)]
+        case .hysteria2:
+            ["tls": .bool(true)]
+        case .socks5:
+            [:]
+        }
+    }
 }

@@ -137,30 +137,55 @@ struct ProtocolStepView: View {
     @Bindable var state: WizardState
 
     var body: some View {
-        Form {
-            Section("Select Protocol") {
-                Picker("Protocol", selection: $state.selectedProtocol) {
-                    ForEach(ProtocolTemplates.deployableProtocols, id: \.self) { proto in
-                        HStack {
+        ScrollView {
+            let columns = [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12),
+            ]
+
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(ProtocolTemplates.deployableProtocols, id: \.self) { proto in
+                    Button {
+                        state.selectedProtocol = proto
+                    } label: {
+                        HStack(spacing: 12) {
                             Image(systemName: proto.systemImage)
-                                .frame(width: 20)
-                            VStack(alignment: .leading) {
+                                .font(.title3)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(proto.displayName)
+                                    .font(.body.weight(.medium))
                                 if let template = ProtocolTemplates.template(for: proto) {
                                     Text(template.description)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
+
+                            Spacer()
                         }
-                        .tag(proto)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            state.selectedProtocol == proto
+                                ? Color.accentColor.opacity(0.1)
+                                : Color.secondary.opacity(0.05)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(
+                                    state.selectedProtocol == proto ? Color.accentColor : Color.secondary.opacity(0.2),
+                                    lineWidth: state.selectedProtocol == proto ? 2 : 1
+                                )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    .buttonStyle(.plain)
                 }
-                .pickerStyle(.radioGroup)
-                .labelsHidden()
             }
+            .padding()
         }
-        .formStyle(.grouped)
-        .padding()
     }
 }

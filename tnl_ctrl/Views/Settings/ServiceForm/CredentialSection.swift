@@ -10,6 +10,7 @@ struct CredentialSection: View {
     let placeholder: String
     @Binding var value: String
     var isRequired = true
+    var showGenerateButton = false
     @State private var isRevealed = false
 
     var body: some View {
@@ -24,6 +25,18 @@ struct CredentialSection: View {
                     }
                 }
                 .labelsHidden()
+
+                if showGenerateButton {
+                    Button {
+                        value = UUID().uuidString
+                        isRevealed = true
+                    } label: {
+                        Image(systemName: "dice")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Generate random UUID")
+                }
 
                 Button {
                     isRevealed.toggle()

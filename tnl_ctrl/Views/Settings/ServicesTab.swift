@@ -36,7 +36,7 @@ struct ServicesTab: View {
                 .environment(appState)
         }
         .sheet(isPresented: $showingCreateSheet) {
-            ServiceEditSheet()
+            ServiceCreateSheet()
                 .environment(appState)
         }
         .sheet(item: $serverForNewService) { server in
@@ -83,30 +83,32 @@ struct ServicesTab: View {
                 .foregroundStyle(.secondary)
             Text("No Services")
                 .font(.title2)
-            Text("Deploy a service to a server.")
+            Text("Add a service manually or deploy one to a server.")
                 .foregroundStyle(.secondary)
-            HStack(spacing: 12) {
+
+            Menu {
                 Button("New Service...") {
                     showingCreateSheet = true
                 }
-                .buttonStyle(.bordered)
 
-                if appState.servers.isEmpty {
-                    Button("Add Server...") {
-                        showingAddServerSheet = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                } else {
-                    Menu("Deploy Service...") {
-                        ForEach(appState.servers) { server in
-                            Button("to \(server.name)") {
-                                serverForNewService = server
-                            }
+                if !appState.servers.isEmpty {
+                    Divider()
+                    ForEach(appState.servers) { server in
+                        Button("Deploy to \(server.name)...") {
+                            serverForNewService = server
                         }
                     }
-                    .buttonStyle(.borderedProminent)
                 }
+
+                Divider()
+
+                Button("Add Server...") {
+                    showingAddServerSheet = true
+                }
+            } label: {
+                Text("Add...")
             }
+            .buttonStyle(.borderedProminent)
         }
         .padding()
     }
@@ -148,20 +150,19 @@ struct ServicesTab: View {
                     showingCreateSheet = true
                 }
 
+                if !appState.servers.isEmpty {
+                    Divider()
+                    ForEach(appState.servers) { server in
+                        Button("Deploy to \(server.name)...") {
+                            serverForNewService = server
+                        }
+                    }
+                }
+
                 Divider()
 
                 Button("Add Server...") {
                     showingAddServerSheet = true
-                }
-                if !appState.servers.isEmpty {
-                    Divider()
-                    Menu("Deploy Service...") {
-                        ForEach(appState.servers) { server in
-                            Button("to \(server.name)") {
-                                serverForNewService = server
-                            }
-                        }
-                    }
                 }
             } label: {
                 Text("Add...")
