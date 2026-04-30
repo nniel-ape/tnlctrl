@@ -1,0 +1,385 @@
+# Bootstrap playbook for VPN/proxy VPS
+# Usage: spot -p ops/bootstrap.yml -t IP -k ~/.ssh/id_tunnel -e SSH_PUBKEY:~/.ssh/id_rsa.pub
+# Example: spot -p ops/bootstrap.yml -t 192.168.1.100 -k ~/.ssh/id_tunnel -e SSH_PUBKEY:~/.ssh/id_rsa.pub
+# Options: -e SSH_PORT:2222 -e EXTRA_PORTS:"8080/tcp,9090/tcp" -e TIMEZONE:Europe/Berlin
+
+user: root
+
+tasks:
+  - name: create-tunnel-user
+    commands:
+      - name: create tunnel user
+        script: |
+          if ! id tunnel >/dev/null 2>&1; then
+            /usr/sbin/useradd -m -s /bin/bash tunnel || { echo "useradd failed"; exit 1; }
+          fi
+          mkdir -p /home/tunnel/.ssh
+          chmod 700 /home/tunnel/.ssh
+          usermod -aG sudo tunnel
+          echo "tunnel ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/tunnel
+          chmod 440 /etc/sudoers.d/tunnel
+          id tunnel
+          echo "Tunnel user created"
+      - name: copy ssh pubkey
+        copy: {src: "{SSH_PUBKEY}", dst: "/home/tunnel/.ssh/authorized_keys", mkdir: true}
+      - name: fix ssh key permissions
+        script: |
+          chmod 600 /home/tunnel/.ssh/authorized_keys
+          chown -R tunnel:tunnel /home/tunnel
+          echo "SSH key configured"
+
+  - name: harden-ssh
+    commands:
+      - name: configure sshd
+        script: |
+          # Set SSH port
+          SSH_PORT=${SSH_PORT:-22}
+          if [ "$SSH_PORT" != "22" ]; then
+            sed -i "s/^#\?Port.*/Port $SSH_PORT/" /etc/ssh/sshd_config
+          fi
+          # Basic auth hardening
+          sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+          sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+          sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+          sed -i 's/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
+          # Limit auth attempts
+          sed -i 's/^#\?MaxAuthTries.*/MaxAuthTries 3/' /etc/ssh/sshd_config
+          # Disconnect idle sessions (5min)
+          sed -i 's/^#\?ClientAliveInterval.*/ClientAliveInterval 300/' /etc/ssh/sshd_config
+          sed -i 's/^#\?ClientAliveCountMax.*/ClientAliveCountMax 2/' /etc/ssh/sshd_config
+          # Whitelist only tunnel user
+          grep -q "^AllowUsers" /etc/ssh/sshd_config && \
+            sed -i 's/^AllowUsers.*/AllowUsers tunnel/' /etc/ssh/sshd_config || \
+            echo "AllowUsers tunnel" >> /etc/ssh/sshd_config
+          # Reduce login grace time
+          sed -i 's/^#\?LoginGraceTime.*/LoginGraceTime 60/' /etc/ssh/sshd_config
+          # Disable X11 forwarding
+          sed -i 's/^#\?X11Forwarding.*/X11Forwarding no/' /etc/ssh/sshd_config
+          # Override cloud-init SSH config if present
+          if [ -d /etc/ssh/sshd_config.d ]; then
+            for f in /etc/ssh/sshd_config.d/*.conf; do
+              [ -f "$f" ] && sed -i 's/^PasswordAuthentication.*/PasswordAuthentication no/' "$f"
+            done
+          fi
+          # Verify config
+          sshd -t && echo "SSH config valid"
+      # sshd restart deferred to verify task (root must stay connected for remaining tasks)
+
+  - name: setup-firewall
+    commands:
+      - name: install and configure ufw
+        script: |
+          apt-get update -qq
+          apt-get install -y -qq ufw
+          ufw default deny incoming
+          ufw default allow outgoing
+          # SSH
+          ufw allow ${SSH_PORT:-22}/tcp comment 'SSH'
+          # VLESS, VMess, Trojan, Hysteria2 (TLS/TCP)
+          ufw allow 443/tcp comment 'VLESS/VMess/Trojan/Hysteria2'
+          # Hysteria2 (QUIC/UDP)
+          ufw allow 443/udp comment 'Hysteria2-QUIC'
+          # Shadowsocks
+          ufw allow 8388/tcp comment 'Shadowsocks-TCP'
+          ufw allow 8388/udp comment 'Shadowsocks-UDP'
+          # WireGuard
+          ufw allow 51820/udp comment 'WireGuard'
+          ufw allow 51821/tcp comment 'WireGuard-WebUI'
+          # Extra ports
+          if [ -n "${EXTRA_PORTS:-}" ]; then
+            echo "${EXTRA_PORTS}" | tr ',' '\n' | while read -r port_spec; do
+              port_spec=$(echo "$port_spec" | xargs)
+              [ -n "$port_spec" ] && ufw allow $port_spec comment 'Custom'
+            done
+          fi
+          echo "y" | ufw enable
+          ufw status verbose
+
+  - name: setup-fail2ban
+    commands:
+      - name: install and configure fail2ban
+        script: |
+          apt-get install -y -qq fail2ban
+          SSH_PORT=${SSH_PORT:-22}
+          cat > /etc/fail2ban/jail.local << JAIL
+          [DEFAULT]
+          bantime = 24h
+          findtime = 10m
+          maxretry = 3
+          banaction = ufw
+
+          [sshd]
+          enabled = true
+          port = $SSH_PORT
+          filter = sshd
+          logpath = /var/log/auth.log
+          maxretry = 3
+          bantime = 24h
+
+          [sshd-ddos]
+          enabled = true
+          port = $SSH_PORT
+          filter = sshd-ddos
+          logpath = /var/log/auth.log
+          maxretry = 5
+          bantime = 48h
+          JAIL
+          systemctl enable fail2ban
+          systemctl restart fail2ban
+          fail2ban-client status sshd || true
+
+  - name: kernel-tuning
+    commands:
+      - name: configure sysctl for vpn/tunnel
+        script: |
+          cat > /etc/sysctl.d/99-tnlctrl.conf << 'SYSCTL'
+          # Security hardening
+          net.ipv4.tcp_syncookies = 1
+          net.ipv4.conf.all.rp_filter = 1
+          net.ipv4.conf.default.rp_filter = 1
+          net.ipv4.conf.all.accept_redirects = 0
+          net.ipv4.conf.default.accept_redirects = 0
+          net.ipv4.conf.all.send_redirects = 0
+          net.ipv4.conf.all.accept_source_route = 0
+          net.ipv4.conf.default.accept_source_route = 0
+          net.ipv4.icmp_echo_ignore_broadcasts = 1
+          net.ipv4.icmp_ignore_bogus_error_responses = 1
+          fs.protected_hardlinks = 1
+          fs.protected_symlinks = 1
+          fs.suid_dumpable = 0
+
+          # IP forwarding (WireGuard, Hysteria2 host networking)
+          net.ipv4.ip_forward = 1
+          net.ipv6.conf.all.forwarding = 1
+
+          # BBR congestion control
+          net.core.default_qdisc = fq
+          net.ipv4.tcp_congestion_control = bbr
+
+          # TCP buffer sizes (high-bandwidth tunnel)
+          net.core.rmem_max = 16777216
+          net.core.wmem_max = 16777216
+          net.ipv4.tcp_rmem = 4096 87380 16777216
+          net.ipv4.tcp_wmem = 4096 65536 16777216
+
+          # TCP Fast Open (reduce TLS handshake latency)
+          net.ipv4.tcp_fastopen = 3
+
+          # Connection tracking (Docker + many tunnel connections)
+          net.netfilter.nf_conntrack_max = 131072
+
+          # Socket backlog (handle connection bursts)
+          net.core.somaxconn = 4096
+          net.core.netdev_max_backlog = 4096
+
+          # TIME_WAIT optimization (many short-lived tunnel connections)
+          net.ipv4.tcp_max_tw_buckets = 32768
+          net.ipv4.tcp_fin_timeout = 15
+          SYSCTL
+          sysctl -p /etc/sysctl.d/99-tnlctrl.conf
+          echo "Kernel tuning applied"
+      - name: load bbr module
+        script: |
+          modprobe tcp_bbr 2>/dev/null || true
+          if ! grep -q "tcp_bbr" /etc/modules-load.d/bbr.conf 2>/dev/null; then
+            echo "tcp_bbr" > /etc/modules-load.d/bbr.conf
+          fi
+          echo "BBR module loaded"
+      - name: configure file descriptor limits
+        script: |
+          cat > /etc/security/limits.d/99-tnlctrl.conf << 'LIMITS'
+          * soft nofile 65536
+          * hard nofile 65536
+          root soft nofile 65536
+          root hard nofile 65536
+          LIMITS
+          mkdir -p /etc/systemd/system.conf.d
+          cat > /etc/systemd/system.conf.d/limits.conf << 'CONF'
+          [Manager]
+          DefaultLimitNOFILE=65536
+          CONF
+          systemctl daemon-reload
+          echo "File descriptor limits configured"
+
+  - name: shm-hardening
+    commands:
+      - name: secure shared memory
+        script: |
+          if ! grep -q "/run/shm" /etc/fstab; then
+            echo "tmpfs /run/shm tmpfs defaults,noexec,nosuid,nodev 0 0" >> /etc/fstab
+          fi
+          mount -o remount /run/shm 2>/dev/null || true
+          echo "Shared memory hardened"
+
+  - name: install-docker
+    commands:
+      - name: install docker ce
+        script: |
+          # Remove old versions
+          apt-get remove -y -qq docker docker-engine docker.io containerd runc 2>/dev/null || true
+          # Install prerequisites
+          apt-get install -y -qq ca-certificates curl gnupg
+          # Add Docker's official GPG key
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          chmod a+r /etc/apt/keyrings/docker.gpg
+          # Add repository
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+          # Install Docker
+          apt-get update -qq
+          apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+          # Add tunnel user to docker group
+          usermod -aG docker tunnel
+          # Enable and start
+          systemctl enable docker
+          systemctl start docker
+          docker --version
+          docker compose version
+      - name: configure docker daemon
+        script: |
+          cat > /etc/docker/daemon.json << 'DAEMON'
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "10m",
+              "max-file": "3"
+            },
+            "default-ulimits": {
+              "nofile": {
+                "Name": "nofile",
+                "Hard": 65536,
+                "Soft": 65536
+              }
+            },
+            "live-restore": true
+          }
+          DAEMON
+          systemctl restart docker
+          echo "Docker daemon configured"
+
+  - name: system-config
+    commands:
+      - name: configure timezone and locale
+        script: |
+          timedatectl set-timezone ${TIMEZONE:-UTC}
+          apt-get install -y -qq locales
+          locale-gen en_US.UTF-8
+          update-locale LANG=en_US.UTF-8
+      - name: install openssl
+        script: |
+          apt-get install -y -qq openssl
+          openssl version
+      - name: setup unattended upgrades
+        script: |
+          apt-get install -y -qq unattended-upgrades apt-listchanges
+          cat > /etc/apt/apt.conf.d/20auto-upgrades << 'CONF'
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+          APT::Periodic::AutocleanInterval "7";
+          CONF
+          cat > /etc/apt/apt.conf.d/50unattended-upgrades << 'CONF'
+          Unattended-Upgrade::Allowed-Origins {
+              "${distro_id}:${distro_codename}-security";
+          };
+          Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+          Unattended-Upgrade::Remove-Unused-Dependencies "true";
+          CONF
+          systemctl enable unattended-upgrades
+      - name: remove unnecessary services
+        script: |
+          systemctl disable --now snapd.socket snapd 2>/dev/null || true
+          apt-get purge -y -qq telnet rsh-client 2>/dev/null || true
+          echo "Unnecessary services removed"
+
+  - name: verify
+    commands:
+      - name: verify tnlctrl readiness
+        script: |
+          echo "=== tnlctrl VPS Bootstrap Verification ==="
+          ERRORS=0
+
+          # Proxy user
+          echo ""
+          echo "--- Proxy User ---"
+          id tunnel
+          if su - tunnel -c "docker ps" >/dev/null 2>&1; then
+            echo "OK: tunnel user can run docker"
+          else
+            echo "FAIL: tunnel user cannot run docker"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Docker
+          echo ""
+          echo "--- Docker ---"
+          echo "Docker: $(docker --version)"
+          echo "Compose: $(docker compose version)"
+
+          # OpenSSL
+          echo ""
+          echo "--- OpenSSL ---"
+          if command -v openssl >/dev/null 2>&1; then
+            openssl version
+            echo "OK: openssl available"
+          else
+            echo "FAIL: openssl not found"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # UFW
+          echo ""
+          echo "--- UFW Status ---"
+          ufw status
+
+          # Port rules
+          echo ""
+          echo "--- Port Rules ---"
+          for port in "443/tcp" "443/udp" "8388/tcp" "8388/udp" "51820/udp" "51821/tcp"; do
+            if ufw status | grep -q "$port"; then
+              echo "OK: $port open"
+            else
+              echo "FAIL: $port not in UFW rules"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          # Kernel tuning
+          echo ""
+          echo "--- Kernel Tuning ---"
+          echo "IP forwarding: $(sysctl -n net.ipv4.ip_forward)"
+          echo "BBR: $(sysctl -n net.ipv4.tcp_congestion_control)"
+          echo "TCP Fast Open: $(sysctl -n net.ipv4.tcp_fastopen)"
+
+          if [ "$(sysctl -n net.ipv4.ip_forward)" != "1" ]; then
+            echo "FAIL: IP forwarding not enabled"
+            ERRORS=$((ERRORS + 1))
+          fi
+          if [ "$(sysctl -n net.ipv4.tcp_congestion_control)" != "bbr" ]; then
+            echo "FAIL: BBR not active"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Fail2ban
+          echo ""
+          echo "--- Fail2ban ---"
+          fail2ban-client status sshd || echo "fail2ban not yet active"
+
+          # SSH hardening
+          echo ""
+          echo "--- SSH Hardening ---"
+          sshd -T 2>/dev/null | grep -E 'permitrootlogin|passwordauthentication|allowusers' || true
+
+          # Summary
+          echo ""
+          echo "==================================="
+          if [ $ERRORS -eq 0 ]; then
+            echo "All checks passed. Server is ready for tnlctrl."
+          else
+            echo "WARNING: $ERRORS check(s) failed. Review output above."
+          fi
+          echo "Connect as: ssh tunnel@$(hostname -I | awk '{print $1}')"
+          echo "==================================="
+
+          # Apply SSH hardening (restarts sshd — root login disabled after this)
+          systemctl restart ssh
+          echo "SSH restarted. Root login is now disabled."

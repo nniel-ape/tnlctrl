@@ -1,0 +1,29 @@
+# Add firewall ports to a VPS
+# Usage: spot -p ops/add-ports.yml -t IP -k ~/.ssh/id_tunnel -e PORTS:"8080/tcp,9090/udp"
+# Example: spot -p ops/add-ports.yml -t 217.177.11.232 -k ~/.ssh/id_tunnel -e PORTS:"8443/tcp,2053/tcp"
+
+user: tunnel
+
+tasks:
+  - name: add-ports
+    commands:
+      - name: open ports in ufw
+        script: |
+          if [ -z "${PORTS:-}" ]; then
+            echo "ERROR: PORTS variable is required (e.g. -e PORTS:\"8080/tcp,9090/udp\")"
+            exit 1
+          fi
+          echo "${PORTS}" | tr ',' '\n' | while read -r port_spec; do
+            port_spec=$(echo "$port_spec" | xargs)
+            if [ -n "$port_spec" ]; then
+              sudo ufw allow $port_spec comment 'Custom'
+              echo "Added: $port_spec"
+            fi
+          done
+
+  - name: verify
+    commands:
+      - name: show ufw status
+        script: |
+          echo "=== UFW Status ==="
+          sudo ufw status numbered
