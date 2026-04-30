@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ServicesTab: View {
     @Environment(AppState.self) private var appState
@@ -11,11 +12,13 @@ struct ServicesTab: View {
     @State private var editingService: Service?
     @State private var showingCreateSheet = false
     @State private var showingAddServerSheet = false
+    @State private var showingImportLinkSheet = false
     @State private var serverForNewService: Server?
     @State private var pingAllTask: Task<Void, Never>?
     @State private var servicesToDelete: [Service] = []
     @State private var createdServices: [Service] = []
     @State private var importedServices: [Service] = []
+    @State private var fileImportResults: (results: [LinkParser.ParseResult], errors: [String])?
     private let latencyTester = LatencyTester.shared
 
     var body: some View {
@@ -47,6 +50,29 @@ struct ServicesTab: View {
                 usedContainerNames: Set(server.containerIds)
             )
             .environment(appState)
+        }
+        .sheet(isPresented: $showingImportLinkSheet) {
+            ImportLinkSheet()
+                .environment(appState)
+        }
+        .confirmationDialog(
+            "Import Services",
+            isPresented: Binding(
+                get: { fileImportResults != nil },
+                set: { if !$0 { fileImportResults = nil } }
+            )
+        ) {
+            if let results = fileImportResults {
+                Button("Import \(results.results.count) Service(s)") {
+                    Task {
+                        await applyFileImport(results: results)
+                    }
+                }
+            }
+        } message: {
+            if let results = fileImportResults {
+                Text(fileImportMessage(for: results))
+            }
         }
         .onAppear { recomputeServiceSections() }
         .onChange(of: appState.services) { _, _ in recomputeServiceSections() }
@@ -98,6 +124,15 @@ struct ServicesTab: View {
                             serverForNewService = server
                         }
                     }
+                }
+
+                Divider()
+
+                Button("Import from Link...") {
+                    showingImportLinkSheet = true
+                }
+                Button("Import from File...") {
+                    performImportFromFile()
                 }
 
                 Divider()
@@ -157,6 +192,15 @@ struct ServicesTab: View {
                             serverForNewService = server
                         }
                     }
+                }
+
+                Divider()
+
+                Button("Import from Link...") {
+                    showingImportLinkSheet = true
+                }
+                Button("Import from File...") {
+                    performImportFromFile()
                 }
 
                 Divider()
@@ -357,5 +401,79 @@ struct ServicesTab: View {
         for index in offsets {
             Task { await appState.deleteService(imported[index]) }
         }
+    }
+
+    // MARK: - Import from File
+
+    private func performImportFromFile() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.plainText, .text]
+        panel.message = "Select a file containing share links (one per line)"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            let content = try String(contentsOf: url, encoding: .utf8)
+            let results = LinkParser.parseBatch(content)
+
+            if results.results.isEmpty {
+                let alert = NSAlert()
+                alert.messageText = "No Valid Links Found"
+                alert.informativeText = "The selected file does not contain any recognisable proxy share links."
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            } else {
+                fileImportResults = results
+            }
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Failed to Read File"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+
+    private func applyFileImport(results: (results: [LinkParser.ParseResult], errors: [String])) async {
+        for result in results.results {
+            var service = result.service
+
+            if let credential = result.credential, !credential.isEmpty {
+                do {
+                    let ref = KeychainManager.shared.generateCredentialRef()
+                    try await KeychainManager.shared.save(credential, for: ref)
+                    service.credentialRef = ref
+                } catch {
+                    // Keychain save failed — still import the service
+                }
+            }
+
+            appState.addService(service)
+        }
+
+        fileImportResults = nil
+    }
+
+    private func fileImportMessage(for results: (results: [LinkParser.ParseResult], errors: [String])) -> String {
+        var counts: [String: Int] = [:]
+        for result in results.results {
+            let name = result.service.protocol.displayName
+            counts[name, default: 0] += 1
+        }
+        let protocolCounts = counts
+            .map { "\($0.value) \($0.key)" }
+            .sorted()
+            .joined(separator: ", ")
+
+        var message = "Found \(results.results.count) valid service(s): \(protocolCounts)."
+        if !results.errors.isEmpty {
+            message += " \(results.errors.count) line(s) skipped."
+        }
+        return message
     }
 }
