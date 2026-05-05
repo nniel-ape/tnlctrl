@@ -849,6 +849,10 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         XCTAssertNotNil(chainOutbound)
         XCTAssertEqual(chainOutbound?["type"] as? String, "selector")
 
+        // Should have chain-hop outbounds
+        XCTAssertNotNil(findOutbound(in: outbounds, tag: "chain-hop-0"))
+        XCTAssertNotNil(findOutbound(in: outbounds, tag: "chain-hop-1"))
+
         // Route final should be chain
         let route = try XCTUnwrap(parsedConfig["route"] as? [String: Any])
         XCTAssertEqual(route["final"] as? String, "chain")
@@ -882,15 +886,82 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         let parsedConfig = try parseJSON(json)
         let outbounds = try XCTUnwrap(parsedConfig["outbounds"] as? [[String: Any]])
 
-        // First service in chain should have detour to second
-        let firstOutbound = outbounds.first {
+        // chain-hop-0 should have detour to chain-hop-1
+        let firstHop = try XCTUnwrap(findOutbound(in: outbounds, tag: "chain-hop-0"))
+        XCTAssertEqual(firstHop["detour"] as? String, "chain-hop-1")
+
+        // chain-hop-1 should have no detour (last hop)
+        let secondHop = try XCTUnwrap(findOutbound(in: outbounds, tag: "chain-hop-1"))
+        XCTAssertNil(secondHop["detour"])
+
+        // Original service outbounds should NOT have detour
+        let service1Outbound = try XCTUnwrap(outbounds.first {
             ($0["tag"] as? String)?.lowercased() == service1.id.uuidString.lowercased()
-        }
-        XCTAssertNotNil(firstOutbound)
-        XCTAssertEqual(
-            firstOutbound?["detour"] as? String,
-            service2.id.uuidString.lowercased()
+        })
+        XCTAssertNil(service1Outbound["detour"], "Service outbound should not have detour — only chain-hop outbounds do")
+    }
+
+    func testBuildChainWithThreeServices() async throws {
+        await mockKeychain.preloadCredential("uuid1", ref: "cred-1")
+        await mockKeychain.preloadCredential("uuid2", ref: "cred-2")
+        await mockKeychain.preloadCredential("uuid3", ref: "cred-3")
+
+        let service1 = Service(
+            name: "Entry",
+            protocol: .vless,
+            server: "entry.example.com",
+            port: 443,
+            credentialRef: "cred-1",
+            settings: ["tls": .bool(true)]
         )
+        let service2 = Service(
+            name: "Middle",
+            protocol: .vless,
+            server: "middle.example.com",
+            port: 443,
+            credentialRef: "cred-2",
+            settings: ["tls": .bool(true)]
+        )
+        let service3 = Service(
+            name: "Exit",
+            protocol: .trojan,
+            server: "exit.example.com",
+            port: 443,
+            credentialRef: "cred-3",
+            settings: ["sni": .string("exit.example.com"), "tls": .bool(true)]
+        )
+
+        let config = TunnelConfig(mode: .full, chainEnabled: true, chain: [service1.id, service2.id, service3.id], rules: [])
+        let builder = makeBuilder(services: [service1, service2, service3], config: config)
+
+        let json = try await builder.build()
+        let parsedConfig = try parseJSON(json)
+        let outbounds = try XCTUnwrap(parsedConfig["outbounds"] as? [[String: Any]])
+
+        // chain-hop-0 → chain-hop-1 → chain-hop-2
+        let hop0 = try XCTUnwrap(findOutbound(in: outbounds, tag: "chain-hop-0"))
+        XCTAssertEqual(hop0["detour"] as? String, "chain-hop-1")
+
+        let hop1 = try XCTUnwrap(findOutbound(in: outbounds, tag: "chain-hop-1"))
+        XCTAssertEqual(hop1["detour"] as? String, "chain-hop-2")
+
+        let hop2 = try XCTUnwrap(findOutbound(in: outbounds, tag: "chain-hop-2"))
+        XCTAssertNil(hop2["detour"])
+    }
+
+    func testBuildChainSelectorHasDefault() async throws {
+        await mockKeychain.preloadCredential("uuid1", ref: "cred-1")
+        let service = ConfigFixtures.makeVLESSService(credentialRef: "cred-1")
+
+        let config = TunnelConfig(mode: .full, chainEnabled: true, chain: [service.id], rules: [])
+        let builder = makeBuilder(services: [service], config: config)
+
+        let json = try await builder.build()
+        let parsedConfig = try parseJSON(json)
+        let outbounds = try XCTUnwrap(parsedConfig["outbounds"] as? [[String: Any]])
+
+        let chainOutbound = try XCTUnwrap(outbounds.first { ($0["tag"] as? String) == "chain" })
+        XCTAssertEqual(chainOutbound["default"] as? String, "chain-hop-0")
     }
 
     // MARK: - Multiple Services
@@ -992,7 +1063,7 @@ final class SingBoxConfigBuilderTests: XCTestCase {
         }
     }
 
-    func testBuildWithEmptyChainThrows() async throws {
+    func testBuildWithMissingChainServiceThrows() async throws {
         await mockKeychain.preloadCredential("uuid", ref: "cred")
         let service = ConfigFixtures.makeVLESSService(credentialRef: "cred")
 
@@ -1002,9 +1073,35 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         do {
             _ = try await builder.build()
-            XCTFail("Should throw error for empty chain")
-        } catch ConfigBuilderError.emptyChain {
+            XCTFail("Should throw error for missing chain service")
+        } catch ConfigBuilderError.missingChainService {
             // Expected error
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
+    func testBuildWithPartialMissingChainServiceThrows() async throws {
+        await mockKeychain.preloadCredential("uuid1", ref: "cred-1")
+        await mockKeychain.preloadCredential("uuid2", ref: "cred-2")
+
+        let service1 = ConfigFixtures.makeVLESSService(credentialRef: "cred-1")
+        let service2 = ConfigFixtures.makeVLESSService(credentialRef: "cred-2")
+
+        // Chain references existing service1, then a missing service, then existing service2
+        let config = TunnelConfig(
+            mode: .full,
+            chainEnabled: true,
+            chain: [service1.id, UUID(), service2.id],
+            rules: []
+        )
+        let builder = makeBuilder(services: [service1, service2], config: config)
+
+        do {
+            _ = try await builder.build()
+            XCTFail("Should throw error for partial missing chain service")
+        } catch let ConfigBuilderError.missingChainService(index) {
+            XCTAssertEqual(index, 2)
         } catch {
             XCTFail("Unexpected error type: \(error)")
         }
@@ -1791,6 +1888,6 @@ final class SingBoxConfigBuilderTests: XCTestCase {
 
         let tun = try XCTUnwrap(inbounds.first)
         let excludeIPs = try XCTUnwrap(tun["route_exclude_address"] as? [String])
-        XCTAssertTrue(excludeIPs.contains("2001:db8::1/32"))
+        XCTAssertTrue(excludeIPs.contains("2001:db8::1/128"))
     }
 }

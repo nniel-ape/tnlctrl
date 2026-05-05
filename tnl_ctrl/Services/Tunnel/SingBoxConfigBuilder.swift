@@ -89,7 +89,8 @@ struct SingBoxConfigBuilder {
 
         // Add proxy server IPs (skip domain names - they'll use auto_detect_interface)
         for service in services where isIPAddress(service.server) {
-            excludeIPs.append("\(service.server)/32")
+            let prefix = isIPv6Address(service.server) ? 128 : 32
+            excludeIPs.append("\(service.server)/\(prefix)")
         }
 
         var tun: [String: Any] = [
@@ -116,10 +117,38 @@ struct SingBoxConfigBuilder {
     private func buildOutbounds() async throws -> [[String: Any]] {
         var outbounds: [[String: Any]] = []
 
-        // Build chain outbound if chaining is enabled and configured
+        // Build chain outbounds if chaining is enabled and configured
+        // Chain-hop outbounds are separate from service outbounds so that
+        // detour doesn't affect the proxy selector (used by DNS)
         if tunnelConfig.chainEnabled, !tunnelConfig.chain.isEmpty {
-            let chainOutbound = try await buildChainOutbound()
-            outbounds.append(chainOutbound)
+            // Validate chain services exist
+            guard !tunnelConfig.chain.isEmpty else {
+                throw ConfigBuilderError.emptyChain
+            }
+            for (index, chainId) in tunnelConfig.chain.enumerated() {
+                guard services.contains(where: { $0.id == chainId }) else {
+                    throw ConfigBuilderError.missingChainService(index: index + 1)
+                }
+            }
+
+            // Chain selector
+            outbounds.append([
+                "tag": "chain",
+                "type": "selector",
+                "outbounds": ["chain-hop-0"],
+                "default": "chain-hop-0"
+            ])
+
+            // Build chain-hop outbounds with detour links
+            for (index, chainId) in tunnelConfig.chain.enumerated() {
+                let service = services.first { $0.id == chainId }!
+                var hop = try await buildServiceOutbound(service)
+                hop["tag"] = "chain-hop-\(index)"
+                if index + 1 < tunnelConfig.chain.count {
+                    hop["detour"] = "chain-hop-\(index + 1)"
+                }
+                outbounds.append(hop)
+            }
         }
 
         // Build proxy outbound (selector)
@@ -129,7 +158,7 @@ struct SingBoxConfigBuilder {
             outbounds.append(selector)
         }
 
-        // Build individual service outbounds
+        // Build individual service outbounds (no detour — used by proxy selector for DNS)
         for service in services {
             let outbound = try await buildServiceOutbound(service)
             outbounds.append(outbound)
@@ -140,25 +169,6 @@ struct SingBoxConfigBuilder {
         outbounds.append(["tag": "block", "type": "block"])
 
         return outbounds
-    }
-
-    private func buildChainOutbound() async throws -> [String: Any] {
-        // Build chain with detour references
-        let chainServices = tunnelConfig.chain.compactMap { chainId in
-            services.first { $0.id == chainId }
-        }
-
-        guard let firstService = chainServices.first else {
-            throw ConfigBuilderError.emptyChain
-        }
-
-        // Create chain outbound using first service with detour to next
-        // sing-box chains work by setting detour on each outbound
-        return [
-            "tag": "chain",
-            "type": "selector",
-            "outbounds": [firstService.id.uuidString.lowercased()]
-        ]
     }
 
     private func buildSelectorOutbound(services: [Service]) -> [String: Any] {
@@ -212,14 +222,6 @@ struct SingBoxConfigBuilder {
         // Add transport settings if present
         if let transportSettings = buildTransportSettings(service: service) {
             outbound["transport"] = transportSettings
-        }
-
-        // Add detour for chain (only when chaining is enabled)
-        if tunnelConfig.chainEnabled,
-           let detourIndex = tunnelConfig.chain.firstIndex(of: service.id),
-           detourIndex + 1 < tunnelConfig.chain.count {
-            let nextServiceId = tunnelConfig.chain[detourIndex + 1]
-            outbound["detour"] = nextServiceId.uuidString.lowercased()
         }
 
         return outbound
@@ -635,17 +637,17 @@ struct SingBoxConfigBuilder {
     // MARK: - Helpers
 
     private func isIPAddress(_ string: String) -> Bool {
-        // Check for IPv4
+        isIPv4Address(string) || isIPv6Address(string)
+    }
+
+    private func isIPv4Address(_ string: String) -> Bool {
         var sin = sockaddr_in()
-        if inet_pton(AF_INET, string, &sin.sin_addr) == 1 {
-            return true
-        }
-        // Check for IPv6
+        return inet_pton(AF_INET, string, &sin.sin_addr) == 1
+    }
+
+    private func isIPv6Address(_ string: String) -> Bool {
         var sin6 = sockaddr_in6()
-        if inet_pton(AF_INET6, string, &sin6.sin6_addr) == 1 {
-            return true
-        }
-        return false
+        return inet_pton(AF_INET6, string, &sin6.sin6_addr) == 1
     }
 
     // MARK: - Experimental
@@ -681,6 +683,7 @@ extension ProxyProtocol {
 enum ConfigBuilderError: LocalizedError {
     case serializationFailed
     case emptyChain
+    case missingChainService(index: Int)
     case credentialNotFound(String)
     case missingCredential(String, String)
 
@@ -690,6 +693,8 @@ enum ConfigBuilderError: LocalizedError {
             "Failed to serialize configuration to JSON"
         case .emptyChain:
             "Proxy chain contains no valid services"
+        case let .missingChainService(index):
+            "Chain service #\(index) no longer exists"
         case let .credentialNotFound(ref):
             "Credential not found in Keychain: \(ref)"
         case let .missingCredential(proto, name):
