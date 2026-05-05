@@ -100,10 +100,7 @@ struct SingBoxConfigBuilder {
             "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
             "mtu": 1400,
             "auto_route": true,
-            "strict_route": true,
-            "stack": "system",
-            "sniff": true,
-            "sniff_override_destination": false
+            "stack": "gvisor"
         ]
 
         // Exclude IPs from TUN routing to prevent loops
@@ -514,9 +511,6 @@ struct SingBoxConfigBuilder {
 
         // Build rules
         var rules: [[String: Any]] = []
-
-        // Enable protocol sniffing (sing-box 1.12+)
-        rules.append(["action": "sniff"])
 
         // Hijack DNS traffic for internal resolution (sing-box 1.12+)
         rules.append([
