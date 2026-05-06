@@ -53,18 +53,12 @@ jobs:
           curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" -o sparkle.tar.xz
           mkdir -p sparkle && tar xf sparkle.tar.xz -C sparkle
 
-      - name: Sign and generate appcast
+      - name: EdDSA sign update
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
-          mkdir -p release_artifacts
-          cp "tnl_ctrl-${{ steps.version.outputs.version }}-arm64.zip" release_artifacts/
-          echo "$SPARKLE_PRIVATE_KEY" > /tmp/sparkle_key
-          sparkle/bin/generate_appcast \
-            --ed-key-file /tmp/sparkle_key \
-            --download-url-prefix "https://github.com/nniel-ape/tnlctrl/releases/download/${{ github.ref_name }}/" \
-            release_artifacts/
-          rm -f /tmp/sparkle_key
+          SIGNATURE=$(sparkle/bin/sign_update --ed-key-file - < "tnl_ctrl-${{ steps.version.outputs.version }}-arm64.zip" <<<"$SPARKLE_PRIVATE_KEY")
+          echo "SPARKLE_SIGNATURE=$SIGNATURE" >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -72,12 +66,7 @@ jobs:
           name: tnl_ctrl ${{ steps.version.outputs.version }}
           generate_release_notes: true
           files: tnl_ctrl-${{ steps.version.outputs.version }}-arm64.zip
+          body: |
+            ${{ steps.version.outputs.version }}
 
-      - name: Update appcast in repo
-        run: |
-          cp release_artifacts/appcast.xml appcast.xml
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add appcast.xml
-          git commit -m "chore: update appcast for ${{ github.ref_name }}" || true
-          git push origin HEAD:main
+            **Sparkle EdDSA signature:** `${{ env.SPARKLE_SIGNATURE }}`
