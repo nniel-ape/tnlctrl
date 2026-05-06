@@ -57,7 +57,9 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
-          SIGNATURE=$(sparkle/bin/sign_update --ed-key-file - < "tnl_ctrl-${{ steps.version.outputs.version }}-arm64.zip" <<<"$SPARKLE_PRIVATE_KEY")
+          echo "$SPARKLE_PRIVATE_KEY" > /tmp/sparkle_key
+          SIGNATURE=$(sparkle/bin/sign_update --ed-key-file /tmp/sparkle_key "tnl_ctrl-${{ steps.version.outputs.version }}-arm64.zip")
+          rm -f /tmp/sparkle_key
           echo "SPARKLE_SIGNATURE=$SIGNATURE" >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
