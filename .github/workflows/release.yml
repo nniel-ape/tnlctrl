@@ -47,8 +47,9 @@ jobs:
           ditto -c -k --keepParent "build/Release/tnl_ctrl.app" "tnl_ctrl-${{ steps.version.outputs.version }}-arm64.zip"
 
       - name: Download Sparkle
+        env:
+          SPARKLE_VERSION: "2.9.1"
         run: |
-          SPARKLE_VERSION=$(curl -s https://api.github.com/repos/sparkle-project/Sparkle/releases/latest | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
           curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" -o sparkle.tar.xz
           mkdir -p sparkle && tar xf sparkle.tar.xz -C sparkle
 
